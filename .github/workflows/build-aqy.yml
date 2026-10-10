@@ -1,0 +1,64 @@
+name: Build Aiqiyi APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 1
+
+      - name: Setup JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          packages: 'platforms;android-36 build-tools;36.0.0 platform-tools cmake;3.22.1'
+
+      - name: Setup NDK
+        uses: nttld/setup-ndk@v1
+        id: setup-ndk
+        with:
+          ndk-version: r27b
+          add-to-path: true
+
+      - name: Configure local.properties
+        run: |
+          echo "sdk.dir=$ANDROID_HOME" > local.properties
+          echo "ndk.dir=$ANDROID_NDK_HOME" >> local.properties
+          cat local.properties
+
+      - name: Build Release APK
+        env:
+          ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
+        run: |
+          chmod +x gradlew
+          ./gradlew --no-daemon --parallel :TMessagesProj_App:assembleAfatRelease
+
+      - name: Locate outputs
+        run: |
+          mkdir -p out
+          find . -path ./.git -prune -o -name '*.apk' -type f -print 2>/dev/null | head -50
+          find . -path ./.git -prune -o -name '*.apk' -type f -exec cp {} out/ \; 2>/dev/null || true
+          ls -lah out/ || true
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: aqy-apk
+          path: out/*.apk
+          if-no-files-found: warn
+          retention-days: 7
