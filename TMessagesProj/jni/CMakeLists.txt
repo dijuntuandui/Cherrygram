@@ -182,7 +182,7 @@ target_include_directories(breakpad PUBLIC
 
 #voip
 include(${CMAKE_HOME_DIRECTORY}/voip/CMakeLists.txt)
-include(${CMAKE_HOME_DIRECTORY}/colorado/CMakeLists.txt)
+# [Aiqiyi] colorado removed: include(${CMAKE_HOME_DIRECTORY}/colorado/CMakeLists.txt)
 
 set(NATIVE_LIB "tmessages.49")
 
@@ -280,7 +280,7 @@ target_link_libraries(${NATIVE_LIB}
         EGL
         android
         OpenSLES
-        colorado
+#[Aiqiyi]        colorado
         cpufeatures
         breakpad)
 
