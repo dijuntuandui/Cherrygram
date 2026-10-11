@@ -159,6 +159,41 @@ public class CameraXController {
 
     }
 
+    /* === Aiqiyi: methods required by CherryZoomSliderView (stub impl) === */
+    private Runnable zoomSettledListener;
+    private volatile float currentZoomRatio = 1f;
+    private volatile float minZoomRatio = 1f;
+    private volatile float maxZoomRatio = 1f;
+
+    public float getZoomRatio() {
+        return currentZoomRatio;
+    }
+
+    public void setZoomRatio(float value) {
+        currentZoomRatio = value;
+        setZoom(value);
+    }
+
+    public void setOnZoomSettledListener(Runnable listener) {
+        this.zoomSettledListener = listener;
+    }
+
+    public boolean isCameraReady() {
+        return isInitiated();
+    }
+
+    public float getMinZoomRatio() {
+        return minZoomRatio;
+    }
+
+    public float getMaxZoomRatio() {
+        return maxZoomRatio;
+    }
+
+    public float[] getLensZoomBreakpoints() {
+        return null;
+    }
+
     public void setZoom(float value) {
 
     }
