@@ -148,9 +148,9 @@
 -keepattributes SourceFile,LineNumberTable
 -renamesourcefileattribute SourceFile
 -dontoptimize
--classobfuscationdictionary ../TMessagesProj_AppStandalone/build/tmp/dictionary/class_obfuscation_dictionary.txt
--obfuscationdictionary ../TMessagesProj_AppStandalone/build/tmp/dictionary/field_obfuscation_dictionary.txt
--packageobfuscationdictionary ../TMessagesProj_AppStandalone/build/tmp/dictionary/package_obfuscation_dictionary.txt
+# Aiqiyi: disabled (dictionary not generated in this build) -classobfuscationdictionary ../TMessagesProj_AppStandalone/build/tmp/dictionary/class_obfuscation_dictionary.txt
+# Aiqiyi: disabled (dictionary not generated in this build) -obfuscationdictionary ../TMessagesProj_AppStandalone/build/tmp/dictionary/field_obfuscation_dictionary.txt
+# Aiqiyi: disabled (dictionary not generated in this build) -packageobfuscationdictionary ../TMessagesProj_AppStandalone/build/tmp/dictionary/package_obfuscation_dictionary.txt
 
 -dontwarn com.google.j2objc.annotations.ReflectionSupport
 -dontwarn com.google.j2objc.annotations.RetainedWith
