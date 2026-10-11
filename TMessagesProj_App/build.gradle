@@ -65,16 +65,16 @@ android {
     signingConfigs {
         debug {
             storeFile file('../Your_Key.jks')
-            storePassword 'Your_Password'
-            keyAlias 'Your_Alias'
-            keyPassword 'Your_Password'
+            storePassword System.getenv('STORE_PASSWORD') ?: 'Your_Password'
+            keyAlias System.getenv('KEY_ALIAS') ?: 'Your_Alias'
+            keyPassword System.getenv('KEY_PASSWORD') ?: 'Your_Password'
         }
 
         release {
             storeFile file('../Your_Key.jks')
-            storePassword 'Your_Password'
-            keyAlias 'Your_Alias'
-            keyPassword 'Your_Password'
+            storePassword System.getenv('STORE_PASSWORD') ?: 'Your_Password'
+            keyAlias System.getenv('KEY_ALIAS') ?: 'Your_Alias'
+            keyPassword System.getenv('KEY_PASSWORD') ?: 'Your_Password'
         }
     }
 
