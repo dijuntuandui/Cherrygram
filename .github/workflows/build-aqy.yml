@@ -32,6 +32,8 @@ jobs:
         run: |
           echo "sdk.dir=$ANDROID_HOME" > local.properties
           cat local.properties
+          : > secrets_for_ci.env
+          echo "secrets_for_ci.env created (empty)
 
       - name: Build Release APK
         run: |
