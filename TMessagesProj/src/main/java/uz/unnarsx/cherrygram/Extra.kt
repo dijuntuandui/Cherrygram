@@ -37,16 +37,30 @@ object Extra {
     // https://developers.google.com/identity/sms-retriever/verify#computing_your_apps_hash_string
     const val SMS_HASH = ""
 
-    /** Integrity / fragment guard arrays (Aiqiyi build: empty => checks pass). */
+    /* ---------------------------------------------------------------
+     * Aiqiyi: integrity / fragment guard arrays.
+     * Upstream keeps the real (obfuscated) values private; for this
+     * self-signed build all checks are intended to pass, so empty
+     * arrays are sufficient.
+     * --------------------------------------------------------------- */
     val HASH_ARRAY: Array<String> = arrayOf("")
     val APP_ARRAY: Array<String> = arrayOf("")
     val SMS_ARRAY: Array<String> = arrayOf("")
+
+    val Name_Arr: Array<String> = arrayOf("")
+    val Name_Arr2: Array<String> = arrayOf("")
+    val Name_Arr3: Array<String> = arrayOf("")
+
+    val Name_ArrTwo: Array<String> = arrayOf("")
     val Name_ArrTwo1: Array<String> = arrayOf("")
     val Name_ArrTwo2: Array<String> = arrayOf("")
     val Name_ArrTwo3: Array<String> = arrayOf("")
     val Name_ArrTwo4: Array<String> = arrayOf("")
     val Name_ArrTwo5: Array<String> = arrayOf("")
     val Name_ArrTwo6: Array<String> = arrayOf("")
+
+    val XName_Arr: Array<String> = arrayOf("")
+    val XName_ArrTwo: Array<String> = arrayOf("")
 
     /** Donates links start */
     val FILE_NAME_HASH = arrayOf("")
@@ -64,6 +78,10 @@ object Extra {
         "Y3Vy", "cmVu", "Y3kt", "YXBp", "QGxh", "dGVz", "dC92",
         "MS9j", "dXJy", "ZW5j", "aWVz", "L3Rv", "bi5q", "c29u"
     )
+
+    /** Verification / blocked-content markers (Aiqiyi: empty). */
+    val VERIF_LOG: Array<String> = arrayOf()
+    val TG_BLOCKED_URL: Array<String> = arrayOf()
     /** Donates links finish */
 
     fun getRegistrationDate(fragment: BaseFragment?, userID: Long, chatId: Long): CharSequence {
