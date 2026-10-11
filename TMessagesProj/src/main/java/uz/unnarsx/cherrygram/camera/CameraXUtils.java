@@ -6,7 +6,6 @@
  *
  * Copyright github.com/arsLan4k1390, 2022-2026.
  */
-
 package uz.unnarsx.cherrygram.camera;
 
 public class CameraXUtils {
@@ -23,4 +22,8 @@ public class CameraXUtils {
         return true;
     }
 
+    /* === Aiqiyi: stub used by LaunchActivity on startup (preload sizes). === */
+    public static void loadCameraXSizes() {
+        /* no-op: stub implementation */
+    }
 }
