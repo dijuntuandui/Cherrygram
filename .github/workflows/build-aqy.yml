@@ -28,6 +28,13 @@ jobs:
         with:
           packages: 'platforms;android-36 build-tools;36.0.0 platform-tools cmake;3.22.1 ndk;27.3.13750724'
 
+      - name: Decode keystore
+        env:
+          KEYSTORE_B64: ${{ secrets.KEYSTORE_B64 }}
+        run: |
+          echo "$KEYSTORE_B64" | base64 -d > Your_Key.jks
+          ls -la Your_Key.jks
+
       - name: Configure local.properties
         run: |
           echo "sdk.dir=$ANDROID_HOME" > local.properties
@@ -36,6 +43,10 @@ jobs:
           echo "secrets_for_ci.env created (empty)"
 
       - name: Build Release APK
+        env:
+          STORE_PASSWORD: ${{ secrets.STORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: |
           chmod +x gradlew
           ./gradlew --no-daemon --parallel -Dorg.gradle.jvmargs=-Xmx6g :TMessagesProj_App:assembleAfatRelease
