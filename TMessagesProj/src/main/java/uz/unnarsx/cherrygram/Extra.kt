@@ -1,4 +1,4 @@
-/**
+/*
  * This is the source code of Cherrygram for Android.
  * It is licensed under GNU GPL v. 2 or later.
  * You should have received a copy of the license in this archive (see LICENSE).
@@ -6,7 +6,6 @@
  *
  * Copyright github.com/arsLan4k1390, 2022-2026.
  */
-
 package uz.unnarsx.cherrygram
 
 import android.app.Activity
@@ -27,31 +26,37 @@ import uz.unnarsx.cherrygram.helpers.UserHelper
 object Extra {
 
     // https://core.telegram.org/api/obtaining_api_id
-
-    fun getAppID() : Int {
+    fun getAppID(): Int {
         return 39125780
     }
 
-    fun getAppHash() : String {
+    fun getAppHash(): String {
         return "38e3ffabfbb8b3436e2bce6a6bb94e42"
     }
 
     // https://developers.google.com/identity/sms-retriever/verify#computing_your_apps_hash_string
     const val SMS_HASH = ""
 
+    /** Integrity / fragment guard arrays (Aiqiyi build: empty => checks pass). */
+    val HASH_ARRAY: Array<String> = arrayOf("")
+    val APP_ARRAY: Array<String> = arrayOf("")
+    val SMS_ARRAY: Array<String> = arrayOf("")
+    val Name_ArrTwo1: Array<String> = arrayOf("")
+    val Name_ArrTwo2: Array<String> = arrayOf("")
+    val Name_ArrTwo3: Array<String> = arrayOf("")
+    val Name_ArrTwo4: Array<String> = arrayOf("")
+    val Name_ArrTwo5: Array<String> = arrayOf("")
+    val Name_ArrTwo6: Array<String> = arrayOf("")
+
     /** Donates links start */
     val FILE_NAME_HASH = arrayOf("")
     val GITLAB_RAW_URL_HASH = arrayOf("")
-
     val FILE_NAME_MARKETPLACE_HASH = arrayOf("")
     val GITLAB_RAW_URL_MARKETPLACE_HASH = arrayOf("")
-
     val FILE_NAME_BLOCKED_HASH = arrayOf("")
     val GITLAB_RAW_URL_BLOCKED_HASH = arrayOf("")
-
     val FILE_NAME_BADGE_COLORS_HASH = arrayOf("")
     val GITLAB_RAW_URL_BADGE_COLORS_HASH = arrayOf("")
-
     val FILE_NAME_TON_RATE_HASH = arrayOf("dG9u", "X3Vz", "ZHRf", "cmF0", "ZS5q", "c29u")
     val TON_RATE_URL_HASH = arrayOf(
         "aHR0", "cHM6", "Ly9j", "ZG4u", "anNk", "ZWxp", "dnIu",
@@ -61,9 +66,8 @@ object Extra {
     )
     /** Donates links finish */
 
-    fun getRegistrationDate(fragment: BaseFragment?, userID: Long, chatId: Long) {
-        if (fragment == null) return
-
+    fun getRegistrationDate(fragment: BaseFragment?, userID: Long, chatId: Long): CharSequence {
+        if (fragment == null) return ""
         if (chatId != 0L) {
             val chat = fragment.messagesController?.getChat(chatId)
             if (chat != null) {
@@ -82,24 +86,20 @@ object Extra {
                         )
                     )
                 }
-
                 BulletinFactory.of(fragment.getLayoutContainer(), fragment.resourceProvider)
                     .createSimpleBulletin(R.raw.chats_infotip, date)
                     .setDuration(Bulletin.DURATION_PROLONG)
                     .show()
-
-                return
+                return date
             }
         }
-
         val regDateFromTelegram = fragment.messagesController?.getPeerSettings(userID)?.registration_month
         val finalRegDate = UserHelper.getUserTime(userID, regDateFromTelegram)
-
         BulletinFactory.of(fragment.layoutContainer, fragment.resourceProvider)
             .createSimpleBulletin(R.raw.chats_infotip, finalRegDate)
             .setDuration(Bulletin.DURATION_PROLONG)
             .show()
-
+        return finalRegDate
     }
 
     fun addBirthdayToCalendar(parentActivity: Activity, userId: Long) {
@@ -108,7 +108,6 @@ object Extra {
 
     fun getProfileDC(user: TLRPC.User?, chat: TLRPC.Chat?): StringBuilder {
         val sb = StringBuilder()
-
         val dcId: Int = if (chat?.photo != null && chat.photo.dc_id > 0) {
             chat.photo.dc_id
         } else if (user != null) {
@@ -123,7 +122,6 @@ object Extra {
         } else {
             0
         }
-
         if (dcId > 0) {
             sb.append("DC: ")
                 .append(dcId)
@@ -134,7 +132,6 @@ object Extra {
         } else {
             sb.append("DC: ").append(getString(R.string.NumberUnknown))
         }
-
         return sb
     }
 
