@@ -61,8 +61,8 @@ object Extra {
     )
     /** Donates links finish */
 
-    fun getRegistrationDate(fragment: BaseFragment?, userID: Long, chatId: Long) {
-        if (fragment == null) return
+    fun getRegistrationDate(fragment: BaseFragment?, userID: Long, chatId: Long): CharSequence {
+        if (fragment == null) return ""
 
         if (chatId != 0L) {
             val chat = fragment.messagesController?.getChat(chatId)
@@ -88,7 +88,7 @@ object Extra {
                     .setDuration(Bulletin.DURATION_PROLONG)
                     .show()
 
-                return
+                return date
             }
         }
 
@@ -99,6 +99,7 @@ object Extra {
             .createSimpleBulletin(R.raw.chats_infotip, finalRegDate)
             .setDuration(Bulletin.DURATION_PROLONG)
             .show()
+        return finalRegDate
 
     }
 
