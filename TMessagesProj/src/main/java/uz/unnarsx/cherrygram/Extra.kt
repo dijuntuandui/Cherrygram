@@ -29,11 +29,11 @@ object Extra {
     // https://core.telegram.org/api/obtaining_api_id
 
     fun getAppID() : Int {
-        return 12345678
+        return 39125780
     }
 
     fun getAppHash() : String {
-        return "abcdefg"
+        return "38e3ffabfbb8b3436e2bce6a6bb94e42"
     }
 
     // https://developers.google.com/identity/sms-retriever/verify#computing_your_apps_hash_string
