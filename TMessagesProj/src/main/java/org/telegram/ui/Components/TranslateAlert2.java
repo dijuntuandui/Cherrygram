@@ -88,6 +88,8 @@ import java.util.List;
 import java.util.Locale;
 
 import uz.unnarsx.cherrygram.core.configs.CherrygramAppearanceConfig;
+import uz.unnarsx.cherrygram.chats.gemini.GeminiSDKImplementation;
+import uz.unnarsx.cherrygram.core.configs.CherrygramMessagesConfig;
 
 public class TranslateAlert2 extends BottomSheet implements NotificationCenter.NotificationCenterDelegate {
 
@@ -634,6 +636,29 @@ public class TranslateAlert2 extends BottomSheet implements NotificationCenter.N
                         ioException.printStackTrace();
                     }
                     e.printStackTrace();
+
+                    // Aiqiyi: Google fallback failed -> try Gemini (if enabled and API key present)
+                    final String _text = text;
+                    final String _toLng = toLng;
+                    if (CherrygramMessagesConfig.INSTANCE.getAiqiyiTranslateBarAlways()) {
+                        GeminiSDKImplementation.translateForBar(_text, _toLng, translated -> {
+                            if (translated != null && !translated.isEmpty()) {
+                                if (done != null) done.run(translated, false);
+                            } else {
+                                try {
+                                    final boolean rateLimit = connection != null && connection.getResponseCode() == 429;
+                                    AndroidUtilities.runOnUIThread(() -> {
+                                        done.run(null, rateLimit);
+                                    });
+                                } catch (Exception e2) {
+                                    AndroidUtilities.runOnUIThread(() -> {
+                                        done.run(null, false);
+                                    });
+                                }
+                            }
+                        });
+                        return;
+                    }
 
                     try {
                         final boolean rateLimit = connection != null && connection.getResponseCode() == 429;

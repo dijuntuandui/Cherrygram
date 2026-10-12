@@ -49,6 +49,7 @@ import org.telegram.ui.ActionBar.BottomSheet;
 import org.telegram.ui.ActionBar.Theme;
 import org.telegram.ui.ChannelMonetizationLayout;
 import org.telegram.ui.ChatActivity;
+import uz.unnarsx.cherrygram.core.configs.CherrygramMessagesConfig;
 import org.telegram.ui.RestrictedLanguagesSelectActivity;
 import org.telegram.ui.Stories.recorder.ButtonWithCounterView;
 import org.telegram.ui.Stories.recorder.HintView2;
@@ -114,7 +115,7 @@ public class TranslateButton extends FrameLayout implements Theme.Colorable {
         menuView.setImageResource(R.drawable.msg_mini_customize);
         menuView.setOnClickListener(e -> {
             final TLRPC.Chat chat = MessagesController.getInstance(currentAccount).getChat(-dialogId);
-            if (UserConfig.getInstance(currentAccount).isPremium() || chat != null && chat.autotranslation) {
+            if (CherrygramMessagesConfig.INSTANCE.getAiqiyiTranslateBarAlways() || UserConfig.getInstance(currentAccount).isPremium() || chat != null && chat.autotranslation) {
                 onMenuClick();
             } else {
                 onCloseClick();

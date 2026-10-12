@@ -144,6 +144,8 @@ object CherrygramMessagesConfig {
     var translationKeyboardTarget by sharedPreferences.string("translationKeyboardTarget", "app")
     var translationTarget by sharedPreferences.string("translationTarget", "app")
     var translationTargetGemini by sharedPreferences.string("translationTargetGemini", LocaleController.getInstance().currentLocale.language)
+    /** Aiqiyi: keep the top translate bar always visible, bypass Premium */
+    var aiqiyiTranslateBarAlways by sharedPreferences.boolean("CG_AiqiyiTranslateBarAlways", true)
     /** Translator finish */
     /** Misc finish */
 

@@ -602,4 +602,6 @@
     <string name="AQY_CustomTitle_ResetDone">Default title restored</string>
     <string name="AQY_CustomTitle_Saved">Title saved</string>
     <string name="AQY_Optimization">Chat Enhancements</string>
+    <string name="AQY_TranslateBar">Always Show Translate Bar</string>
+    <string name="AQY_TranslateBar_Desc">Keep the translate bar pinned at the top of every chat, even without Premium</string>
 </resources>

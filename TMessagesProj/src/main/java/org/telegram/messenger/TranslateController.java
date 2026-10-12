@@ -38,6 +38,7 @@ import org.telegram.ui.Components.TranslateAlert2;
 import org.telegram.ui.LaunchActivity;
 import org.telegram.ui.PremiumPreviewFragment;
 import org.telegram.ui.RestrictedLanguagesSelectActivity;
+import uz.unnarsx.cherrygram.core.configs.CherrygramMessagesConfig;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -91,10 +92,13 @@ public class TranslateController extends BaseController {
     }
 
     public boolean isFeatureAvailable() {
-        return isChatTranslateEnabled() && UserConfig.getInstance(currentAccount).isPremium();
+        return CherrygramMessagesConfig.INSTANCE.getAiqiyiTranslateBarAlways() || isChatTranslateEnabled() && UserConfig.getInstance(currentAccount).isPremium();
     }
 
     public boolean isFeatureAvailable(long dialogId) {
+        if (CherrygramMessagesConfig.INSTANCE.getAiqiyiTranslateBarAlways()) {
+            return true;
+        }
         if (!isChatTranslateEnabled()) {
             return false;
         }
@@ -191,6 +195,9 @@ public class TranslateController extends BaseController {
     }
 
     public boolean isDialogTranslatable(long dialogId) {
+        if (CherrygramMessagesConfig.INSTANCE.getAiqiyiTranslateBarAlways()) {
+            return !DialogObject.isEncryptedDialog(dialogId) && getUserConfig().getClientUserId() != dialogId;
+        }
         return (
             translatableDialogs.contains(dialogId) &&
             isFeatureAvailable(dialogId) &&

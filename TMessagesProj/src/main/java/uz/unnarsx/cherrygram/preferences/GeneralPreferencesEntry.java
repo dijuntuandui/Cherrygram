@@ -67,6 +67,7 @@ public class GeneralPreferencesEntry extends BaseCGPreferencesEntry {
     private final int slowNetworkMode = 19;
 
     private final int aiqiyiCustomTitleRow = 20;
+    private final int aiqiyiTranslateBarRow = 21;
 
     private boolean expandedArchiveStoriesSection = false;
 
@@ -216,6 +217,10 @@ public class GeneralPreferencesEntry extends BaseCGPreferencesEntry {
         items.add(UItem.asShadow(null));
 
         items.add(UItem.asHeader(getString(R.string.AQY_Plugins)));
+        items.add(SettingsHelper.asSwitchCG(aiqiyiTranslateBarRow, getString(R.string.AQY_TranslateBar), getString(R.string.AQY_TranslateBar_Desc))
+                .setChecked(CherrygramMessagesConfig.INSTANCE.getAiqiyiTranslateBarAlways())
+                .slug("aiqiyi_translate_bar")
+        );
         items.add(SettingsHelper.asTextDetail(aiqiyiCustomTitleRow, 0, getString(R.string.AQY_CustomTitle), getCustomTitleText())
                 .slug("aiqiyi_custom_title")
         );
@@ -349,6 +354,9 @@ public class GeneralPreferencesEntry extends BaseCGPreferencesEntry {
             SettingsHelper.updateCheckState(view, CherrygramCoreConfig.INSTANCE.getSlowNetworkMode());
 
             showRestartBulletin();
+        } else if (item.id == aiqiyiTranslateBarRow) {
+            CherrygramMessagesConfig.INSTANCE.setAiqiyiTranslateBarAlways(!CherrygramMessagesConfig.INSTANCE.getAiqiyiTranslateBarAlways());
+            SettingsHelper.updateCheckState(view, CherrygramMessagesConfig.INSTANCE.getAiqiyiTranslateBarAlways());
         } else if (item.id == aiqiyiCustomTitleRow) {
             showCustomTitleDialog();
         }

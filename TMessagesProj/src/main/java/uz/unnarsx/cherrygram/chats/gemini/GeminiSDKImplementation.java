@@ -386,6 +386,70 @@ public class GeminiSDKImplementation {
         }
     }
 
+    /** Aiqiyi: lightweight translation that returns plain text (no UI), used as a fallback for the top translate bar. */
+    public interface TranslateBarCallback {
+        void onResult(String translated);
+    }
+
+    public static void translateForBar(CharSequence inputText, String toLangCode, TranslateBarCallback callback) {
+        if (callback == null) return;
+        if (inputText == null || inputText.length() == 0) {
+            AndroidUtilities.runOnUIThread(() -> callback.onResult(null));
+            return;
+        }
+        final String apiKey = CherrygramMessagesConfig.INSTANCE.getGeminiApiKey();
+        if (apiKey == null || apiKey.trim().isEmpty()) {
+            AndroidUtilities.runOnUIThread(() -> callback.onResult(null));
+            return;
+        }
+        try {
+            GenerationConfig.Builder configBuilder = new GenerationConfig.Builder();
+            configBuilder.temperature = (float) CherrygramMessagesConfig.INSTANCE.getGeminiTemperatureValue() / 10;
+            configBuilder.topK = 10;
+            configBuilder.topP = 0.5f;
+            configBuilder.maxOutputTokens = 4096;
+
+            ArrayList<SafetySetting> safetySettings = new ArrayList<>();
+            safetySettings.add(new SafetySetting(HarmCategory.HARASSMENT, BlockThreshold.NONE));
+            safetySettings.add(new SafetySetting(HarmCategory.HATE_SPEECH, BlockThreshold.NONE));
+            safetySettings.add(new SafetySetting(HarmCategory.SEXUALLY_EXPLICIT, BlockThreshold.NONE));
+            safetySettings.add(new SafetySetting(HarmCategory.DANGEROUS_CONTENT, BlockThreshold.NONE));
+
+            GenerativeModel gm = new GenerativeModel(
+                    CherrygramMessagesConfig.INSTANCE.getGeminiModelName(),
+                    apiKey,
+                    configBuilder.build(),
+                    safetySettings
+            );
+
+            String lang = capitalFirst(languageName(toLangCode));
+            String prompt = "You are a professional translator. Translate all input text into " + lang + ". " +
+                    "Do not add explanations or comments. Just return the translated text without any introduction or closing phrases. " +
+                    "Here is the text to translate into " + lang + ": " + inputText;
+
+            Content content = new Content.Builder().addText(prompt).build();
+            GenerativeModelFutures model = GenerativeModelFutures.from(gm);
+            ListenableFuture<GenerateContentResponse> response = model.generateContent(content);
+
+            Futures.addCallback(response, new FutureCallback<>() {
+                @Override
+                public void onSuccess(GenerateContentResponse result) {
+                    String resultText = result != null && result.getText() != null ? result.getText().strip() : null;
+                    AndroidUtilities.runOnUIThread(() -> callback.onResult(resultText));
+                }
+
+                @Override
+                public void onFailure(@NonNull Throwable t) {
+                    CherrygramLogger.e(t);
+                    AndroidUtilities.runOnUIThread(() -> callback.onResult(null));
+                }
+            }, ContextCompat.getMainExecutor(org.telegram.messenger.ApplicationLoader.applicationContext));
+        } catch (Exception e) {
+            CherrygramLogger.e(e);
+            AndroidUtilities.runOnUIThread(() -> callback.onResult(null));
+        }
+    }
+
     private static void showDownloadAlert(BaseFragment baseFragment) {
         AlertDialog.Builder builder = new AlertDialog.Builder(baseFragment.getParentActivity(), baseFragment.getResourceProvider());
         builder.setTitle(getString(R.string.CP_GeminiAI_Header));
