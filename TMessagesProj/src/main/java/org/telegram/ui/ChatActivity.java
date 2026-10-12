@@ -40435,7 +40435,7 @@ public class ChatActivity extends BaseFragment implements
                 BulletinFactory.of(ChatActivity.this).createDonatesBulletin(
                         document,
                         stringBuilder,
-                        LocaleController.getString(R.string.LearnMore),
+                        null, // [Aiqiyi] 不显示「了解更多」按钮
                         Bulletin.DURATION_PROLONG,
                         () -> CherrygramPreferencesNavigator.INSTANCE.createDonate(ChatActivity.this)
                 ).show();

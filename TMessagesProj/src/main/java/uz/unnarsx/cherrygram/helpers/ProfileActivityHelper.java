@@ -339,7 +339,18 @@ public class ProfileActivityHelper extends BaseController {
         if (emojiDocumentId != 0) {
             nameTextView[a].setRightDrawable2(profileActivity.getEmojiStatusDrawable(emojiDocumentId, false, showParticles, 22, a));
             nameTextView[a].setRightDrawableInside(true);
-            // [Aiqiyi] 移除点击徽章弹出的捐赠 Bulletin（含 LearnMore 按钮），不再引导至捐赠页
+            // [Aiqiyi] 保留主页捐赠气泡文案，但不带跳转入口
+            showDonatorHint(
+                    profileActivity,
+                    nameTextView,
+                    peerColor,
+                    avatarContainer2,
+                    extraHeight,
+                    currentExpandAnimatorValue,
+                    currentExpanAnimatorFracture,
+                    expandAnimatorValues,
+                    user
+            );
         }
     }
 
@@ -354,10 +365,7 @@ public class ProfileActivityHelper extends BaseController {
             float[] expandAnimatorValues,
             TLRPC.User user
     ) {
-        // [Aiqiyi] 原逻辑会显示一个可点击的捐赠提示条（点击跳转捐赠页）。
-        // 该方法的唯一调用点（徽章点击）已移除，此处直接返回，彻底断掉捐赠引导入口。
-        // 用非编译期常量条件，避免 "unreachable statement" 编译错误。
-        if (System.currentTimeMillis() > 0) return;
+        // [Aiqiyi] 保留主页捐赠气泡文案显示（原逻辑），但不带跳转入口
         if (user == null) return;
         if (avatarContainer2 == null) return;
         if (donatorHint != null) donatorHint.hide();
@@ -386,7 +394,8 @@ public class ProfileActivityHelper extends BaseController {
         donatorHint.setRoundingWithCornerEffect(false);
         donatorHint.setRounding(16);
         donatorHint.show();
-        donatorHint.setOnClickListener(v -> CherrygramPreferencesNavigator.INSTANCE.createDonate(fragment));
+        // [Aiqiyi] 去掉气泡点击跳转捐赠页，仅保留展示
+        donatorHint.setOnClickListener(null);
         if (extraHeight < dp(82)) {
             donatorHintVisible = false;
             donatorHint.setAlpha(0.0f);

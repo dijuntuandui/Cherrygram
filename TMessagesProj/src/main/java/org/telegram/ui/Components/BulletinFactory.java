@@ -1735,10 +1735,13 @@ public final class BulletinFactory {
         layout.textView.setText(text);
         layout.textView.setSingleLine(false);
         layout.textView.setMaxLines(3);
-        layout.setButton(new Bulletin.UndoButton(getContext(), true, resourcesProvider)
-                .setText(button)
-                .setUndoAction(onButtonClick)
-        );
+        // [Aiqiyi] button 为空时不再挂「了解更多」按钮，只保留文案气泡
+        if (!android.text.TextUtils.isEmpty(button)) {
+            layout.setButton(new Bulletin.UndoButton(getContext(), true, resourcesProvider)
+                    .setText(button)
+                    .setUndoAction(onButtonClick)
+            );
+        }
         return create(layout, duration);
     }
     /** Cherrygram finish */
