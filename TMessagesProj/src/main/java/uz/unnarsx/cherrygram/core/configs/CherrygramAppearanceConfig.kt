@@ -31,7 +31,6 @@ object CherrygramAppearanceConfig {
 
     /** 爱琦艺插件 - 自定义标题 */
     var customAppTitle by sharedPreferences.string("AP_CustomAppTitle", "")
-    fun getCustomAppTitle(): String = customAppTitle
     /** Header finish */
 
     /** Appearance start */
