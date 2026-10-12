@@ -467,4 +467,66 @@
     <string name="AQY_Optimization">聊天优化</string>
     <string name="AQY_TranslateBar">顶栏常驻翻译</string>
     <string name="AQY_TranslateBar_Desc">在每个聊天顶部常驻翻译条，无需会员</string>
+    <!-- ===== 补齐 zh-rCN 缺失条目 (2026-10-13) ===== -->
+    <!--CGP 页面描述-->
+    <string name="CGP_ADS">观看广告</string>
+    <string name="CGP_ADS_Advertiser">广告主：</string>
+    <string name="CGP_ADS_Click">点击广告以了解更多信息</string>
+    <string name="CGP_Appearance_Desc">应用外观与界面自定义</string>
+    <string name="CGP_BottomTabs_Desc">自定义、整理及重新排列主界面底部的选项卡</string>
+    <string name="CGP_Camera_Desc">相机与照片/视频拍摄设置</string>
+    <string name="CGP_Chats_Desc">聊天界面与消息设置</string>
+    <string name="CGP_Experimental_Desc">实验性、不稳定及开发中的应用功能</string>
+    <string name="CGP_Folders_Desc">文件夹外观设置、布局自定义，以及将文件夹栏移到底部</string>
+    <string name="CGP_General_Desc">与特定板块无关的主应用设置与功能</string>
+    <string name="CGP_MessagesProfiles_Desc">高级表情、ID/DC 信息，以及额外的个人资料与消息元素显示</string>
+    <string name="CGP_Messages_Desc">消息设置、操作菜单、外观与交互</string>
+    <string name="CGP_Privacy_Desc">隐私、聊天锁定与隐藏及数据保护设置</string>
+    <string name="CGP_ToBetaChannel">测试版</string>
+    <string name="CGP_ToOfftopicChat">闲聊群</string>
+    <!--CG 通用-->
+    <string name="CG_AddAccountWarning">同时使用 5 个或更多账号可能导致不稳定，尤其是在低端设备上（包括启动崩溃）。\n\n请自行承担风险。**爱琦艺不承担**任何账号丢失的责任。</string>
+    <string name="CG_AppName">爱琦艺</string>
+    <string name="CG_ChangePhoneNumber">Telegram 已**禁用第三方应用更换手机号**的功能。用户只能通过 Telegram 更换手机号。</string>
+    <string name="CG_CreateQR">创建二维码</string>
+    <string name="CG_DidNotGetTheCode">如果你没有在其他设备收到验证码，或者你没有在其他设备登录 Telegram，请使用官方 Telegram 应用接收验证码。\n\nTelegram 已**禁用第三方应用短信登录**功能。登录第三方应用的用户只能通过 Telegram 接收验证码。\n\n我们无法帮你解决此问题，如有登录相关问题，请联系 Telegram 客服。</string>
+    <string name="CG_DisableMotionPhotos">禁用动态照片</string>
+    <string name="CG_EnableMotionPhotos">启用动态照片</string>
+    <string name="CG_HiddenGifts">隐藏礼物</string>
+    <string name="CG_IgnoreMentions">忽略提及</string>
+    <string name="CG_IgnoreMentionsAutoRead">打开时自动已读</string>
+    <string name="CG_IgnoreMentionsAutoReadDesc">进入聊天时自动将提及标记为已读。</string>
+    <string name="CG_IgnoreMentionsDesc">禁用所选聊天中提及和回复的通知，并在聊天列表与会话内部隐藏提及徽章。</string>
+    <string name="CG_IgnoreMentionsIgnoredChats">已忽略的聊天</string>
+    <string name="CG_IgnoreMentions_Destination_Sure">将被忽略</string>
+    <string name="CG_LowMemoryWarning">内存不足警告</string>
+    <string name="CG_LowMemoryWarning_Desc">应用内存不足，请重启以确保稳定运行。</string>
+    <string name="CG_OpenOfficialApp">打开官方应用</string>
+    <!--CP 设置-->
+    <string name="CP_BottomBar">底栏</string>
+    <string name="CP_GeminiAI_Header">Gemini AI</string>
+    <string name="CP_IncludeMutedIn_FolderCounters">文件夹计数包含已静音的聊天</string>
+    <string name="CP_Message_Filtering_FullyHide">隐藏消息</string>
+    <string name="CP_Message_Filtering_FullyHide_Desc">完全隐藏被过滤的消息，而不是将文字藏在剧透效果下。</string>
+    <string name="CP_OpenLinksInIV">在即时查看中打开链接</string>
+    <string name="CP_ProfileHidePhoneNumbers">隐藏手机号</string>
+    <string name="CP_RecordInStereo">立体声录音</string>
+    <string name="CP_RecordInStereo_Desc">以立体声格式传输你的语音。\n\n**注意：** 如果接收方使用单耳耳机或免提扬声器，可能会听不清你的声音或遇到音频中断。</string>
+    <string name="CP_RecordMultiMic">多麦克风录音</string>
+    <string name="CP_RecordMultiMic_Desc">同时从设备所有麦克风录制音频，以获得更具空间感和细节的语音捕捉。</string>
+    <string name="CP_StrokeOnViews">反光效果</string>
+    <string name="CP_UnreadBadgeOnBackButton_IOS">iOS 风格计数</string>
+    <string name="CP_VoiceMessagesAutoPlay">语音消息自动播放</string>
+    <string name="CP_WideMessagesLayout">宽消息布局</string>
+    <string name="CP_WideMessagesLayout_Desc">在频道中扩展消息气泡。启用此选项时，宽消息附近的直接分享按钮将被隐藏。</string>
+    <string name="CP_Zoom_Hint">沿刻度拖动手指以展开完整的缩放滑块。</string>
+    <string name="CP_iOSMessageInputField">iOS 风格消息输入框</string>
+    <string name="CP_iOSMessageInputField_Desc">将附件图标移到左侧，并将按钮拆分为独立的气泡。</string>
+    <!--AP 外观-->
+    <string name="AP_CenterTitle_AdaptiveWidth">自适应气泡宽度</string>
+    <!--AS 支持-->
+    <string name="AS_DigitalGoods">数字商品</string>
+    <string name="AS_Header">其他支持方式</string>
+    <string name="AS_UsefulServices">实用服务</string>
+    <string name="AS_ZeroCost">零成本支持</string>
 </resources>
