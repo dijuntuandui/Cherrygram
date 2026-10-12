@@ -601,4 +601,5 @@
     <string name="AQY_CustomTitle_Reset">Reset to default</string>
     <string name="AQY_CustomTitle_ResetDone">Default title restored</string>
     <string name="AQY_CustomTitle_Saved">Title saved</string>
+    <string name="AQY_Optimization">Chat Enhancements</string>
 </resources>

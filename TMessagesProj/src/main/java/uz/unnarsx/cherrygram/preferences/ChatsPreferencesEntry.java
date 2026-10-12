@@ -42,7 +42,9 @@ import java.util.function.Supplier;
 
 import uz.unnarsx.cherrygram.chats.helpers.ChatsHelper2;
 import uz.unnarsx.cherrygram.core.VibrateUtil;
+import uz.unnarsx.cherrygram.core.configs.CherrygramAppearanceConfig;
 import uz.unnarsx.cherrygram.core.configs.CherrygramChatsConfig;
+import uz.unnarsx.cherrygram.core.configs.CherrygramMessagesConfig;
 import uz.unnarsx.cherrygram.core.firebase.FirebaseAnalyticsHelper;
 import uz.unnarsx.cherrygram.core.helpers.DeeplinkHelper;
 import uz.unnarsx.cherrygram.helpers.ui.PopupHelper;
@@ -73,6 +75,7 @@ public class ChatsPreferencesEntry extends BaseCGPreferencesEntry {
 
     private final int notificationSoundRow = 28, vibrateInChatsRow = 29;
 
+    private final int aqyBlurMsgMenuRow = 41, aqyCompactMsgMenuRow = 42, aqyMsgFilterRow = 43, aqyFoldersAtBottomRow = 44, aqyMsgFilterPageRow = 45;
     private boolean expandedHeaderSettingsSection = false;
     private boolean expandedBottomBarSettingsSection = false;
 
@@ -303,6 +306,36 @@ public class ChatsPreferencesEntry extends BaseCGPreferencesEntry {
         );
         items.add(UItem.asShadow(getString(R.string.CP_VibrateInChats_Desc)));
         items.add(UItem.asShadow(null));
+
+        items.add(UItem.asHeader(getString(R.string.AQY_Optimization)));
+        items.add(SettingsHelper.asSwitchCG(aqyBlurMsgMenuRow, getString(R.string.CP_BlurMessageMenu), getString(R.string.CP_BlurMessageMenu_Desc))
+                .setChecked(CherrygramMessagesConfig.INSTANCE.getBlurMessageMenuBackground())
+                .slug("aqyBlurMsgMenu")
+        );
+        items.add(SettingsHelper.asSwitchCG(aqyCompactMsgMenuRow, getString(R.string.CP_MessageMenuCompactLayout),
+                        getString(R.string.CP_MessageMenuCompactLayout_Desc) + "\n\n" + getString(R.string.CP_MessageMenuCompactLayout_Dot))
+                .setChecked(CherrygramMessagesConfig.INSTANCE.getMsgMenuItemsCompactView())
+                .slug("aqyCompactMsgMenu")
+        );
+        items.add(SettingsHelper.asSwitchCG(aqyMsgFilterRow, getString(R.string.CP_Message_Filtering_Filter), getString(R.string.CP_Message_Filtering_Filter_Desc))
+                .setChecked(CherrygramMessagesConfig.INSTANCE.getEnableMsgFilters())
+                .slug("aqyMsgFilter")
+        );
+        items.add(SettingsHelper.asSwitchCG(aqyFoldersAtBottomRow, getString(R.string.AP_FoldersAtBottom))
+                .setChecked(CherrygramAppearanceConfig.INSTANCE.getFoldersAtBottom())
+                .slug("aqyFoldersAtBottom")
+        );
+        items.add(
+                SettingsActivity.SettingCell.Factory.of(
+                        aqyMsgFilterPageRow, IconBackgroundColors.ORANGE.top, IconBackgroundColors.ORANGE.bottom,
+                        R.drawable.settings_message_filrers_filled_solar,
+                        getString(R.string.CP_Message_Filtering),
+                        getString(R.string.CGP_MessagesFilter_Desc),
+                        true
+                )
+                .slug(DeeplinkHelper.DeepLinksRepo.CG_Message_Filters)
+        );
+        items.add(UItem.asShadow(null));
     }
 
     @Override
@@ -440,6 +473,24 @@ public class ChatsPreferencesEntry extends BaseCGPreferencesEntry {
 
                 SettingsHelper.updateButtonValue(view, getVibrationValue());
             });
+        } else if (item.id == aqyBlurMsgMenuRow) {
+            CherrygramMessagesConfig.INSTANCE.setBlurMessageMenuBackground(!CherrygramMessagesConfig.INSTANCE.getBlurMessageMenuBackground());
+            SettingsHelper.updateCheckState(view, CherrygramMessagesConfig.INSTANCE.getBlurMessageMenuBackground());
+
+            showRestartBulletin();
+        } else if (item.id == aqyCompactMsgMenuRow) {
+            CherrygramMessagesConfig.INSTANCE.setMsgMenuItemsCompactView(!CherrygramMessagesConfig.INSTANCE.getMsgMenuItemsCompactView());
+            SettingsHelper.updateCheckState(view, CherrygramMessagesConfig.INSTANCE.getMsgMenuItemsCompactView());
+        } else if (item.id == aqyMsgFilterRow) {
+            CherrygramMessagesConfig.INSTANCE.setEnableMsgFilters(!CherrygramMessagesConfig.INSTANCE.getEnableMsgFilters());
+            SettingsHelper.updateCheckState(view, CherrygramMessagesConfig.INSTANCE.getEnableMsgFilters());
+        } else if (item.id == aqyFoldersAtBottomRow) {
+            CherrygramAppearanceConfig.INSTANCE.setFoldersAtBottom(!CherrygramAppearanceConfig.INSTANCE.getFoldersAtBottom());
+            SettingsHelper.updateCheckState(view, CherrygramAppearanceConfig.INSTANCE.getFoldersAtBottom());
+
+            showRestartBulletin();
+        } else if (item.id == aqyMsgFilterPageRow) {
+            CherrygramPreferencesNavigator.INSTANCE.createMessageFilter(this);
         }
     }
 

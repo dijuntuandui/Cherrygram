@@ -288,6 +288,7 @@
     <string name="CP_Header_Record">媒体</string>
     <string name="CP_Messages_Size">消息气泡大小</string>
     <string name="CP_Message_Filtering">消息过滤</string>
+    <string name="CGP_MessagesFilter_Desc">消息过滤与垃圾消息防护</string>
     <string name="CP_Message_Filtering_Filter">启用过滤</string>
     <string name="CP_Message_Filtering_Filter_Desc">当过滤器功能启用时，收到的消息中所选的单词将自动以剧透效果隐藏，需手动点选单词后才能显示。</string>
     <string name="CP_Message_Filtering_Field">输入要过滤的词语</string>
@@ -463,4 +464,5 @@
     <string name="AQY_CustomTitle_Reset">恢复默认</string>
     <string name="AQY_CustomTitle_ResetDone">已恢复默认标题</string>
     <string name="AQY_CustomTitle_Saved">标题已保存</string>
+    <string name="AQY_Optimization">聊天优化</string>
 </resources>
