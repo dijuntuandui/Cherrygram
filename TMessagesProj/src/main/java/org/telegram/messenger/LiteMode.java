@@ -147,6 +147,10 @@ public class LiteMode {
     }
 
     public static boolean isEnabled(int flag) {
+        // [Aiqiyi] 强制启用液态玻璃（仅 Android 13+ / API 33+，低版本 RuntimeShader 不可用）
+        if (flag == FLAG_LIQUID_GLASS && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            return true;
+        }
         if (flag == FLAG_CHAT_FORUM_TWOCOLUMN && AndroidUtilities.isTablet()) {
             // always enabled for tablets
             return true;
@@ -213,7 +217,9 @@ public class LiteMode {
         if (!preferences.contains("lite_mode6")) {
             if (preferences.contains("lite_mode5")) {
                 defaultValue = preferences.getInt("lite_mode5", defaultValue);
-                defaultValue &=~ FLAG_LIQUID_GLASS;
+                // [Aiqiyi] 原为 defaultValue &= ~FLAG_LIQUID_GLASS（升级时主动关闭液态玻璃）；
+                // 现改为主动写入该 flag，避免旧配置覆盖掉强制开启的玻璃效果
+                defaultValue |= FLAG_LIQUID_GLASS;
                 preferences.edit().putInt("lite_mode6", defaultValue).apply();
             } else if (preferences.contains("lite_mode4")) {
                 defaultValue = preferences.getInt("lite_mode4", defaultValue);

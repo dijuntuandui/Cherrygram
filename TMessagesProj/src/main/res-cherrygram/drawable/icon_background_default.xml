@@ -1,28 +1,6 @@
-<vector xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:aapt="http://schemas.android.com/aapt"
-    android:width="192dp"
-    android:height="192dp"
-    android:viewportWidth="192"
-    android:viewportHeight="192">
-    <path
-        android:pathData="M0 0H192V192H0z">
-        <aapt:attr name="android:fillColor">
-            <gradient
-                android:type="linear"
-                android:startX="192"
-                android:startY="0"
-                android:endX="0"
-                android:endY="192">
-                <item
-                    android:color="#FFE64C7F"
-                    android:offset="0.09"/>
-                <item
-                    android:color="#FF872847"
-                    android:offset="0.45"/>
-                <item
-                    android:color="#FF3F0D1B"
-                    android:offset="0.83"/>
-            </gradient>
-        </aapt:attr>
-    </path>
-</vector>
+<?xml version="1.0" encoding="utf-8"?>
+<!-- [Aiqiyi] 自适应图标背景：纯白 shape，替换原樱桃红渐变 -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <solid android:color="#FFFFFFFF"/>
+</shape>

@@ -47,8 +47,6 @@ import org.telegram.ui.ActionBar.BaseFragment;
 import org.telegram.ui.ActionBar.SimpleTextView;
 import org.telegram.ui.ActionBar.Theme;
 import org.telegram.ui.Components.AnimatedEmojiDrawable;
-import org.telegram.ui.Components.Bulletin;
-import org.telegram.ui.Components.BulletinFactory;
 import org.telegram.ui.Components.CubicBezierInterpolator;
 import org.telegram.ui.Components.EmojiPacksAlert;
 import org.telegram.ui.Components.ItemOptions;
@@ -341,30 +339,7 @@ public class ProfileActivityHelper extends BaseController {
         if (emojiDocumentId != 0) {
             nameTextView[a].setRightDrawable2(profileActivity.getEmojiStatusDrawable(emojiDocumentId, false, showParticles, 22, a));
             nameTextView[a].setRightDrawableInside(true);
-
-            nameTextView[a].setRightDrawable2OnClick(v -> {
-                TLRPC.Document document = AnimatedEmojiDrawable.findDocument(currentAccount, emojiDocumentId);
-                SpannableStringBuilder stringBuilder = new SpannableStringBuilder(AndroidUtilities.replaceTags(formatString(R.string.DP_Donate_Bulletin, UserObject.getUserName(user))));
-
-                BulletinFactory.of(profileActivity).createDonatesBulletin(
-                        document,
-                        stringBuilder,
-                        getString(R.string.LearnMore),
-                        Bulletin.DURATION_PROLONG,
-                        () -> CherrygramPreferencesNavigator.INSTANCE.createDonate(profileActivity)
-                ).show();
-                showDonatorHint(
-                        profileActivity,
-                        nameTextView,
-                        peerColor,
-                        avatarContainer2,
-                        extraHeight,
-                        currentExpandAnimatorValue,
-                        currentExpanAnimatorFracture,
-                        expandAnimatorValues,
-                        user
-                );
-            });
+            // [Aiqiyi] 移除点击徽章弹出的捐赠 Bulletin（含 LearnMore 按钮），不再引导至捐赠页
         }
     }
 
@@ -379,6 +354,10 @@ public class ProfileActivityHelper extends BaseController {
             float[] expandAnimatorValues,
             TLRPC.User user
     ) {
+        // [Aiqiyi] 原逻辑会显示一个可点击的捐赠提示条（点击跳转捐赠页）。
+        // 该方法的唯一调用点（徽章点击）已移除，此处直接返回，彻底断掉捐赠引导入口。
+        // 用非编译期常量条件，避免 "unreachable statement" 编译错误。
+        if (System.currentTimeMillis() > 0) return;
         if (user == null) return;
         if (avatarContainer2 == null) return;
         if (donatorHint != null) donatorHint.hide();

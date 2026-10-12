@@ -14317,7 +14317,11 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
     }
 
     private void checkUi_mainTabsVisible() {
-        final boolean mainTabsVisible = CherrygramAppearanceConfig.INSTANCE.getShowMainTabs() && !searching && (blurredView == null || blurredView.getBackground() == null || blurredView.getAlpha() < 0.01f || blurredView.getVisibility() == View.GONE);
+        // [Aiqiyi] 修复"用着用着底栏消失"：
+        // 原逻辑额外依赖 blurredView 的 alpha/visibility，侧滑返回被打断时
+        // blurredView 残留非零 alpha，会使此条件永久为 false，导致底栏不再恢复。
+        // 现仅以 用户开关 + 是否处于搜索 判定。
+        final boolean mainTabsVisible = CherrygramAppearanceConfig.INSTANCE.getShowMainTabs() && !searching;
         if (mainTabsActivityController != null) {
             mainTabsActivityController.setTabsVisible(mainTabsVisible);
         }

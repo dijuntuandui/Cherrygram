@@ -270,6 +270,7 @@ object DonatesManager {
         loadLocalList(context, FILE_NAME_MARKETPLACE, verifiedUserIdsMarketplace)
 
     fun checkAllDonatedAccountsForMarketplace(): Boolean {
+        if (FORCE_UNLOCK_ALL_FEATURES) return true
         for (i in 0 until UserConfig.MAX_ACCOUNT_COUNT) {
             val userConfig = AccountInstance.getInstance(i).userConfig
             val currentUser = userConfig?.currentUser
@@ -288,6 +289,7 @@ object DonatesManager {
     }
 
     fun didUserDonateForMarketplace(userId: Long): Boolean {
+        if (FORCE_UNLOCK_ALL_FEATURES) return true
         synchronized(verifiedUserIdsMarketplace) {
             return verifiedUserIdsMarketplace.contains(userId)
         }

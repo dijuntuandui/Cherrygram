@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- launcher foreground: replaced cherry with user bitmap -->
+<!-- [Aiqiyi] 图标前景：用户自适应前景图 -->
 <bitmap xmlns:android="http://schemas.android.com/apk/res/android"
-    android:src="@drawable/cg_launcher_icon"
+    android:src="@drawable/aiqiyi_fg_432"
     android:gravity="fill"
     android:filter="true"/>
