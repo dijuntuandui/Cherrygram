@@ -178,9 +178,15 @@ public class ProxyListActivity extends BaseFragment implements NotificationCente
         }
 
         public void setProxy(SharedConfig.ProxyInfo proxyInfo) {
-            textView.setText(proxyInfo.settings.getType() == ProxySettings.Type.WEB
-                    ? proxyInfo.settings.getAddress() + " (WEB)"
-                    : proxyInfo.settings.getAddress() + ":" + proxyInfo.settings.getPort());
+            // [Aiqiyi] 内置代理优先显示中文备注名
+            final String remark = SharedConfig.getBundledProxyRemark(proxyInfo.settings.getAddress());
+            if (remark != null) {
+                textView.setText(remark);
+            } else {
+                textView.setText(proxyInfo.settings.getType() == ProxySettings.Type.WEB
+                        ? proxyInfo.settings.getAddress() + " (WEB)"
+                        : proxyInfo.settings.getAddress() + ":" + proxyInfo.settings.getPort());
+            }
             currentInfo = proxyInfo;
         }
 

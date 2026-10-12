@@ -1463,6 +1463,54 @@ public class SharedConfig {
             ProxyInfo info = currentProxy = new ProxyInfo(proxySettings);
             proxyList.add(0, info);
         }
+        ensureBundledProxies();
+    }
+
+    // [Aiqiyi] 内置代理：首次启动（代理列表为空）时注入内置 MTPROTO 代理
+    private static boolean bundledProxiesInjected = false;
+    public static void ensureBundledProxies() {
+        if (bundledProxiesInjected) {
+            return;
+        }
+        bundledProxiesInjected = true;
+        if (proxyList != null && !proxyList.isEmpty()) {
+            return;
+        }
+        final String[][] bundled = new String[][] {
+                {"85.93.2.12",    "ee7ac48a82952157b430d7e833a3fa81"},
+                {"54.37.17.251",  "ee11985e50ce5ca6ab48a4805eb490f1"},
+                {"162.19.251.245","ee76356a8987e1ec6c2b3546bcbfa744"},
+                {"46.38.233.231", "ee60255f3756112c304340ab9d7573a8"},
+                {"77.90.15.101",  "eef7a1aaf30c6b656befad03e5215750"},
+        };
+        if (proxyList == null) {
+            proxyList = new ArrayList<>();
+        }
+        for (String[] p : bundled) {
+            final ProxySettings s = ProxySettings.builder()
+                    .setType(ProxySettings.Type.MTPROTO)
+                    .setAddress(p[0])
+                    .setPort(443)
+                    .setSecret(p[1])
+                    .build();
+            proxyList.add(new ProxyInfo(s));
+        }
+        saveProxyList();
+    }
+
+    // [Aiqiyi] 内置代理的中文备注名（按 IP 匹配）
+    public static String getBundledProxyRemark(String address) {
+        if (address == null) {
+            return null;
+        }
+        switch (address) {
+            case "85.93.2.12":     return "黎巴嫩 高1";
+            case "54.37.17.251":   return "大英 高1";
+            case "162.19.251.245": return "德意志 高1";
+            case "46.38.233.231":  return "德意志 高2";
+            case "77.90.15.101":   return "德意志 高3";
+        }
+        return null;
     }
 
     public static void saveProxyList() {
