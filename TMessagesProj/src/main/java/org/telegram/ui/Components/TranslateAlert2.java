@@ -638,22 +638,14 @@ public class TranslateAlert2 extends BottomSheet implements NotificationCenter.N
                     e.printStackTrace();
 
                     // Aiqiyi: Google fallback failed -> try Gemini (if enabled and API key present)
-                    final String _text = text;
-                    final String _toLng = toLng;
                     if (CherrygramMessagesConfig.INSTANCE.getAiqiyiTranslateBarAlways()) {
-                        GeminiSDKImplementation.translateForBar(_text, _toLng, translated -> {
-                            if (translated != null && !translated.isEmpty()) {
-                                if (done != null) done.run(translated, false);
-                            } else {
-                                try {
-                                    final boolean rateLimit = connection != null && connection.getResponseCode() == 429;
-                                    AndroidUtilities.runOnUIThread(() -> {
-                                        done.run(null, rateLimit);
-                                    });
-                                } catch (Exception e2) {
-                                    AndroidUtilities.runOnUIThread(() -> {
-                                        done.run(null, false);
-                                    });
+                        GeminiSDKImplementation.translateForBar(text, toLng, new GeminiSDKImplementation.TranslateBarCallback() {
+                            @Override
+                            public void onResult(String translated) {
+                                if (translated != null && !translated.isEmpty()) {
+                                    if (done != null) done.run(translated, false);
+                                } else {
+                                    if (done != null) done.run(null, false);
                                 }
                             }
                         });
