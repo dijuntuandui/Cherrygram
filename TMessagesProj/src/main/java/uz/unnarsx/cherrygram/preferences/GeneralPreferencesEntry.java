@@ -11,6 +11,7 @@ package uz.unnarsx.cherrygram.preferences;
 
 import static org.telegram.messenger.LocaleController.getString;
 
+import android.content.Context;
 import android.content.Intent;
 import android.os.Build;
 import android.view.View;
@@ -30,6 +31,7 @@ import java.util.HashSet;
 import java.util.Set;
 
 import uz.unnarsx.cherrygram.core.CherrygramLogger;
+import uz.unnarsx.cherrygram.core.configs.CherrygramAppearanceConfig;
 import uz.unnarsx.cherrygram.core.configs.CherrygramCoreConfig;
 import uz.unnarsx.cherrygram.core.firebase.FirebaseAnalyticsHelper;
 import uz.unnarsx.cherrygram.core.helpers.DeeplinkHelper;
@@ -63,6 +65,8 @@ public class GeneralPreferencesEntry extends BaseCGPreferencesEntry {
     private final int downloadSpeedBoostRow = 17;
     private final int uploadSpeedBoostRow = 18;
     private final int slowNetworkMode = 19;
+
+    private final int aiqiyiCustomTitleRow = 20;
 
     private boolean expandedArchiveStoriesSection = false;
 
@@ -210,6 +214,12 @@ public class GeneralPreferencesEntry extends BaseCGPreferencesEntry {
                 .slug("slowNetworkMode")
         );
         items.add(UItem.asShadow(null));
+
+        items.add(UItem.asHeader(getString(R.string.AQY_Plugins)));
+        items.add(SettingsHelper.asTextDetail(aiqiyiCustomTitleRow, 0, getString(R.string.AQY_CustomTitle), getCustomTitleText())
+                .slug("aiqiyi_custom_title")
+        );
+        items.add(UItem.asShadow(null));
     }
 
     @Override
@@ -339,6 +349,68 @@ public class GeneralPreferencesEntry extends BaseCGPreferencesEntry {
             SettingsHelper.updateCheckState(view, CherrygramCoreConfig.INSTANCE.getSlowNetworkMode());
 
             showRestartBulletin();
+        } else if (item.id == aiqiyiCustomTitleRow) {
+            showCustomTitleDialog();
+        }
+    }
+
+    private String getCustomTitleText() {
+        String t = CherrygramAppearanceConfig.INSTANCE.getCustomAppTitle();
+        if (t == null || t.trim().isEmpty()) {
+            return getString(R.string.CG_AppName);
+        }
+        return t;
+    }
+
+    private void showCustomTitleDialog() {
+        Context context = getContext();
+        if (context == null) return;
+
+        android.widget.EditText editText = new android.widget.EditText(context);
+        editText.setHint(getString(R.string.AQY_CustomTitle_Hint));
+        editText.setTextColor(org.telegram.ui.ActionBar.Theme.getColor(org.telegram.ui.ActionBar.Theme.key_windowBackgroundWhiteBlackText));
+        editText.setHintTextColor(org.telegram.ui.ActionBar.Theme.getColor(org.telegram.ui.ActionBar.Theme.key_windowBackgroundWhiteGrayText2));
+        editText.setSingleLine(true);
+        editText.setInputType(android.text.InputType.TYPE_CLASS_TEXT);
+        String current = CherrygramAppearanceConfig.INSTANCE.getCustomAppTitle();
+        if (current != null && !current.isEmpty()) {
+            editText.setText(current);
+            editText.setSelection(current.length());
+        }
+
+        android.widget.FrameLayout container = new android.widget.FrameLayout(context);
+        int pad = AndroidUtilities.dp(24);
+        container.setPadding(pad, AndroidUtilities.dp(8), pad, AndroidUtilities.dp(8));
+        container.addView(editText, new android.widget.FrameLayout.LayoutParams(
+                android.widget.FrameLayout.LayoutParams.MATCH_PARENT,
+                android.widget.FrameLayout.LayoutParams.WRAP_CONTENT));
+
+        org.telegram.ui.ActionBar.AlertDialog.Builder builder = new org.telegram.ui.ActionBar.AlertDialog.Builder(context);
+        builder.setTitle(getString(R.string.AQY_CustomTitle));
+        builder.setView(container);
+        builder.setPositiveButton(org.telegram.messenger.LocaleController.getString(org.telegram.messenger.R.string.Save), (dialog, which) -> {
+            String value = editText.getText().toString().trim();
+            CherrygramAppearanceConfig.INSTANCE.setCustomAppTitle(value);
+            updateRows(true);
+            org.telegram.ui.Components.BulletinFactory.of(this).createSimpleBulletin(org.telegram.messenger.R.raw.info, getString(value.isEmpty() ? R.string.AQY_CustomTitle_ResetDone : R.string.AQY_CustomTitle_Saved)).show();
+            if (getParentActivity() != null) {
+                getParentActivity().recreate();
+            }
+        });
+        builder.setNegativeButton(org.telegram.messenger.LocaleController.getString(org.telegram.messenger.R.string.Cancel), null);
+
+        org.telegram.ui.ActionBar.AlertDialog dialog = builder.create();
+        dialog.show();
+        AndroidUtilities.runOnUIThread(() -> {
+            editText.requestFocus();
+            AndroidUtilities.showKeyboard(editText);
+        });
+
+        if (dialog.getButton(org.telegram.ui.ActionBar.AlertDialog.BUTTON_POSITIVE) != null) {
+            android.view.View posBtn = dialog.getButton(org.telegram.ui.ActionBar.AlertDialog.BUTTON_POSITIVE);
+            if (posBtn instanceof android.widget.TextView) {
+                ((android.widget.TextView) posBtn).setTextColor(org.telegram.ui.ActionBar.Theme.getColor(org.telegram.ui.ActionBar.Theme.key_dialogButton));
+            }
         }
     }
 

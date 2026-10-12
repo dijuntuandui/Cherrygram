@@ -28,6 +28,10 @@ object CherrygramAppearanceConfig {
     var centerTitle by sharedPreferences.boolean("AP_CenterTitle", true)
     var hideSearchFiled by sharedPreferences.boolean("AP_HideSearchField", true)
     var drawSnowInActionBar by sharedPreferences.boolean("AP_DrawSnowInActionBar", false && SharedConfig.getDevicePerformanceClass() >= SharedConfig.PERFORMANCE_CLASS_AVERAGE)
+
+    /** 爱琦艺插件 - 自定义标题 */
+    var customAppTitle by sharedPreferences.string("AP_CustomAppTitle", "")
+    fun getCustomAppTitle(): String = customAppTitle
     /** Header finish */
 
     /** Appearance start */

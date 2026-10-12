@@ -39,6 +39,9 @@ import kotlin.math.round
 
 object DonatesManager {
 
+    /** Aiqiyi: 强制解锁全部捐赠/PRO 功能。置 false 可恢复原捐赠校验逻辑。 */
+    const val FORCE_UNLOCK_ALL_FEATURES = true
+
     private val REFRESH_INTERVAL = if (CherrygramCoreConfig.isDevBuild()) 60 * 60 * 1000L else 6 * 60 * 60 * 1000L // 6 hours
 
     suspend fun startAutoRefresh(context: Context, force: Boolean, fromIntegrityChecker: Boolean) = coroutineScope {
@@ -216,6 +219,7 @@ object DonatesManager {
         loadLocalList(context, FILE_NAME, verifiedUserIds)
 
     fun checkAllDonatedAccounts(): Boolean {
+        if (FORCE_UNLOCK_ALL_FEATURES) return true
         for (i in 0 until UserConfig.MAX_ACCOUNT_COUNT) {
             val userConfig = AccountInstance.getInstance(i).userConfig
             val currentUser = userConfig?.currentUser
@@ -234,18 +238,21 @@ object DonatesManager {
     }
 
     fun didUserDonate(userId: Long): Boolean {
+        if (FORCE_UNLOCK_ALL_FEATURES) return true
         synchronized(verifiedUserIds) {
             return verifiedUserIds.contains(userId) || didUserDonateForMarketplace(userId)
         }
     }
 
     fun didUserDonate2(userId: Long): Boolean {
+        if (FORCE_UNLOCK_ALL_FEATURES) return true
         synchronized(verifiedUserIds) {
             return verifiedUserIds.contains(userId)
         }
     }
 
     fun didUserDonateForFeature() : Boolean {
+        if (FORCE_UNLOCK_ALL_FEATURES) return true
         return checkAllDonatedAccounts() || checkAllDonatedAccountsForMarketplace()
     }
     /** Donates finish */

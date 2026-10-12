@@ -152,40 +152,8 @@ public class CGPreferencesEntry extends BaseCGPreferencesEntry {
                 )
                 .slug(DeeplinkHelper.DeepLinksRepo.CG_Privacy)
         );
-        items.add(
-                SettingsActivity.SettingCell.Factory.of(
-                        aboutRow,
-                        0xFFE54C7F, 0xFFA33156,
-                        R.drawable.settings_info_filled_solar,
-                        getString(R.string.CGP_Header_About),
-                        getString(R.string.CGP_Header_About_Desc),
-                        true
-                )
-                .slug(DeeplinkHelper.DeepLinksRepo.CG_About)
-        );
         items.add(UItem.asShadow(null));
 
-        items.add(UItem.asHeader(getString(R.string.DP_Support)));
-        items.add(
-                SettingsActivity.SettingCell.Factory.of(
-                        supportRow,
-                        0xFFB659FF, 0xFF617CFF,
-                        R.drawable.settings_support_filled_solar,
-                        applyProSpan(getString(R.string.DP_DonateBadge), getResourceProvider())
-                )
-                .slug(DeeplinkHelper.DeepLinksRepo.CG_Support_Force)
-        );
-        if (!getConnectionsManager().isTestBackend()) {
-            items.add(
-                    SettingsActivity.SettingCell.Factory.of(
-                            alternativeSupportRow,
-                            0xFFF6538A, 0xFF581668,
-                            R.drawable.settings_stars,
-                            getString(R.string.AS_Header)
-                    )
-                    .slug(DeeplinkHelper.DeepLinksRepo.CG_Alternative_Support)
-            );
-        }
         if (CherrygramFirebaseConfig.INSTANCE.getShowProxyInSettings() && CGChatMenuInjector.INSTANCE.showProxyButton()) {
             items.add(UItem.asShadow(null));
             items.add(

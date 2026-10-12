@@ -47,7 +47,7 @@ import uz.unnarsx.cherrygram.core.configs.CherrygramAppearanceConfig
 import uz.unnarsx.cherrygram.core.configs.CherrygramCoreConfig
 import uz.unnarsx.cherrygram.core.configs.CherrygramPrivacyConfig
 import uz.unnarsx.cherrygram.core.helpers.AppRestartHelper
-import uz.unnarsx.cherrygram.core.helpers.CGResourcesHelper
+
 import uz.unnarsx.cherrygram.core.helpers.DeeplinkHelper
 import uz.unnarsx.cherrygram.core.ui.mainTabs.MainTabsManager
 import uz.unnarsx.cherrygram.donates.DonatesManager
@@ -428,8 +428,8 @@ class TelegramSettingsHelper(
         items.add(
             SettingsActivity.SettingCell.Factory.of(
                 1390,
-                0xFFE54C7F.toInt(), 0xFFA33156.toInt(),
-                if (CGResourcesHelper.isAnyOfBraIconsEnabled()) R.drawable.cg_settings_bra else R.drawable.cg_settings,
+                0xFF6C7A89.toInt(), 0xFF4A5560.toInt(),
+                R.drawable.cg_settings_aiqiyi,
                 getString(R.string.CGP_AdvancedSettings)
             )
         )

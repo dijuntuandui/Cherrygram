@@ -82,155 +82,17 @@ public class AboutPreferencesEntry extends BaseCGPreferencesEntry {
                         getString(R.string.CGP_About_Desc)
                 )
         );
-        items.add(
-                SettingsActivity.SettingCell.Factory.of(
-                        updatesRow,
-                        IconBackgroundColors.GREEN.top, IconBackgroundColors.GREEN.bottom,
-                        R.drawable.settings_refresh_filled_solar,
-                        getString(R.string.UP_Category_Updates),
-                        getLastCheckUpdateTime()
-                )
-                .slug(DeeplinkHelper.DeepLinksRepo.CG_Updater_Bottom_Sheet)
-        );
-        items.add(
-                SettingsActivity.SettingCell.Factory.of(
-                        debugPrefsRow,
-                        IconBackgroundColors.PURPLE.top, IconBackgroundColors.PURPLE.bottom,
-                        R.drawable.settings_tube_filled_solar,
-                        "Debug // W.I.P",
-                        getString(R.string.CGP_Experimental_Desc),
-                        true
-                )
-                .slug(DeeplinkHelper.DeepLinksRepo.CG_Debug)
-        );
-        items.add(UItem.asShadow(null));
-
-        items.add(UItem.asHeader(getString(R.string.CGP_Links)));
-        items.add(UItem.asButton(channelRow, R.drawable.msg_channel_solar, getString(R.string.CGP_ToChannel)));
-        items.add(UItem.asButton(betaChannelRow, R.drawable.msg_channel_solar, getString(R.string.CGP_ToBetaChannel)));
-        if (!cherrygramSupportChatLoaded) {
-            items.add(UItem.asShadow(null));
-            items.add(UItem.asButton(chatRow, R.drawable.msg_discuss_solar, getString(R.string.CGP_ToChat)));
-            items.add(UItem.asButton(offtopicChatRow, R.drawable.msg_discuss_solar, getString(R.string.CGP_ToOfftopicChat)));
-            items.add(UItem.asShadow(null));
-
-            getChatWithFallback(Constants.Cherrygram_Support, Constants.CG_CHAT_USERNAME,
-                    cgCommunity -> {
-                        cherrygramSupportChatLoaded = true;
-                        cherrygramSupportChat = cgCommunity;
-                        updateRows(true);
-                    }
-            );
-        } else if (cherrygramSupportChat != null && cherrygramSupportChat.linked_community_id != 0) {
-            TLRPC.Chat linkedCommunity = getMessagesController().getChat(cherrygramSupportChat.linked_community_id);
-
-            if (linkedCommunity != null) {
-                CommunityLinkView communityLinkView = new CommunityLinkView(getParentActivity(), getResourceProvider());
-                communityLinkView.setChat(currentAccount, linkedCommunity);
-
-                items.add(UItem.asShadow(null));
-                items.add(UItem.asCustom(communityRow, communityLinkView));
-                items.add(UItem.asShadow(null));
-            } else {
-                items.add(UItem.asShadow(null));
-
-                items.add(UItem.asButton(chatRow, R.drawable.msg_discuss_solar, getString(R.string.CGP_ToChat)));
-                items.add(UItem.asButton(offtopicChatRow, R.drawable.msg_discuss_solar, getString(R.string.CGP_ToOfftopicChat)));
-                items.add(UItem.asShadow(null));
-            }
-        } else {
-            items.add(UItem.asShadow(null));
-            items.add(UItem.asButton(chatRow, R.drawable.msg_discuss_solar, getString(R.string.CGP_ToChat)));
-            items.add(UItem.asButton(offtopicChatRow, R.drawable.msg_discuss_solar, getString(R.string.CGP_ToOfftopicChat)));
-            items.add(UItem.asShadow(null));
-        }
-
-        if (!CherrygramCoreConfig.isStandalonePremiumBuild()) {
-            String value;
-            if (CherrygramCoreConfig.isStandaloneBetaBuild() || CherrygramCoreConfig.isDevBuild()) {
-                value = "GitHub";
-            } else {
-                value = "commit " + BuildConfig.GIT_COMMIT_HASH.substring(0, 8);
-            }
-            items.add(UItem.asButton(githubRow, R.drawable.github_cat, getString(R.string.CGP_Source), value)
-                    .slug("source_code")
-            );
-        }
-
-        items.add(UItem.asButton(crowdinRow, R.drawable.msg_translate_solar, getString(R.string.CGP_Crowdin), "Crowdin")
-                .slug("crowdin")
-        );
-        items.add(UItem.asButton(policyRow, R.drawable.msg_policy_solar, getString(R.string.PrivacyPolicy))
-                .slug("policy")
-        );
         items.add(UItem.asShadow(null));
     }
 
     @Override
     protected void onClick(UItem item, View view, int position, float x, float y) {
-        if (item.id == readmeRow) {
-            Browser.openUrl(getContext(), Constants.CG_GITHUB_URL + "#readme");
-        } else if (item.id == updatesRow) {
-            if (LaunchActivity.instance == null) return;
-            LaunchActivity.instance.showUpdaterBottomSheet(this, false, null);
-        } else if (item.id == debugPrefsRow) {
-            CherrygramPreferencesNavigator.INSTANCE.createDebug(this);
-        } else if (item.id == channelRow) {
-            getMessagesController().openByUserName(Constants.CG_CHANNEL_USERNAME, this, 1);
-        } else if (item.id == betaChannelRow) {
-            getMessagesController().openByUserName(Constants.CG_BETA_APKS_CHANNEL_USERNAME, this, 1);
-        } else if (item.id == chatRow) {
-            getMessagesController().openByUserName(Constants.CG_CHAT_USERNAME, this, 1);
-        } else if (item.id == offtopicChatRow) {
-            getMessagesController().openByUserName(Constants.CG_OFFTOPIC_CHAT_USERNAME, this, 1);
-        } else if (item.id == communityRow) {
-            TLRPC.Chat cgCommunity = getMessagesController().getChat(Constants.Cherrygram_Support);
-            if (cgCommunity != null) {
-                showDialog(new CommunitySheet(this, cgCommunity.linked_community_id));
-            }
-        } else if (item.id == githubRow) {
-            if (CherrygramCoreConfig.isStandaloneBetaBuild() || CherrygramCoreConfig.isDevBuild()) {
-                Browser.openUrl(getContext(), Constants.CG_GITHUB_URL);
-            } else {
-                Browser.openUrl(getContext(), Constants.CG_GITHUB_URL + "/commit/" + BuildConfig.GIT_COMMIT_HASH);
-            }
-        } else if (item.id == crowdinRow) {
-            Browser.openUrl(getContext(), Constants.CG_CROWDIN_URL);
-        } else if (item.id == policyRow) {
-            Browser.openUrl(getContext(), Constants.CG_PRIVACY_URL);
-        }
+        // Aiqiyi: 关于页仅保留版本号展示，移除全部官方跳转入口
     }
 
     @Override
     protected boolean onLongClick(UItem item, View view, int position, float x, float y) {
-        /*if (item.id == readmeRow) {
-            AndroidUtilities.addToClipboard(Constants.CG_GITHUB_URL + "#readme");
-            return true;
-        } else if (item.id == updatesRow) {
-            AndroidUtilities.addToClipboard("tg://" + DeeplinkHelper.DeepLinksRepo.CG_Updater_Bottom_Sheet);
-            return true;
-        } else if (item.id == debugPrefsRow) {
-            AndroidUtilities.addToClipboard("tg://" + DeeplinkHelper.DeepLinksRepo.CG_Debug);
-            return true;
-        } else*/ if (item.id == channelRow) {
-            AndroidUtilities.addToClipboard("@" + Constants.CG_CHANNEL_USERNAME);
-            return true;
-        } else if (item.id == betaChannelRow) {
-            AndroidUtilities.addToClipboard("@" + Constants.CG_BETA_APKS_CHANNEL_USERNAME);
-            return true;
-        } else if (item.id == chatRow) {
-            AndroidUtilities.addToClipboard("@" + Constants.CG_CHAT_USERNAME);
-            return true;
-        } else if (item.id == offtopicChatRow) {
-            AndroidUtilities.addToClipboard("@" + Constants.CG_OFFTOPIC_CHAT_USERNAME);
-            return true;
-        } else if (item.id == crowdinRow) {
-            AndroidUtilities.addToClipboard(Constants.CG_CROWDIN_URL);
-            return true;
-        } else if (item.id == policyRow) {
-            AndroidUtilities.addToClipboard(Constants.CG_PRIVACY_URL);
-            return true;
-        }
+        // Aiqiyi: 已移除全部官方链接复制入口
         return false;
     }
 

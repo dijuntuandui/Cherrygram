@@ -3594,7 +3594,11 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
                 actionBar.setTitle(actionBarDefaultTitle = ssb, statusDrawable);
                 updateStatus(UserConfig.getInstance(currentAccount).getCurrentUser(), false);*/
 
-                actionBar.setTitle(actionBarDefaultTitle = getString(R.string.CG_AppName), statusDrawable, true);
+                String aiqiyiTitle = CherrygramAppearanceConfig.INSTANCE.getCustomAppTitle();
+                if (aiqiyiTitle == null || aiqiyiTitle.trim().isEmpty()) {
+                    aiqiyiTitle = getString(R.string.CG_AppName);
+                }
+                actionBar.setTitle(actionBarDefaultTitle = aiqiyiTitle, statusDrawable, true);
                 updateStatus(UserConfig.getInstance(currentAccount).getCurrentUser(), false);
             }
             if (folderId == 0) {
