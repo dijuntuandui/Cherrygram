@@ -604,4 +604,18 @@
     <string name="AQY_Optimization">Chat Enhancements</string>
     <string name="AQY_TranslateBar">Always Show Translate Bar</string>
     <string name="AQY_TranslateBar_Desc">Keep the translate bar pinned at the top of every chat, even without Premium</string>
+    <!--Aiqiyi: saved deleted messages-->
+    <string name="AQY_SaveDeleted">Save Deleted Messages</string>
+    <string name="AQY_SaveDeleted_Desc">Keep message content even after the sender revokes it</string>
+    <string name="AQY_TranslucentDeleted">Translucent Deleted Messages</string>
+    <string name="AQY_TranslucentDeleted_Desc">Show deleted messages with a translucent appearance</string>
+    <string name="AQY_UseDeletedIcon">Use Icon Instead of "Deleted" Mark</string>
+    <string name="AQY_UseDeletedIcon_Desc">Replace the text mark with an icon</string>
+    <string name="AQY_CustomDeletedMark">Custom Deleted Message Mark</string>
+    <string name="AQY_CustomDeletedMark_Desc">Leave empty to use the default "Deleted" text</string>
+    <string name="AQY_CustomDeletedMark_Hint">Enter mark text</string>
+    <string name="AQY_DeletedMark_Saved">Mark saved</string>
+    <!--Aiqiyi: ghost mode-->
+    <string name="AQY_GhostMode">Ghost Mode</string>
+    <string name="AQY_GhostMode_Desc">Do not send read receipts, stay invisible</string>
 </resources>

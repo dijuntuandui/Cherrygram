@@ -467,6 +467,20 @@
     <string name="AQY_Optimization">聊天优化</string>
     <string name="AQY_TranslateBar">顶栏常驻翻译</string>
     <string name="AQY_TranslateBar_Desc">在每个聊天顶部常驻翻译条，无需会员</string>
+    <!--Aiqiyi: saved deleted messages-->
+    <string name="AQY_SaveDeleted">保存已删除消息</string>
+    <string name="AQY_SaveDeleted_Desc">对方撤回后仍保留消息内容</string>
+    <string name="AQY_TranslucentDeleted">使已删除的消息半透明</string>
+    <string name="AQY_TranslucentDeleted_Desc">已删除的消息以半透明方式显示</string>
+    <string name="AQY_UseDeletedIcon">使用图标代替"已删除"标记</string>
+    <string name="AQY_UseDeletedIcon_Desc">用图标替换文字标记</string>
+    <string name="AQY_CustomDeletedMark">自定义已删除消息标记</string>
+    <string name="AQY_CustomDeletedMark_Desc">留空则使用默认文字"已删除"</string>
+    <string name="AQY_CustomDeletedMark_Hint">输入标记文字</string>
+    <string name="AQY_DeletedMark_Saved">标记已保存</string>
+    <!--Aiqiyi: ghost mode-->
+    <string name="AQY_GhostMode">幽灵模式</string>
+    <string name="AQY_GhostMode_Desc">不发送已读回执，隐身在线状态</string>
     <!-- ===== 补齐 zh-rCN 缺失条目 (2026-10-13) ===== -->
     <!--CGP 页面描述-->
     <string name="CGP_ADS">观看广告</string>
