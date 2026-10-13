@@ -663,8 +663,6 @@ public class ChatActivityEnterView extends FrameLayout implements
     public FrameLayout messageEditTextContainer;
     public FrameLayout textFieldContainer;
 
-    // [Aiqiyi] 输入栏下方自定义提示文字
-    private android.widget.TextView aiqiyiInputHintView;
     public FrameLayout sendButtonContainer;
     private ImageView sendOutlineView;
     public RichMessageLayout.PreviewView richDraftPreview;
@@ -2681,15 +2679,7 @@ public class ChatActivityEnterView extends FrameLayout implements
         textFieldContainer.setPadding(0, dp(1), 0, 0);
         addView(textFieldContainer, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, Gravity.LEFT | Gravity.BOTTOM, 0, 1, 0, 0));
 
-        // [Aiqiyi] 输入栏下方自定义提示文字
-        aiqiyiInputHintView = new android.widget.TextView(context);
-        aiqiyiInputHintView.setTextSize(android.util.TypedValue.COMPLEX_UNIT_DIP, 12);
-        aiqiyiInputHintView.setGravity(Gravity.CENTER_HORIZONTAL);
-        aiqiyiInputHintView.setSingleLine(true);
-        aiqiyiInputHintView.setEllipsize(android.text.TextUtils.TruncateAt.END);
-        aiqiyiInputHintView.setVisibility(View.GONE);
-        textFieldContainer.addView(aiqiyiInputHintView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, Gravity.BOTTOM, 0, 0, 0, -dp(1)));
-
+        // [Aiqiyi] 自定义输入栏提示文字：不再新增下方 TextView，改为替换输入框占位符
         FrameLayout frameLayout = messageEditTextContainer = new FrameLayout(context) {
             @Override
             protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
@@ -7194,10 +7184,10 @@ public class ChatActivityEnterView extends FrameLayout implements
 
     public final ColoredImageSpan[] spans = new ColoredImageSpan[1];
 
-    /** [Aiqiyi] 输入栏下方自定义提示文字：开关 + 文案 + 配色 */
-    private void updateAiqiyiInputHint() {
-        if (aiqiyiInputHintView == null) {
-            return;
+    /** [Aiqiyi] 自定义输入栏提示文字：替换输入框占位符（返回 true 表示已接管，不再走官方逻辑） */
+    private boolean applyAiqiyiInputHint(boolean animated) {
+        if (messageEditText == null) {
+            return false;
         }
         boolean enabled = false;
         String text = null;
@@ -7207,23 +7197,17 @@ public class ChatActivityEnterView extends FrameLayout implements
         } catch (Throwable ignored) {
         }
         if (!enabled || text == null || text.trim().isEmpty()) {
-            aiqiyiInputHintView.setVisibility(View.GONE);
-            return;
+            return false;
         }
-        aiqiyiInputHintView.setText(text.trim());
-        int color;
-        try {
-            color = getThemedColor(Theme.key_chat_messagePanelHint);
-        } catch (Throwable t) {
-            color = 0xff888888;
-        }
-        aiqiyiInputHintView.setTextColor(color);
-        aiqiyiInputHintView.setVisibility(View.VISIBLE);
+        messageEditText.setHintText(text.trim(), animated);
+        return true;
     }
 
     public void updateFieldHint(boolean animated) {
-        // [Aiqiyi] 更新输入栏下方自定义提示文字
-        updateAiqiyiInputHint();
+        // [Aiqiyi] 自定义提示文字：开启时直接替换输入框占位符（「输入消息」等）
+        if (applyAiqiyiInputHint(animated)) {
+            return;
+        }
         if (messageEditText == null) {
             return;
         }
