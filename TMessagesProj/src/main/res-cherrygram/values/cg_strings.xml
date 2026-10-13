@@ -627,5 +627,9 @@
     <string name="AQY_GhostMode_Desc">Do not send read receipts, stay invisible</string>
     <!--Aiqiyi: show online status-->
     <string name="AQY_ShowOnlineStatus">Show User Online Status</string>
-    <string name="AQY_ShowOnlineStatus_Desc">Show online status at the bottom-right corner of user avatars in group chats</string>
+    <string name="AQY_ShowOnlineStatus_Desc">Show a three-color status dot at the bottom-right corner of private chat avatars (blue=online, yellow=recently, red=offline)</string>
+    <string name="AQY_AutoSignIn">Auto Sign-in</string>
+    <string name="AQY_AutoSignIn_Desc">Automatically send a preset message at a scheduled time every day</string>
+    <string name="AQY_AutoSignInEnabled">Enable Auto Sign-in</string>
+    <string name="AQY_AutoSignInEnabled_Desc">Master switch. Tasks are evaluated in Beijing time (UTC+8)</string>
 </resources>

@@ -631,7 +631,15 @@
             android:name="uz.unnarsx.cherrygram.core.helpers.SleepHelper"
             android:enabled="true"
             android:exported="true" />
-
+        <!-- [Aiqiyi] 自动签到定时唤醒（AlarmManager -> BroadcastReceiver） -->
+        <receiver
+            android:name="uz.unnarsx.cherrygram.aiqiyi.signin.AiqiyiSignInReceiver"
+            android:enabled="true"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="uz.unnarsx.cherrygram.aiqiyi.SIGN_IN" />
+            </intent-filter>
+        </receiver>
         <receiver
             android:name=".AutoMessageHeardReceiver"
             android:exported="false">

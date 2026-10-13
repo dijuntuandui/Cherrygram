@@ -284,6 +284,19 @@ public class ApplicationLoader extends Application {
             DownloadController.getInstance(a);
         }
         BillingController.getInstance().startConnection();
+
+        // [Aiqiyi] 自动签到：账号配置已载入，此时重排闹钟并补跑今天已到期但未执行的任务
+        try {
+            uz.unnarsx.cherrygram.aiqiyi.signin.AiqiyiSignInScheduler.scheduleAll();
+            for (int a = 0; a < UserConfig.MAX_ACCOUNT_COUNT; a++) {
+                UserConfig cfg = UserConfig.getInstance(a);
+                if (cfg != null && cfg.isClientActivated()) {
+                    uz.unnarsx.cherrygram.aiqiyi.signin.AiqiyiSignInHelper.executeDueTasks(a);
+                }
+            }
+        } catch (Throwable e) {
+            CherrygramLogger.e(e);
+        }
     }
 
     public ApplicationLoader() {
