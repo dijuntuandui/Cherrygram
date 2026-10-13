@@ -72,6 +72,7 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import uz.unnarsx.cherrygram.aiqiyi.AiqiyiGhostUtils;
 import uz.unnarsx.cherrygram.core.configs.CherrygramCoreConfig;
 import uz.unnarsx.cherrygram.core.configs.CherrygramDebugConfig;
 import uz.unnarsx.cherrygram.core.helpers.ErrorDatabaseHelper;
@@ -390,6 +391,13 @@ public class ConnectionsManager extends BaseController {
     }
 
     private void sendRequestInternal(TLObject object, RequestDelegate onComplete, RequestDelegateTimestamp onCompleteTimestamp, QuickAckDelegate onQuickAck, WriteToSocketDelegate onWriteToSocket, int flags, int datacenterId, int connectionType, boolean immediate, int requestToken) {
+        // [Aiqiyi] Ghost Mode: swallow read/typing/online packets before they leave the device
+        if (AiqiyiGhostUtils.isEnabled()) {
+            AiqiyiGhostUtils.InterceptResult ghostResult = AiqiyiGhostUtils.interceptRequest(object, onComplete);
+            if (ghostResult != null && ghostResult.blocked) {
+                return;
+            }
+        }
         if (BuildVars.LOGS_ENABLED) {
             FileLog.d("send request " + object + " with token = " + requestToken);
         }

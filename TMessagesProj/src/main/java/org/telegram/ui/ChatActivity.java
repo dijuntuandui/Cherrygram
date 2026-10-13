@@ -26874,6 +26874,12 @@ public class ChatActivity extends BaseFragment implements
                 if (editingMessageObject == obj) {
                     hideFieldPanel(true);
                 }
+                // [Aiqiyi] saved-deleted: keep the bubble on screen instead of removing it.
+                // Only for messages revoked by somebody else (sent == false).
+                if (!sent && uz.unnarsx.cherrygram.aiqiyi.AiqiyiSaveDeleted.isEnabled()) {
+                    updated = true;
+                    continue;
+                }
                 int index = chatAdapter != null && chatAdapter.isFiltered && filteredMessagesDict != null ? chatAdapter.filteredMessages.indexOf(filteredMessagesDict.get(mid)) : messages.indexOf(obj);
                 if (index != -1) {
                     if (obj.scheduled) {

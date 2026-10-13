@@ -4,16 +4,38 @@
  * You should have received a copy of the license in this archive (see LICENSE).
  * Please, be respectful and credit the original author if you use this code.
  *
- * Aiqiyi plugin: Saved Deleted Messages (anti-revoke) skeleton.
- * NOTE: the storage / database layer is NOT implemented yet.
- *       This class only exposes the API surface so the UI toggles can be wired
- *       up and compiled. Hook points (MessagesStorage / ChatActivity) come later.
+ * Aiqiyi plugin: Saved Deleted Messages (anti-revoke).
+ *
+ * Storage layer: a dedicated SQLite table `saved_deleted_cherry` living inside
+ * the same MessagesStorage database. When a message is about to be removed we
+ * copy its serialized body here first, so the bubble can still be rendered with
+ * a "deleted" mark instead of vanishing.
+ *
+ * Table schema:
+ *   saved_deleted_cherry(dialog_id INTEGER, mid INTEGER, date INTEGER, data BLOB,
+ *                        PRIMARY KEY(dialog_id, mid))
  */
 package uz.unnarsx.cherrygram.aiqiyi;
+
+import org.telegram.SQLite.SQLiteCursor;
+import org.telegram.SQLite.SQLiteDatabase;
+import org.telegram.SQLite.SQLitePreparedStatement;
+import org.telegram.messenger.FileLog;
+import org.telegram.tgnet.NativeByteBuffer;
+import org.telegram.tgnet.TLRPC;
+
+import java.util.ArrayList;
+import java.util.Locale;
 
 import uz.unnarsx.cherrygram.core.configs.CherrygramMessagesConfig;
 
 public class AiqiyiSaveDeleted {
+
+    public static final String TABLE = "saved_deleted_cherry";
+    public static final String CREATE_SQL =
+            "CREATE TABLE IF NOT EXISTS " + TABLE +
+            "(dialog_id INTEGER, mid INTEGER, date INTEGER, data BLOB, " +
+            "PRIMARY KEY(dialog_id, mid))";
 
     /** Whether revoked messages should be retained locally. */
     public static boolean isEnabled() {
@@ -29,7 +51,7 @@ public class AiqiyiSaveDeleted {
         try {
             return CherrygramMessagesConfig.INSTANCE.getAiqiyiTranslucentDeleted();
         } catch (Throwable ignored) {
-            return false;
+            return true;
         }
     }
 
@@ -42,13 +64,7 @@ public class AiqiyiSaveDeleted {
         }
     }
 
-    /**
-     * The text mark to render for a deleted message.
-     *
-     * TODO(saved-deleted): once the storage layer exists, this should also be
-     *       used by the message cell renderer. For now it only serves the
-     *       settings preview.
-     */
+    /** The text mark to render for a deleted message. */
     public static String getDeletedMark() {
         try {
             String custom = CherrygramMessagesConfig.INSTANCE.getAiqiyiCustomDeletedMark();
@@ -61,18 +77,126 @@ public class AiqiyiSaveDeleted {
     }
 
     /**
-     * Called when a message is about to be deleted/revoked.
-     *
-     * TODO(saved-deleted): persist the message body here instead of dropping it.
-     *       Hook into MessagesStorage.deleteMessage / processDeletedMessages.
-     *
-     * @return true if the message was kept locally, false if not handled.
+     * Persist one deleted message body. Runs on the storage queue (caller side).
+     * Never throws: a failure here must not break the normal delete flow.
      */
-    public static boolean onMessageDeleted(int accountId, long dialogId, int messageId) {
-        if (!isEnabled()) {
-            return false;
+    public static void saveDeleted(SQLiteDatabase database, long dialogId, int mid, int date, TLRPC.Message message) {
+        if (database == null || message == null || mid == 0) {
+            return;
         }
-        return false;
+        SQLitePreparedStatement state = null;
+        try {
+            state = database.executeFast(
+                    "INSERT OR REPLACE INTO " + TABLE + " (dialog_id, mid, date, data) VALUES (?, ?, ?, ?)");
+            state.requery();
+            state.bindLong(1, dialogId);
+            state.bindInteger(2, mid);
+            state.bindInteger(3, date);
+            state.bindTlObject(4, message);
+            state.step();
+        } catch (Throwable e) {
+            FileLog.e(e);
+        } finally {
+            if (state != null) {
+                try {
+                    state.dispose();
+                } catch (Throwable ignored) {
+                }
+            }
+        }
+    }
+
+    /**
+     * Drop a saved copy (e.g. when the user clears the chat or deletes it on purpose).
+     */
+    public static void removeDeleted(SQLiteDatabase database, long dialogId, int mid) {
+        if (database == null || mid == 0) {
+            return;
+        }
+        try {
+            database.executeFast(String.format(Locale.US,
+                    "DELETE FROM " + TABLE + " WHERE dialog_id = %d AND mid = %d", dialogId, mid))
+                    .stepThis().dispose();
+        } catch (Throwable e) {
+            FileLog.e(e);
+        }
+    }
+
+    /**
+     * Load the serialized bodies of saved deleted messages for one dialog.
+     * Returns null when nothing was saved.
+     */
+    public static ArrayList<TLRPC.Message> loadDeleted(SQLiteDatabase database, long dialogId) {
+        if (database == null) {
+            return null;
+        }
+        SQLiteCursor cursor = null;
+        ArrayList<TLRPC.Message> result = null;
+        try {
+            cursor = database.queryFinalized(String.format(Locale.US,
+                    "SELECT data FROM " + TABLE + " WHERE dialog_id = %d", dialogId));
+            while (cursor.next()) {
+                NativeByteBuffer data = cursor.byteBufferValue(0);
+                if (data != null) {
+                    TLRPC.Message message = TLRPC.Message.TLdeserialize(data, data.readInt32(false), false);
+                    message.readAttachPath(data, 0);
+                    data.reuse();
+                    if (message != null) {
+                        if (result == null) {
+                            result = new ArrayList<>();
+                        }
+                        result.add(message);
+                    }
+                }
+            }
+        } catch (Throwable e) {
+            FileLog.e(e);
+        } finally {
+            if (cursor != null) {
+                try {
+                    cursor.dispose();
+                } catch (Throwable ignored) {
+                }
+            }
+        }
+        return result;
+    }
+
+    /** How many deleted messages are stored for a dialog. */
+    public static int getDeletedCount(SQLiteDatabase database, long dialogId) {
+        if (database == null) {
+            return 0;
+        }
+        SQLiteCursor cursor = null;
+        try {
+            cursor = database.queryFinalized(String.format(Locale.US,
+                    "SELECT COUNT(*) FROM " + TABLE + " WHERE dialog_id = %d", dialogId));
+            if (cursor.next()) {
+                return cursor.intValue(0);
+            }
+        } catch (Throwable e) {
+            FileLog.e(e);
+        } finally {
+            if (cursor != null) {
+                try {
+                    cursor.dispose();
+                } catch (Throwable ignored) {
+                }
+            }
+        }
+        return 0;
+    }
+
+    /** Wipe every saved deleted message. */
+    public static void clearAll(SQLiteDatabase database) {
+        if (database == null) {
+            return;
+        }
+        try {
+            database.executeFast("DELETE FROM " + TABLE).stepThis().dispose();
+        } catch (Throwable e) {
+            FileLog.e(e);
+        }
     }
 
     private AiqiyiSaveDeleted() {

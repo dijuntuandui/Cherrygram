@@ -18579,7 +18579,11 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
                 }
             }
         }
-        if (currentMessageObject.isWelcomeMessage()) {
+        if (currentMessageObject.deleted && !currentMessageObject.deletedByThanos
+                && uz.unnarsx.cherrygram.aiqiyi.AiqiyiSaveDeleted.isEnabled()) {
+            // [Aiqiyi] saved-deleted: show the custom mark instead of the timestamp
+            timeString = uz.unnarsx.cherrygram.aiqiyi.AiqiyiSaveDeleted.getDeletedMark();
+        } else if (currentMessageObject.isWelcomeMessage()) {
             timeString = ""; // Long.toString(currentMessageObject.getId());
         } else if (currentMessageObject.notime || currentMessageObject.isSponsored() || currentMessageObject.isQuickReply()) {
             timeString = "";
@@ -24110,8 +24114,13 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
     }
 
     private void drawTimeInternal(Canvas canvas, float alpha, boolean fromParent, float timeX, StaticLayout timeLayout, float timeWidth, boolean drawSelectionBackground) {
-        if ((!drawTime || groupPhotoInvisible) && shouldDrawTimeOnMedia() || timeLayout == null || (currentMessageObject.deleted && currentPosition != null) || currentMessageObject.type == MessageObject.TYPE_PHONE_CALL) {
+        final boolean aiqiyiDeletedMark = currentMessageObject.deleted && !currentMessageObject.deletedByThanos
+                && uz.unnarsx.cherrygram.aiqiyi.AiqiyiSaveDeleted.isEnabled();
+        if ((!drawTime || groupPhotoInvisible) && shouldDrawTimeOnMedia() || timeLayout == null || (currentMessageObject.deleted && currentPosition != null && !aiqiyiDeletedMark) || currentMessageObject.type == MessageObject.TYPE_PHONE_CALL) {
             return;
+        }
+        if (aiqiyiDeletedMark && !drawTime) {
+            // [Aiqiyi] always show the deleted mark even when the time is suppressed
         }
         if (currentMessageObject.type == MessageObject.TYPE_ROUND_VIDEO) {
             Theme.chat_timePaint.setColor(

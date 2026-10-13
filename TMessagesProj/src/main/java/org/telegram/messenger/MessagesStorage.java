@@ -74,6 +74,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 
+import uz.unnarsx.cherrygram.aiqiyi.AiqiyiSaveDeleted;
 import uz.unnarsx.cherrygram.core.configs.CherrygramAppearanceConfig;
 
 import me.vkryl.core.BitwiseUtils;
@@ -377,6 +378,12 @@ public class MessagesStorage extends BaseController {
                 }
                 try {
                     database.executeFast("CREATE TABLE IF NOT EXISTS dialog_filter_cherry(id INTEGER PRIMARY KEY, ord INTEGER, unread_count INTEGER, flags INTEGER, title TEXT, emoticon TEXT)").stepThis().dispose();
+                } catch (Exception e) {
+                    FileLog.e(e);
+                }
+                // [Aiqiyi] saved deleted messages storage
+                try {
+                    database.executeFast(AiqiyiSaveDeleted.CREATE_SQL).stepThis().dispose();
                 } catch (Exception e) {
                     FileLog.e(e);
                 }
@@ -14708,6 +14715,10 @@ public class MessagesStorage extends BaseController {
                             message.readAttachPath(data, currentUser);
                             if (deletedMessages != null) {
                                 deletedMessages.add(message);
+                            }
+                            // [Aiqiyi] keep a copy before the message is wiped
+                            if (AiqiyiSaveDeleted.isEnabled() && did != currentUser && !DialogObject.isEncryptedDialog(did)) {
+                                AiqiyiSaveDeleted.saveDeleted(database, did, message.id, message.date, message);
                             }
                             data.reuse();
                             if (DialogObject.isEncryptedDialog(did) || deleteFiles) {
