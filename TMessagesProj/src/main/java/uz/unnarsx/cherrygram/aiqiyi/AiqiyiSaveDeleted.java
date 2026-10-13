@@ -237,7 +237,6 @@ public class AiqiyiSaveDeleted {
                     data.reuse();
                 }
             }
-            AiqiyiDebug.log("[PRESAVE] dialogId=" + dialogId + " want=" + ids.size() + " saved=" + saved);
         } catch (Throwable e) {
             FileLog.e(e);
         } finally {

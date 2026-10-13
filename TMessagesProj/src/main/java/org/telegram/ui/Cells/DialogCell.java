@@ -267,6 +267,7 @@ public class DialogCell extends BaseCell implements StoriesListPlaceProvider.Ava
     private boolean visibleOnScreen = true;
     private boolean updateLayout;
     private boolean wasDrawnOnline;
+    private int lastDrawnDotColor = -1;
 
     public void setMoving(boolean moving) {
         this.moving = moving;
@@ -806,6 +807,7 @@ public class DialogCell extends BaseCell implements StoriesListPlaceProvider.Ava
         }
         boolean isOnline = isOnline();
         onlineProgress = isOnline ? 1.0f : 0.0f;
+        lastDrawnDotColor = -1;
     }
 
     private boolean isOnline() {
@@ -827,6 +829,47 @@ public class DialogCell extends BaseCell implements StoriesListPlaceProvider.Ava
             return true;
         }
         return false;
+    }
+
+    /**
+     * [Aiqiyi] 返回状态圆点颜色（三色），返回 0 表示不显示圆点。
+     * 蓝 = 在线；黄 = 刚离开（30 分钟内或服务端 Recently）；红 = 离开超过 30 分钟。
+     */
+    public static final int AQY_DOT_ONLINE = 0xFF2196F3;
+    public static final int AQY_DOT_RECENT = 0xFFFFC107;
+    public static final int AQY_DOT_OFFLINE = 0xFFF44336;
+    private static final int AQY_RECENT_THRESHOLD = 30 * 60;
+
+    private int getStatusDotColor() {
+        if (isForumCell() || storyParams.drawnLive || user == null || user.self || user.bot || MessagesController.isSupportUser(user)) {
+            return 0;
+        }
+        final int now = ConnectionsManager.getInstance(currentAccount).getCurrentTime();
+        final TLRPC.UserStatus status = user.status;
+        if (status == null || status instanceof TLRPC.TL_userStatusEmpty) {
+            return 0;
+        }
+        // 在线
+        if (status.expires > now) {
+            return AQY_DOT_ONLINE;
+        }
+        if (MessagesController.getInstance(currentAccount).onlinePrivacy.containsKey(user.id)) {
+            return AQY_DOT_ONLINE;
+        }
+        // 服务端模糊档位 Recently => 黄
+        if (status instanceof TLRPC.TL_userStatusRecently) {
+            return AQY_DOT_RECENT;
+        }
+        // 离线：用精确时间戳判 30 分钟
+        if (status instanceof TLRPC.TL_userStatusOffline) {
+            final int diff = now - status.expires;
+            if (diff <= AQY_RECENT_THRESHOLD) {
+                return AQY_DOT_RECENT;
+            }
+            return AQY_DOT_OFFLINE;
+        }
+        // LastWeek / LastMonth / 其他未知 => 红
+        return AQY_DOT_OFFLINE;
     }
 
     private void checkGroupCall() {
@@ -3369,7 +3412,9 @@ public class DialogCell extends BaseCell implements StoriesListPlaceProvider.Ava
                 boolean continueUpdate = false;
                 if (user != null && !MessagesController.isSupportUser(user) && !user.bot && (mask & MessagesController.UPDATE_MASK_STATUS) != 0) {
                     user = MessagesController.getInstance(currentAccount).getUser(user.id);
-                    if (wasDrawnOnline != isOnline()) {
+                    final int newDot = getStatusDotColor();
+                    if (lastDrawnDotColor != newDot) {
+                        lastDrawnDotColor = newDot;
                         invalidate = true;
                     }
                 }
@@ -5125,9 +5170,9 @@ public class DialogCell extends BaseCell implements StoriesListPlaceProvider.Ava
                 canvas.restore();
             }
             if (user != null && !MessagesController.isSupportUser(user) && !user.bot && CherrygramAppearanceConfig.INSTANCE.getAiqiyiShowOnlineStatus()) {
-                boolean isOnline = isOnline();
-                wasDrawnOnline = isOnline;
-                if (isOnline || onlineProgress != 0) {
+                final int dotColor = getStatusDotColor();
+                lastDrawnDotColor = dotColor;
+                if (dotColor != 0) {
                     int top = (int) (storyParams.originalAvatarRect.bottom - dp(useForceThreeLines || SharedConfig.useThreeLinesLayout ? 6 : 8));
                     int left;
                     if (LocaleController.isRTL) {
@@ -5135,28 +5180,10 @@ public class DialogCell extends BaseCell implements StoriesListPlaceProvider.Ava
                     } else {
                         left = (int) (storyParams.originalAvatarRect.right - dp(useForceThreeLines || SharedConfig.useThreeLinesLayout ? 10 : 6));
                     }
-
-                    Theme.dialogs_onlineCirclePaint.setColor(Theme.getColor(Theme.key_windowBackgroundWhite, resourcesProvider));
-                    canvas.drawCircle(left, top, dp(9) * onlineProgress, Theme.dialogs_onlineCirclePaint);
-                    Theme.dialogs_onlineCirclePaint.setColor(Theme.getColor(Theme.key_chats_onlineCircle, resourcesProvider));
-                    canvas.drawCircle(left, top, dp(5) * onlineProgress, Theme.dialogs_onlineCirclePaint);
-                    if (isOnline) {
-                        if (onlineProgress < 1.0f) {
-                            onlineProgress += 16f / 150.0f;
-                            if (onlineProgress > 1.0f) {
-                                onlineProgress = 1.0f;
-                            }
-                            needInvalidate = true;
-                        }
-                    } else {
-                        if (onlineProgress > 0.0f) {
-                            onlineProgress -= 16f / 150.0f;
-                            if (onlineProgress < 0.0f) {
-                                onlineProgress = 0.0f;
-                            }
-                            needInvalidate = true;
-                        }
-                    }
+                    Theme.dialogs_onlineCirclePaint.setColor(0xFFFFFFFF);
+                    canvas.drawCircle(left, top, dp(7.5f), Theme.dialogs_onlineCirclePaint);
+                    Theme.dialogs_onlineCirclePaint.setColor(dotColor);
+                    canvas.drawCircle(left, top, dp(6f), Theme.dialogs_onlineCirclePaint);
                 }
             } else if (chat != null) {
                 hasCall = chat.call_active && chat.call_not_empty;

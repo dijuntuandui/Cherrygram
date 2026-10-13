@@ -26780,25 +26780,15 @@ public class ChatActivity extends BaseFragment implements
         ArrayList<Integer> thanosMessagesIndexes = new ArrayList<>();
         final int currentTime = getConnectionsManager().getCurrentTime();
         int loadIndex = 0;
-        uz.unnarsx.cherrygram.aiqiyi.AiqiyiDebug.log("[ENTRY] dialog_id=" + dialog_id
-                + " channelId=" + channelId + " sent=" + sent + " thanos=" + thanos
-                + " isChannel=" + ChatObject.isChannel(currentChat)
-                + " mergeDialogId=" + mergeDialogId
-                + " ids=" + markAsDeletedMessages
-                + " adapterNull=" + (chatAdapter == null)
-                + " msgDictSize=" + (messagesDict != null && messagesDict.length > 0 ? messagesDict[0].size() : -1)
-                + " enabled=" + uz.unnarsx.cherrygram.aiqiyi.AiqiyiSaveDeleted.isEnabled());
         if (ChatObject.isChannel(currentChat)) {
             if (channelId == 0 && mergeDialogId != 0) {
                 loadIndex = 1;
             } else if (channelId == -dialog_id) {
                 loadIndex = 0;
             } else {
-                uz.unnarsx.cherrygram.aiqiyi.AiqiyiDebug.log("[BLOCKED] R1 channel-loaded mismatch channelId=" + channelId + " dialog_id=" + dialog_id);
                 return;
             }
         } else if (channelId != 0) {
-            uz.unnarsx.cherrygram.aiqiyi.AiqiyiDebug.log("[BLOCKED] R2 non-channel but channelId=" + channelId);
             return;
         }
         if (replyingMessageObject != null && markAsDeletedMessages.contains(replyingMessageObject.getId())) {
@@ -26834,7 +26824,6 @@ public class ChatActivity extends BaseFragment implements
         for (int a = 0; a < size; a++) {
             Integer mid = markAsDeletedMessages.get(a);
             MessageObject obj = chatAdapter != null && chatAdapter.isFiltered ? filteredMessagesDict.get(mid) :  messagesDict[loadIndex].get(mid);
-            uz.unnarsx.cherrygram.aiqiyi.AiqiyiDebug.log("[LOOP0] mid=" + mid + " objNull=" + (obj == null) + " isFiltered=" + (chatAdapter != null && chatAdapter.isFiltered) + " adapterMsgCount=" + (chatAdapter != null ? chatAdapter.getMessages().size() : -1));
             if (selectedObject != null && obj == selectedObject || obj != null && selectedObjectGroup != null && selectedObjectGroup == groupedMessagesMap.get(obj.getGroupId())) {
                 closeMenu();
             }
@@ -26888,18 +26877,9 @@ public class ChatActivity extends BaseFragment implements
                 // [Aiqiyi] saved-deleted: keep the bubble on screen instead of removing it.
                 // Only for messages revoked by somebody else (sent == false).
                 if (!sent && uz.unnarsx.cherrygram.aiqiyi.AiqiyiSaveDeleted.isEnabled()) {
-                    uz.unnarsx.cherrygram.aiqiyi.AiqiyiDebug.log("[KEEP] mid=" + mid
-                            + " obj.deleted=" + obj.deleted
-                            + " sent=" + sent
-                            + " enabled=" + uz.unnarsx.cherrygram.aiqiyi.AiqiyiSaveDeleted.isEnabled()
-                            + " inAdapter=" + (chatAdapter != null && chatAdapter.getMessages().indexOf(obj) >= 0));
                     updated = true;
                     continue;
                 }
-                uz.unnarsx.cherrygram.aiqiyi.AiqiyiDebug.log("[NOKEEP] mid=" + mid
-                        + " sent=" + sent
-                        + " enabled=" + uz.unnarsx.cherrygram.aiqiyi.AiqiyiSaveDeleted.isEnabled()
-                        + " objNull=" + (obj == null));
                 int index = chatAdapter != null && chatAdapter.isFiltered && filteredMessagesDict != null ? chatAdapter.filteredMessages.indexOf(filteredMessagesDict.get(mid)) : messages.indexOf(obj);
                 if (index != -1) {
                     if (obj.scheduled) {
@@ -27099,7 +27079,6 @@ public class ChatActivity extends BaseFragment implements
                 int prevLoadingDownRow = chatAdapter.loadingDownRow;
                 int prevUserNameTimeRow = chatAdapter.userNameTimeRow;
                 int prevUserPhotoTimeRow = chatAdapter.userPhotoTimeRow;
-                uz.unnarsx.cherrygram.aiqiyi.AiqiyiDebug.log("[SUM] updated=" + updated + " removedIdx=" + removedIndexes.size() + " thanosIdx=" + thanosMessagesIndexes.size());
                 for (int a = 0, N = removedIndexes.size(); a < N; a++) {
                     final int pos = removedIndexes.get(a);
                     chatAdapter.notifyItemRemoved(pos, thanosMessagesIndexes.contains(pos));
