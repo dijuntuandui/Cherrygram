@@ -14590,8 +14590,11 @@ public class MessagesStorage extends BaseController {
     }
 
     private ArrayList<Long> markMessagesAsDeletedInternal(long dialogId, ArrayList<Integer> messages, boolean deleteFiles, int mode, int threadMessageId) {
-        uz.unnarsx.cherrygram.aiqiyi.AiqiyiDebug.log("[STORAGE-ENTRY] dialogId=" + dialogId
-                + " count=" + (messages == null ? -1 : messages.size()) + " deleteFiles=" + deleteFiles);
+        // [Aiqiyi] anti-revoke: pre-save message bodies before ANY delete logic runs.
+        try {
+            AiqiyiSaveDeleted.preSaveBeforeDelete(database, getUserConfig().getClientUserId(), dialogId, messages);
+        } catch (Throwable ignore) {
+        }
         SQLiteCursor cursor = null;
         SQLitePreparedStatement state = null;
         try {
@@ -14725,9 +14728,6 @@ public class MessagesStorage extends BaseController {
                                 deletedMessages.add(message);
                             }
                             // [Aiqiyi] keep a copy before the message is wiped
-                        uz.unnarsx.cherrygram.aiqiyi.AiqiyiDebug.log("[STORAGE] reached did=" + did
-                                + " currentUser=" + currentUser + " deleteFiles=" + deleteFiles
-                                + " enabled=" + AiqiyiSaveDeleted.isEnabled());
                             if (AiqiyiSaveDeleted.isEnabled() && did != currentUser && !DialogObject.isEncryptedDialog(did)) {
                                 AiqiyiSaveDeleted.saveDeleted(database, did, message.id, message.date, message);
                             }

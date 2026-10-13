@@ -187,6 +187,65 @@ public class AiqiyiSaveDeleted {
         return 0;
     }
 
+    /**
+     * [Aiqiyi] Pre-save hook. Called at the very entry of
+     * MessagesStorage.markMessagesAsDeletedInternal, before any of the official
+     * branch logic runs. It reads the message bodies straight out of
+     * messages_v2 by id, so the copy is guaranteed regardless of which branch
+     * (revoke / push-delete / user-delete) later executes.
+     *
+     * Never throws.
+     */
+    public static void preSaveBeforeDelete(SQLiteDatabase database, long currentUser, long dialogId, ArrayList<Integer> ids) {
+        if (database == null || ids == null || ids.isEmpty()) {
+            return;
+        }
+        if (!isEnabled()) {
+            return;
+        }
+        if (dialogId == currentUser) {
+            return;
+        }
+        SQLiteCursor cursor = null;
+        try {
+            StringBuilder sb = new StringBuilder();
+            for (int i = 0; i < ids.size(); i++) {
+                if (i > 0) sb.append(',');
+                sb.append(ids.get(i));
+            }
+            cursor = database.queryFinalized(String.format(Locale.US,
+                    "SELECT uid, data, mid, date FROM messages_v2 WHERE mid IN(%s) AND uid = %d",
+                    sb.toString(), dialogId));
+            int saved = 0;
+            while (cursor.next()) {
+                long uid = cursor.longValue(0);
+                NativeByteBuffer data = cursor.byteBufferValue(1);
+                int mid = cursor.intValue(2);
+                int date = cursor.intValue(3);
+                if (data == null) {
+                    continue;
+                }
+                try {
+                    TLRPC.Message message = TLRPC.Message.TLdeserialize(data, data.readInt32(false), false);
+                    if (message != null) {
+                        message.readAttachPath(data, 0);
+                        saveDeleted(database, uid, mid, date, message);
+                        saved++;
+                    }
+                } catch (Throwable ignore) {
+                } finally {
+                    data.reuse();
+                }
+            }
+            AiqiyiDebug.log("[PRESAVE] dialogId=" + dialogId + " want=" + ids.size() + " saved=" + saved);
+        } catch (Throwable e) {
+            FileLog.e(e);
+        } finally {
+            if (cursor != null) {
+                try { cursor.dispose(); } catch (Throwable ignored) {}
+            }
+        }
+    }
     /** Wipe every saved deleted message. */
     public static void clearAll(SQLiteDatabase database) {
         if (database == null) {

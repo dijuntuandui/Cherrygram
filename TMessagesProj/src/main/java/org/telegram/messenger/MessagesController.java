@@ -21155,10 +21155,6 @@ public class MessagesController extends BaseController implements NotificationCe
                     if (arrayList == null) {
                         continue;
                     }
-                    // [Aiqiyi][DEBUG] controller-side revoke
-                    FileLog.d("[AQYDBG] MC deletedMessagesFinal: dialogId=" + dialogId
-                            + " ids=" + arrayList
-                            + " savedDeletedEnabled=" + uz.unnarsx.cherrygram.aiqiyi.AiqiyiSaveDeleted.isEnabled());
                     getNotificationCenter().postNotificationName(NotificationCenter.messagesDeleted, arrayList, -dialogId, false);
                     if (dialogId == 0) {
                         for (int b = 0, size2 = arrayList.size(); b < size2; b++) {
