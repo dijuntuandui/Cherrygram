@@ -18582,6 +18582,7 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
         if (currentMessageObject.deleted && !currentMessageObject.deletedByThanos
                 && uz.unnarsx.cherrygram.aiqiyi.AiqiyiSaveDeleted.isEnabled()) {
             // [Aiqiyi] saved-deleted: show the custom mark instead of the timestamp
+            uz.unnarsx.cherrygram.aiqiyi.AiqiyiDebug.log("[DRAW-MARK] mid=" + currentMessageObject.getId() + " deleted=" + currentMessageObject.deleted);
             timeString = uz.unnarsx.cherrygram.aiqiyi.AiqiyiSaveDeleted.getDeletedMark();
         } else if (currentMessageObject.isWelcomeMessage()) {
             timeString = ""; // Long.toString(currentMessageObject.getId());

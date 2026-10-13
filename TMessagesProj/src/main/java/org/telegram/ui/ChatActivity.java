@@ -26877,9 +26877,18 @@ public class ChatActivity extends BaseFragment implements
                 // [Aiqiyi] saved-deleted: keep the bubble on screen instead of removing it.
                 // Only for messages revoked by somebody else (sent == false).
                 if (!sent && uz.unnarsx.cherrygram.aiqiyi.AiqiyiSaveDeleted.isEnabled()) {
+                    uz.unnarsx.cherrygram.aiqiyi.AiqiyiDebug.log("[KEEP] mid=" + mid
+                            + " obj.deleted=" + obj.deleted
+                            + " sent=" + sent
+                            + " enabled=" + uz.unnarsx.cherrygram.aiqiyi.AiqiyiSaveDeleted.isEnabled()
+                            + " inAdapter=" + (chatAdapter != null && chatAdapter.getMessages().indexOf(obj) >= 0));
                     updated = true;
                     continue;
                 }
+                uz.unnarsx.cherrygram.aiqiyi.AiqiyiDebug.log("[NOKEEP] mid=" + mid
+                        + " sent=" + sent
+                        + " enabled=" + uz.unnarsx.cherrygram.aiqiyi.AiqiyiSaveDeleted.isEnabled()
+                        + " objNull=" + (obj == null));
                 int index = chatAdapter != null && chatAdapter.isFiltered && filteredMessagesDict != null ? chatAdapter.filteredMessages.indexOf(filteredMessagesDict.get(mid)) : messages.indexOf(obj);
                 if (index != -1) {
                     if (obj.scheduled) {
