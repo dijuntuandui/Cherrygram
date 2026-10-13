@@ -31,6 +31,9 @@ object CherrygramAppearanceConfig {
 
     /** 爱琦艺插件 - 自定义标题 */
     var customAppTitle by sharedPreferences.string("AP_CustomAppTitle", "")
+    /** 爱琦艺插件 - 输入栏下方提示文字（独立开关 + 自定义文案） */
+    var aiqiyiInputHintEnabled by sharedPreferences.boolean("AP_AiqiyiInputHintEnabled", false)
+    var aiqiyiInputHintText by sharedPreferences.string("AP_AiqiyiInputHintText", "")
     /** Header finish */
 
     /** Appearance start */

@@ -601,6 +601,13 @@
     <string name="AQY_CustomTitle_Reset">Reset to default</string>
     <string name="AQY_CustomTitle_ResetDone">Default title restored</string>
     <string name="AQY_CustomTitle_Saved">Title saved</string>
+    <string name="AQY_InputHint">Input Bar Hint</string>
+    <string name="AQY_InputHint_Desc">Show a custom hint line below the message input field</string>
+    <string name="AQY_InputHintText">Custom Input Bar Hint</string>
+    <string name="AQY_InputHintText_Hint">Enter hint text</string>
+    <string name="AQY_InputHintText_Empty">Not set</string>
+    <string name="AQY_InputHintText_ResetDone">Hint text cleared</string>
+    <string name="AQY_InputHintText_Saved">Hint text saved</string>
     <string name="AQY_Optimization">Chat Enhancements</string>
     <string name="AQY_TranslateBar">Always Show Translate Bar</string>
     <string name="AQY_TranslateBar_Desc">Keep the translate bar pinned at the top of every chat, even without Premium</string>

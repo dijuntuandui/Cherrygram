@@ -68,6 +68,8 @@ public class GeneralPreferencesEntry extends BaseCGPreferencesEntry {
     private final int slowNetworkMode = 19;
 
     private final int aiqiyiCustomTitleRow = 20;
+    private final int aiqiyiInputHintEnabledRow = 27;
+    private final int aiqiyiInputHintTextRow = 28;
     private final int aiqiyiTranslateBarRow = 21;
     private final int aiqiyiSaveDeletedRow = 22;
     private final int aiqiyiTranslucentDeletedRow = 23;
@@ -230,6 +232,13 @@ public class GeneralPreferencesEntry extends BaseCGPreferencesEntry {
         items.add(SettingsHelper.asTextDetail(aiqiyiCustomTitleRow, 0, getString(R.string.AQY_CustomTitle), getCustomTitleText())
                 .slug("aiqiyi_custom_title")
         );
+        items.add(SettingsHelper.asSwitchCG(aiqiyiInputHintEnabledRow, getString(R.string.AQY_InputHint), getString(R.string.AQY_InputHint_Desc))
+                .setChecked(CherrygramAppearanceConfig.INSTANCE.getAiqiyiInputHintEnabled())
+                .slug("aiqiyi_input_hint_enabled")
+        );
+        items.add(SettingsHelper.asTextDetail(aiqiyiInputHintTextRow, 0, getString(R.string.AQY_InputHintText), getInputHintText())
+                .slug("aiqiyi_input_hint_text")
+        );
         items.add(SettingsHelper.asSwitchCG(aiqiyiSaveDeletedRow, getString(R.string.AQY_SaveDeleted), getString(R.string.AQY_SaveDeleted_Desc))
                 .setChecked(CherrygramMessagesConfig.INSTANCE.getAiqiyiSaveDeletedMessages())
                 .slug("aiqiyi_save_deleted")
@@ -384,6 +393,12 @@ public class GeneralPreferencesEntry extends BaseCGPreferencesEntry {
             SettingsHelper.updateCheckState(view, CherrygramMessagesConfig.INSTANCE.getAiqiyiTranslateBarAlways());
         } else if (item.id == aiqiyiCustomTitleRow) {
             showCustomTitleDialog();
+        } else if (item.id == aiqiyiInputHintEnabledRow) {
+            CherrygramAppearanceConfig.INSTANCE.setAiqiyiInputHintEnabled(!CherrygramAppearanceConfig.INSTANCE.getAiqiyiInputHintEnabled());
+            SettingsHelper.updateCheckState(view, CherrygramAppearanceConfig.INSTANCE.getAiqiyiInputHintEnabled());
+        } else if (item.id == aiqiyiInputHintTextRow) {
+            showInputHintDialog();
+        }
         } else if (item.id == aiqiyiSaveDeletedRow) {
             CherrygramMessagesConfig.INSTANCE.setAiqiyiSaveDeletedMessages(!CherrygramMessagesConfig.INSTANCE.getAiqiyiSaveDeletedMessages());
             SettingsHelper.updateCheckState(view, CherrygramMessagesConfig.INSTANCE.getAiqiyiSaveDeletedMessages());
@@ -459,6 +474,66 @@ public class GeneralPreferencesEntry extends BaseCGPreferencesEntry {
             return getString(R.string.CG_AppName);
         }
         return t;
+    }
+
+    private String getInputHintText() {
+        String t = CherrygramAppearanceConfig.INSTANCE.getAiqiyiInputHintText();
+        if (t == null || t.trim().isEmpty()) {
+            return getString(R.string.AQY_InputHintText_Empty);
+        }
+        return t;
+    }
+
+    private void showInputHintDialog() {
+        Context context = getContext();
+        if (context == null) return;
+
+        android.widget.EditText editText = new android.widget.EditText(context);
+        editText.setHint(getString(R.string.AQY_InputHintText_Hint));
+        editText.setTextColor(org.telegram.ui.ActionBar.Theme.getColor(org.telegram.ui.ActionBar.Theme.key_windowBackgroundWhiteBlackText));
+        editText.setHintTextColor(org.telegram.ui.ActionBar.Theme.getColor(org.telegram.ui.ActionBar.Theme.key_windowBackgroundWhiteGrayText2));
+        editText.setSingleLine(true);
+        editText.setInputType(android.text.InputType.TYPE_CLASS_TEXT);
+        String current = CherrygramAppearanceConfig.INSTANCE.getAiqiyiInputHintText();
+        if (current != null && !current.isEmpty()) {
+            editText.setText(current);
+            editText.setSelection(current.length());
+        }
+
+        android.widget.FrameLayout container = new android.widget.FrameLayout(context);
+        int pad = AndroidUtilities.dp(24);
+        container.setPadding(pad, AndroidUtilities.dp(8), pad, AndroidUtilities.dp(8));
+        container.addView(editText, new android.widget.FrameLayout.LayoutParams(
+                android.widget.FrameLayout.LayoutParams.MATCH_PARENT,
+                android.widget.FrameLayout.LayoutParams.WRAP_CONTENT));
+
+        org.telegram.ui.ActionBar.AlertDialog.Builder builder = new org.telegram.ui.ActionBar.AlertDialog.Builder(context);
+        builder.setTitle(getString(R.string.AQY_InputHintText));
+        builder.setView(container);
+        builder.setPositiveButton(org.telegram.messenger.LocaleController.getString(org.telegram.messenger.R.string.Save), (dialog, which) -> {
+            String value = editText.getText().toString().trim();
+            CherrygramAppearanceConfig.INSTANCE.setAiqiyiInputHintText(value);
+            updateRows(true);
+            org.telegram.ui.Components.BulletinFactory.of(this).createSimpleBulletin(org.telegram.messenger.R.raw.info, getString(value.isEmpty() ? R.string.AQY_InputHintText_ResetDone : R.string.AQY_InputHintText_Saved)).show();
+            if (getParentActivity() != null) {
+                getParentActivity().recreate();
+            }
+        });
+        builder.setNegativeButton(org.telegram.messenger.LocaleController.getString(org.telegram.messenger.R.string.Cancel), null);
+
+        org.telegram.ui.ActionBar.AlertDialog dialog = builder.create();
+        dialog.show();
+        AndroidUtilities.runOnUIThread(() -> {
+            editText.requestFocus();
+            AndroidUtilities.showKeyboard(editText);
+        });
+
+        if (dialog.getButton(org.telegram.ui.ActionBar.AlertDialog.BUTTON_POSITIVE) != null) {
+            android.view.View posBtn = dialog.getButton(org.telegram.ui.ActionBar.AlertDialog.BUTTON_POSITIVE);
+            if (posBtn instanceof android.widget.TextView) {
+                ((android.widget.TextView) posBtn).setTextColor(org.telegram.ui.ActionBar.Theme.getColor(org.telegram.ui.ActionBar.Theme.key_dialogButton));
+            }
+        }
     }
 
     private void showCustomTitleDialog() {

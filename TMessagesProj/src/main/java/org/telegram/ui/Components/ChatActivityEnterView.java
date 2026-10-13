@@ -662,6 +662,9 @@ public class ChatActivityEnterView extends FrameLayout implements
     private ImageView reactionsButton;
     public FrameLayout messageEditTextContainer;
     public FrameLayout textFieldContainer;
+
+    // [Aiqiyi] 输入栏下方自定义提示文字
+    private android.widget.TextView aiqiyiInputHintView;
     public FrameLayout sendButtonContainer;
     private ImageView sendOutlineView;
     public RichMessageLayout.PreviewView richDraftPreview;
@@ -2677,6 +2680,15 @@ public class ChatActivityEnterView extends FrameLayout implements
         textFieldContainer.setClipToPadding(false);
         textFieldContainer.setPadding(0, dp(1), 0, 0);
         addView(textFieldContainer, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, Gravity.LEFT | Gravity.BOTTOM, 0, 1, 0, 0));
+
+        // [Aiqiyi] 输入栏下方自定义提示文字
+        aiqiyiInputHintView = new android.widget.TextView(context);
+        aiqiyiInputHintView.setTextSize(android.util.TypedValue.COMPLEX_UNIT_DIP, 12);
+        aiqiyiInputHintView.setGravity(Gravity.CENTER_HORIZONTAL);
+        aiqiyiInputHintView.setSingleLine(true);
+        aiqiyiInputHintView.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        aiqiyiInputHintView.setVisibility(View.GONE);
+        textFieldContainer.addView(aiqiyiInputHintView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, Gravity.BOTTOM, 0, 0, 0, -dp(1)));
 
         FrameLayout frameLayout = messageEditTextContainer = new FrameLayout(context) {
             @Override
@@ -7181,7 +7193,37 @@ public class ChatActivityEnterView extends FrameLayout implements
     }
 
     public final ColoredImageSpan[] spans = new ColoredImageSpan[1];
+
+    /** [Aiqiyi] 输入栏下方自定义提示文字：开关 + 文案 + 配色 */
+    private void updateAiqiyiInputHint() {
+        if (aiqiyiInputHintView == null) {
+            return;
+        }
+        boolean enabled = false;
+        String text = null;
+        try {
+            enabled = uz.unnarsx.cherrygram.core.configs.CherrygramAppearanceConfig.INSTANCE.getAiqiyiInputHintEnabled();
+            text = uz.unnarsx.cherrygram.core.configs.CherrygramAppearanceConfig.INSTANCE.getAiqiyiInputHintText();
+        } catch (Throwable ignored) {
+        }
+        if (!enabled || text == null || text.trim().isEmpty()) {
+            aiqiyiInputHintView.setVisibility(View.GONE);
+            return;
+        }
+        aiqiyiInputHintView.setText(text.trim());
+        int color;
+        try {
+            color = getThemedColor(Theme.key_chat_messagePanelHint);
+        } catch (Throwable t) {
+            color = 0xff888888;
+        }
+        aiqiyiInputHintView.setTextColor(color);
+        aiqiyiInputHintView.setVisibility(View.VISIBLE);
+    }
+
     public void updateFieldHint(boolean animated) {
+        // [Aiqiyi] 更新输入栏下方自定义提示文字
+        updateAiqiyiInputHint();
         if (messageEditText == null) {
             return;
         }

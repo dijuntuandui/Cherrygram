@@ -464,6 +464,13 @@
     <string name="AQY_CustomTitle_Reset">恢复默认</string>
     <string name="AQY_CustomTitle_ResetDone">已恢复默认标题</string>
     <string name="AQY_CustomTitle_Saved">标题已保存</string>
+    <string name="AQY_InputHint">输入栏提示文字</string>
+    <string name="AQY_InputHint_Desc">在输入框下方显示一行自定义提示文字</string>
+    <string name="AQY_InputHintText">自定义输入栏提示</string>
+    <string name="AQY_InputHintText_Hint">输入提示文字</string>
+    <string name="AQY_InputHintText_Empty">未设置</string>
+    <string name="AQY_InputHintText_ResetDone">已清除提示文字</string>
+    <string name="AQY_InputHintText_Saved">提示文字已保存</string>
     <string name="AQY_Optimization">聊天优化</string>
     <string name="AQY_TranslateBar">顶栏常驻翻译</string>
     <string name="AQY_TranslateBar_Desc">在每个聊天顶部常驻翻译条，无需会员</string>
