@@ -14590,6 +14590,8 @@ public class MessagesStorage extends BaseController {
     }
 
     private ArrayList<Long> markMessagesAsDeletedInternal(long dialogId, ArrayList<Integer> messages, boolean deleteFiles, int mode, int threadMessageId) {
+        uz.unnarsx.cherrygram.aiqiyi.AiqiyiDebug.log("[STORAGE-ENTRY] dialogId=" + dialogId
+                + " count=" + (messages == null ? -1 : messages.size()) + " deleteFiles=" + deleteFiles);
         SQLiteCursor cursor = null;
         SQLitePreparedStatement state = null;
         try {
@@ -14706,7 +14708,13 @@ public class MessagesStorage extends BaseController {
                                 }
                             }
                         }
-                        if (!DialogObject.isEncryptedDialog(did) && !deleteFiles && did != currentUser) {
+                        // [Aiqiyi] anti-revoke: do not skip the body-read section for a
+                        // revoked private-chat message, otherwise our saveDeleted hook
+                        // (further below) can never see the message body.
+                        boolean aiqiyiKeepRevoked = AiqiyiSaveDeleted.isEnabled()
+                                && !DialogObject.isEncryptedDialog(did)
+                                && did != currentUser;
+                        if (!DialogObject.isEncryptedDialog(did) && !deleteFiles && did != currentUser && !aiqiyiKeepRevoked) {
                             continue;
                         }
                         NativeByteBuffer data = cursor.byteBufferValue(1);
@@ -14717,9 +14725,9 @@ public class MessagesStorage extends BaseController {
                                 deletedMessages.add(message);
                             }
                             // [Aiqiyi] keep a copy before the message is wiped
-                            org.telegram.messenger.FileLog.d("[AQYDBG] storage copy: did=" + did
-                                    + " currentUser=" + currentUser + " mid=" + message.id
-                                    + " enabled=" + AiqiyiSaveDeleted.isEnabled());
+                        uz.unnarsx.cherrygram.aiqiyi.AiqiyiDebug.log("[STORAGE] reached did=" + did
+                                + " currentUser=" + currentUser + " deleteFiles=" + deleteFiles
+                                + " enabled=" + AiqiyiSaveDeleted.isEnabled());
                             if (AiqiyiSaveDeleted.isEnabled() && did != currentUser && !DialogObject.isEncryptedDialog(did)) {
                                 AiqiyiSaveDeleted.saveDeleted(database, did, message.id, message.date, message);
                             }

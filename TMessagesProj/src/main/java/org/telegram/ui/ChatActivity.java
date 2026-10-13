@@ -22737,11 +22737,10 @@ public class ChatActivity extends BaseFragment implements
             long channelId = (Long) args[1];
             boolean update = args.length > 2 && (boolean) args[2];
             boolean sent = args.length > 3 && (boolean) args[3];
-            // [Aiqiyi][DEBUG] revoke callback entry
-            org.telegram.messenger.FileLog.d("[AQYDBG] messagesDeleted cb: ids=" + markAsDeletedMessages
-                    + " channelId=" + channelId + " scheduled(update)=" + update + " sent=" + sent
+            uz.unnarsx.cherrygram.aiqiyi.AiqiyiDebug.log("[CB] ids=" + markAsDeletedMessages
+                    + " channelId=" + channelId + " update=" + update + " sent=" + sent
                     + " argsLen=" + args.length + " chatMode=" + chatMode
-                    + " savedDeletedEnabled=" + uz.unnarsx.cherrygram.aiqiyi.AiqiyiSaveDeleted.isEnabled());
+                    + " enabled=" + uz.unnarsx.cherrygram.aiqiyi.AiqiyiSaveDeleted.isEnabled());
             int scheduledMessageId = args.length > 5 ? (int) args[5] : 0;
             ArrayList<Integer> sentMessages = null;
             if (args.length > 6) sentMessages = (ArrayList<Integer>) args[6];
@@ -26781,10 +26780,6 @@ public class ChatActivity extends BaseFragment implements
         processDeletedMessages(markAsDeletedMessages, channelId, sent, true);
     }
     private void processDeletedMessages(ArrayList<Integer> markAsDeletedMessages, long channelId, boolean sent, boolean thanos) {
-        // [Aiqiyi][DEBUG] revoke processor entry
-        org.telegram.messenger.FileLog.d("[AQYDBG] processDeletedMessages: ids=" + markAsDeletedMessages
-                + " channelId=" + channelId + " sent=" + sent + " thanos=" + thanos
-                + " dialog_id=" + dialog_id);
         ArrayList<Integer> removedIndexes = new ArrayList<>();
         ArrayList<Integer> thanosMessagesIndexes = new ArrayList<>();
         final int currentTime = getConnectionsManager().getCurrentTime();
@@ -26857,6 +26852,9 @@ public class ChatActivity extends BaseFragment implements
                 repliesMessagesDict.remove(mid);
                 updateReplyMessageOwners(mid, null);
             }
+            uz.unnarsx.cherrygram.aiqiyi.AiqiyiDebug.log("[LOOP] mid=" + mid + " obj=" + (obj != null ? "OK" : "NULL")
+                    + " loadIndex=" + loadIndex + " sent=" + sent
+                    + " enabled=" + uz.unnarsx.cherrygram.aiqiyi.AiqiyiSaveDeleted.isEnabled());
             if (obj != null) {
                 if (obj.messageOwner.reply_to != null && !(obj.messageOwner.action instanceof TLRPC.TL_messageActionPinMessage)) {
                     int replyId = obj.getReplyAnyMsgId();
