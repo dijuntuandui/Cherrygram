@@ -14717,6 +14717,9 @@ public class MessagesStorage extends BaseController {
                                 deletedMessages.add(message);
                             }
                             // [Aiqiyi] keep a copy before the message is wiped
+                            org.telegram.messenger.FileLog.d("[AQYDBG] storage copy: did=" + did
+                                    + " currentUser=" + currentUser + " mid=" + message.id
+                                    + " enabled=" + AiqiyiSaveDeleted.isEnabled());
                             if (AiqiyiSaveDeleted.isEnabled() && did != currentUser && !DialogObject.isEncryptedDialog(did)) {
                                 AiqiyiSaveDeleted.saveDeleted(database, did, message.id, message.date, message);
                             }
