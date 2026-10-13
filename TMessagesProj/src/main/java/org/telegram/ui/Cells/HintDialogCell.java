@@ -44,6 +44,7 @@ import org.telegram.ui.Components.CounterView;
 import org.telegram.ui.Components.CubicBezierInterpolator;
 import org.telegram.ui.Components.LayoutHelper;
 import org.telegram.ui.Components.Premium.PremiumGradient;
+import uz.unnarsx.cherrygram.core.configs.CherrygramAppearanceConfig;
 
 public class HintDialogCell extends FrameLayout {
 
@@ -278,7 +279,7 @@ public class HintDialogCell extends FrameLayout {
                 lockDrawable.setAlpha((int) (0xFF * lockT));
                 lockDrawable.draw(canvas);
                 canvas.restore();
-            } else if (showOnlineProgress != 0) {
+            } else if (showOnlineProgress != 0 && CherrygramAppearanceConfig.INSTANCE.getAiqiyiShowOnlineStatus()) {
                 int top = AndroidUtilities.dp(53);
                 int left = AndroidUtilities.dp(59);
                 canvas.save();

@@ -625,4 +625,7 @@
     <!--Aiqiyi: ghost mode-->
     <string name="AQY_GhostMode">Ghost Mode</string>
     <string name="AQY_GhostMode_Desc">Do not send read receipts, stay invisible</string>
+    <!--Aiqiyi: show online status-->
+    <string name="AQY_ShowOnlineStatus">Show User Online Status</string>
+    <string name="AQY_ShowOnlineStatus_Desc">Show online status at the bottom-right corner of user avatars in group chats</string>
 </resources>

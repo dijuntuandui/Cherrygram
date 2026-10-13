@@ -76,6 +76,7 @@ public class GeneralPreferencesEntry extends BaseCGPreferencesEntry {
     private final int aiqiyiUseDeletedIconRow = 24;
     private final int aiqiyiCustomDeletedMarkRow = 25;
     private final int aiqiyiGhostModeRow = 26;
+    private final int aiqiyiShowOnlineStatusRow = 29;
 
     private boolean expandedArchiveStoriesSection = false;
 
@@ -258,6 +259,10 @@ public class GeneralPreferencesEntry extends BaseCGPreferencesEntry {
                 .setChecked(CherrygramMessagesConfig.INSTANCE.getAiqiyiGhostMode())
                 .slug("aiqiyi_ghost_mode")
         );
+        items.add(SettingsHelper.asSwitchCG(aiqiyiShowOnlineStatusRow, getString(R.string.AQY_ShowOnlineStatus), getString(R.string.AQY_ShowOnlineStatus_Desc))
+                .setChecked(CherrygramAppearanceConfig.INSTANCE.getAiqiyiShowOnlineStatus())
+                .slug("aiqiyi_show_online_status")
+        );
         items.add(UItem.asShadow(null));
     }
 
@@ -398,7 +403,6 @@ public class GeneralPreferencesEntry extends BaseCGPreferencesEntry {
             SettingsHelper.updateCheckState(view, CherrygramAppearanceConfig.INSTANCE.getAiqiyiInputHintEnabled());
         } else if (item.id == aiqiyiInputHintTextRow) {
             showInputHintDialog();
-        }
         } else if (item.id == aiqiyiSaveDeletedRow) {
             CherrygramMessagesConfig.INSTANCE.setAiqiyiSaveDeletedMessages(!CherrygramMessagesConfig.INSTANCE.getAiqiyiSaveDeletedMessages());
             SettingsHelper.updateCheckState(view, CherrygramMessagesConfig.INSTANCE.getAiqiyiSaveDeletedMessages());
@@ -413,6 +417,10 @@ public class GeneralPreferencesEntry extends BaseCGPreferencesEntry {
         } else if (item.id == aiqiyiGhostModeRow) {
             CherrygramMessagesConfig.INSTANCE.setAiqiyiGhostMode(!CherrygramMessagesConfig.INSTANCE.getAiqiyiGhostMode());
             SettingsHelper.updateCheckState(view, CherrygramMessagesConfig.INSTANCE.getAiqiyiGhostMode());
+        } else if (item.id == aiqiyiShowOnlineStatusRow) {
+            CherrygramAppearanceConfig.INSTANCE.setAiqiyiShowOnlineStatus(!CherrygramAppearanceConfig.INSTANCE.getAiqiyiShowOnlineStatus());
+            SettingsHelper.updateCheckState(view, CherrygramAppearanceConfig.INSTANCE.getAiqiyiShowOnlineStatus());
+            showRestartBulletin();
         }
     }
 

@@ -488,6 +488,9 @@
     <!--Aiqiyi: ghost mode-->
     <string name="AQY_GhostMode">幽灵模式</string>
     <string name="AQY_GhostMode_Desc">不发送已读回执，隐身在线状态</string>
+    <!--Aiqiyi: show online status-->
+    <string name="AQY_ShowOnlineStatus">显示用户在线状态</string>
+    <string name="AQY_ShowOnlineStatus_Desc">在群组聊天时用户头像的右下角显示在线状态</string>
     <!-- ===== 补齐 zh-rCN 缺失条目 (2026-10-13) ===== -->
     <!--CGP 页面描述-->
     <string name="CGP_ADS">观看广告</string>

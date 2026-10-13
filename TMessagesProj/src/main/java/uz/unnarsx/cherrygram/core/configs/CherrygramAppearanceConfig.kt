@@ -34,6 +34,8 @@ object CherrygramAppearanceConfig {
     /** 爱琦艺插件 - 输入栏下方提示文字（独立开关 + 自定义文案） */
     var aiqiyiInputHintEnabled by sharedPreferences.boolean("AP_AiqiyiInputHintEnabled", false)
     var aiqiyiInputHintText by sharedPreferences.string("AP_AiqiyiInputHintText", "")
+    /** 爱琦艺插件 - 显示用户在线状态（群组聊天时头像右下角显示在线状态） */
+    var aiqiyiShowOnlineStatus by sharedPreferences.boolean("AP_AiqiyiShowOnlineStatus", true)
     /** Header finish */
 
     /** Appearance start */

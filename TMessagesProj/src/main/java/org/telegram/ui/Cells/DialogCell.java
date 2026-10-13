@@ -5124,7 +5124,7 @@ public class DialogCell extends BaseCell implements StoriesListPlaceProvider.Ava
                 canvas.restore();
                 canvas.restore();
             }
-            if (user != null && !MessagesController.isSupportUser(user) && !user.bot) {
+            if (user != null && !MessagesController.isSupportUser(user) && !user.bot && CherrygramAppearanceConfig.INSTANCE.getAiqiyiShowOnlineStatus()) {
                 boolean isOnline = isOnline();
                 wasDrawnOnline = isOnline;
                 if (isOnline || onlineProgress != 0) {
