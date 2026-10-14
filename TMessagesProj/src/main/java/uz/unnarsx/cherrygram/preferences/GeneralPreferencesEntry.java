@@ -435,7 +435,6 @@ public class GeneralPreferencesEntry extends BaseCGPreferencesEntry {
                 uz.unnarsx.cherrygram.aiqiyi.signin.AiqiyiSignInHelper.executeDueTasks(account);
             }
             SettingsHelper.updateCheckState(view, next);
-        }
             showRestartBulletin();
         }
     }
