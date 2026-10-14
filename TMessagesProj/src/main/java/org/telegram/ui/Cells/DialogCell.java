@@ -833,43 +833,14 @@ public class DialogCell extends BaseCell implements StoriesListPlaceProvider.Ava
 
     /**
      * [Aiqiyi] 返回状态圆点颜色（三色），返回 0 表示不显示圆点。
-     * 蓝 = 在线；黄 = 刚离开（30 分钟内或服务端 Recently）；红 = 离开超过 30 分钟。
+     * 判定逻辑已统一收敛到 AiqiyiOnlineDot，此处只保留列表项专属的前置条件。
      */
-    public static final int AQY_DOT_ONLINE = 0xFF2196F3;
-    public static final int AQY_DOT_RECENT = 0xFFFFC107;
-    public static final int AQY_DOT_OFFLINE = 0xFFF44336;
-    private static final int AQY_RECENT_THRESHOLD = 30 * 60;
-
     private int getStatusDotColor() {
-        if (isForumCell() || storyParams.drawnLive || user == null || user.self || user.bot || MessagesController.isSupportUser(user)) {
+        if (isForumCell() || storyParams.drawnLive) {
             return 0;
         }
-        final int now = ConnectionsManager.getInstance(currentAccount).getCurrentTime();
-        final TLRPC.UserStatus status = user.status;
-        if (status == null || status instanceof TLRPC.TL_userStatusEmpty) {
-            return 0;
-        }
-        // 在线
-        if (status.expires > now) {
-            return AQY_DOT_ONLINE;
-        }
-        if (MessagesController.getInstance(currentAccount).onlinePrivacy.containsKey(user.id)) {
-            return AQY_DOT_ONLINE;
-        }
-        // 服务端模糊档位 Recently => 黄
-        if (status instanceof TLRPC.TL_userStatusRecently) {
-            return AQY_DOT_RECENT;
-        }
-        // 离线：用精确时间戳判 30 分钟
-        if (status instanceof TLRPC.TL_userStatusOffline) {
-            final int diff = now - status.expires;
-            if (diff <= AQY_RECENT_THRESHOLD) {
-                return AQY_DOT_RECENT;
-            }
-            return AQY_DOT_OFFLINE;
-        }
-        // LastWeek / LastMonth / 其他未知 => 红
-        return AQY_DOT_OFFLINE;
+        // [Aiqiyi] 统一走共用判定，避免与群聊消息头像的逻辑漂移
+        return uz.unnarsx.cherrygram.aiqiyi.AiqiyiOnlineDot.getDotColor(currentAccount, user);
     }
 
     private void checkGroupCall() {

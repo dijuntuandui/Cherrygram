@@ -15261,6 +15261,70 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
         transitionParams.recordDrawingState();
 
         checkStakedDice();
+
+        // [Aiqiyi] 群聊发言人头像右下角三色在线状态点
+        drawAiqiyiOnlineDot(canvas);
+    }
+
+    /**
+     * [Aiqiyi] 在群聊消息左侧发言人头像的右下角绘制三色在线状态点。
+     *
+     * 只在以下条件同时满足时绘制：
+     *   - 单聊/私密会话不画（那里头像不是发言人）
+     *   - 开关已打开
+     *   - 头像可见、且不是自己发的消息
+     *   - 发言人是普通用户（非 bot / 非频道 / 非匿名管理员）
+     *
+     * 设计：只读缓存、不发请求；谁发言标谁，没发言的成员完全不涉及，
+     * 因此开销与消息条数成正比，与群规模无关。
+     */
+    private void drawAiqiyiOnlineDot(Canvas canvas) {
+        try {
+            if (!isChat || !isAvatarVisible || currentUser == null) {
+                return;
+            }
+            if (currentMessageObject == null || currentMessageObject.isOutOwner()) {
+                return;
+            }
+            if (currentMessageObject.isSponsored()) {
+                return;
+            }
+            if (!uz.unnarsx.cherrygram.core.configs.CherrygramAppearanceConfig.INSTANCE.getAiqiyiShowOnlineStatus()) {
+                return;
+            }
+            // 头像自身尚未成功绘制（透明/隐藏）时不叠加
+            if (!avatarImage.getVisible() || avatarImage.getCurrentAlpha() <= 0.01f) {
+                return;
+            }
+
+            final int dotColor = uz.unnarsx.cherrygram.aiqiyi.AiqiyiOnlineDot.getDotColor(currentAccount, currentUser);
+            if (dotColor == 0) {
+                return;
+            }
+
+            final float radius = avatarImage.getImageWidth() / 2f;
+            if (radius <= 0) {
+                return;
+            }
+            // 头像圆心 → 右下 45° 方向的圆周点
+            final float cx = avatarImage.getCenterX() + (float) (radius * 0.7071);
+            final float cy = avatarImage.getCenterY() + (float) (radius * 0.7071);
+
+            final float outer = dp(7.5f);
+            final float inner = dp(6f);
+
+            final int saveAlpha = canvas.saveLayerAlpha(0, 0, getWidth(), getHeight(),
+                    (int) (255 * avatarImage.getCurrentAlpha()), Canvas.ALL_SAVE_FLAG);
+
+            Theme.dialogs_onlineCirclePaint.setColor(0xFFFFFFFF);
+            canvas.drawCircle(cx, cy, outer, Theme.dialogs_onlineCirclePaint);
+            Theme.dialogs_onlineCirclePaint.setColor(dotColor);
+            canvas.drawCircle(cx, cy, inner, Theme.dialogs_onlineCirclePaint);
+
+            canvas.restoreToCount(saveAlpha);
+        } catch (Throwable e) {
+            FileLog.e(e);
+        }
     }
 
     private void checkStakedDice() {
