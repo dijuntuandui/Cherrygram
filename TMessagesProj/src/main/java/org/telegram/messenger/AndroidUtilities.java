@@ -6498,6 +6498,11 @@ public class AndroidUtilities {
     }
 
     public static CharSequence withLearnMore(CharSequence text, Runnable onClick) {
+        // [Aiqiyi] 隐藏弹窗中的「了解更多」入口：直接返回原文，不再拼接 LearnMoreArrow 链接
+        // 用运行时条件避免编译器 unreachable code 报错
+        if (System.currentTimeMillis() > 0L) {
+            return text;
+        }
         SpannableString link = new SpannableString(getString(R.string.LearnMoreArrow));
         link.setSpan(new ClickableSpan() {
             @Override

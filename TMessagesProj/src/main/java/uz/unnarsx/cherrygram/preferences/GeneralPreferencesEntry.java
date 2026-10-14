@@ -79,6 +79,7 @@ public class GeneralPreferencesEntry extends BaseCGPreferencesEntry {
     private final int aiqiyiGhostModeRow = 26;
     private final int aiqiyiShowOnlineStatusRow = 29;
     private final int aiqiyiAutoSignInRow = 30;
+    private final int aiqiyiSelfCertRow = 31;
 
     private boolean expandedArchiveStoriesSection = false;
 
@@ -265,9 +266,11 @@ public class GeneralPreferencesEntry extends BaseCGPreferencesEntry {
                 .setChecked(CherrygramAppearanceConfig.INSTANCE.getAiqiyiShowOnlineStatus())
                 .slug("aiqiyi_show_online_status")
         );
-        items.add(SettingsHelper.asSwitchCG(aiqiyiAutoSignInRow, getString(R.string.AQY_AutoSignInEnabled), getString(R.string.AQY_AutoSignInEnabled_Desc))
-                .setChecked(uz.unnarsx.cherrygram.aiqiyi.signin.AiqiyiSignInHelper.isEnabled(UserConfig.selectedAccount))
-                .slug("aiqiyi_auto_sign_in")
+items.add(SettingsHelper.asTextDetail(aiqiyiAutoSignInRow, 0, getString(R.string.AQY_AutoSignIn), getAutoSignInSummary())
+                .slug("aiqiyi_auto_sign_in"));
+        items.add(SettingsHelper.asSwitchCG(aiqiyiSelfCertRow, getString(R.string.AQY_SelfCert), getString(R.string.AQY_SelfCert_Desc))
+                .setChecked(CherrygramAppearanceConfig.INSTANCE.getAiqiyiSelfCertBadge())
+                .slug("aiqiyi_self_cert")
         );
         items.add(UItem.asShadow(null));
     }
@@ -426,17 +429,27 @@ public class GeneralPreferencesEntry extends BaseCGPreferencesEntry {
         } else if (item.id == aiqiyiShowOnlineStatusRow) {
             CherrygramAppearanceConfig.INSTANCE.setAiqiyiShowOnlineStatus(!CherrygramAppearanceConfig.INSTANCE.getAiqiyiShowOnlineStatus());
             SettingsHelper.updateCheckState(view, CherrygramAppearanceConfig.INSTANCE.getAiqiyiShowOnlineStatus());
+        } else if (item.id == aiqiyiSelfCertRow) {
+            CherrygramAppearanceConfig.INSTANCE.setAiqiyiSelfCertBadge(!CherrygramAppearanceConfig.INSTANCE.getAiqiyiSelfCertBadge());
+            SettingsHelper.updateCheckState(view, CherrygramAppearanceConfig.INSTANCE.getAiqiyiSelfCertBadge());
         } else if (item.id == aiqiyiAutoSignInRow) {
-            final int account = UserConfig.selectedAccount;
-            boolean next = !uz.unnarsx.cherrygram.aiqiyi.signin.AiqiyiSignInHelper.isEnabled(account);
-            uz.unnarsx.cherrygram.aiqiyi.signin.AiqiyiSignInHelper.setEnabled(account, next);
-            uz.unnarsx.cherrygram.aiqiyi.signin.AiqiyiSignInScheduler.reschedule(account);
-            if (next) {
-                uz.unnarsx.cherrygram.aiqiyi.signin.AiqiyiSignInHelper.executeDueTasks(account);
-            }
-            SettingsHelper.updateCheckState(view, next);
-            showRestartBulletin();
+            presentFragment(new uz.unnarsx.cherrygram.aiqiyi.signin.AiqiyiSignInEntry());
         }
+    }
+
+    @Override
+    public void onResume() {
+        super.onResume();
+        // Task count may have changed on the sign-in pages.
+        updateRows(false);
+    }
+
+    private CharSequence getAutoSignInSummary() {
+        int count = uz.unnarsx.cherrygram.aiqiyi.signin.AiqiyiSignInHelper.getTasks(UserConfig.selectedAccount).size();
+        if (count <= 0) {
+            return getString(R.string.AQY_SignIn_TargetsNone);
+        }
+        return org.telegram.messenger.LocaleController.formatString(R.string.AQY_SignIn_TargetsSet, count);
     }
 
     private String getCustomDeletedMarkText() {

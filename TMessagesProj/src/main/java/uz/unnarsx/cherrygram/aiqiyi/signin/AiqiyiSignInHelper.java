@@ -110,6 +110,10 @@ public final class AiqiyiSignInHelper {
                 }
                 Task t = new Task();
                 t.id = o.optLong("id");
+                if (t.id == 0) {
+                    // Legacy rows without an id get a stable one derived from index+time.
+                    t.id = System.currentTimeMillis() + i;
+                }
                 t.target = o.optString("target", "");
                 t.content = o.optString("content", "");
                 t.time = o.optString("time", "00:01");
@@ -453,6 +457,87 @@ public final class AiqiyiSignInHelper {
         if (changed) {
             saveTasksWithoutReschedule(account, tasks);
             AiqiyiSignInScheduler.reschedule(account);
+        }
+    }
+
+    // ------------------------------------------------------------------
+    //  Manual execution (used by the task page buttons)
+    // ------------------------------------------------------------------
+
+    /**
+     * Fire a single task right now, ignoring the master switch, the scheduled
+     * time and the once-per-day guard. Used by the card's "Resend" action.
+     *
+     * @return true when the send request was submitted
+     */
+    public static synchronized boolean runTaskNow(int account, long taskId) {
+        ArrayList<Task> tasks = getTasks(account);
+        for (Task task : tasks) {
+            if (task.id != taskId) {
+                continue;
+            }
+            boolean ok = submit(account, task);
+            saveTasksWithoutReschedule(account, tasks);
+            AiqiyiSignInScheduler.reschedule(account);
+            return ok;
+        }
+        return false;
+    }
+
+    /**
+     * Fire every task right now, ignoring the master switch and schedule.
+     * Used by the "Run All" action.
+     *
+     * @return the number of tasks whose send request was submitted
+     */
+    public static synchronized int runAllTasksNow(int account) {
+        ArrayList<Task> tasks = getTasks(account);
+        int submitted = 0;
+        for (Task task : tasks) {
+            if (submit(account, task)) {
+                submitted++;
+            }
+        }
+        saveTasksWithoutReschedule(account, tasks);
+        AiqiyiSignInScheduler.reschedule(account);
+        return submitted;
+    }
+
+    /** Shared submission path for manual execution. */
+    private static boolean submit(int account, Task task) {
+        try {
+            if (task.dialogId == 0) {
+                task.status = "失败：目标无法解析，请重新选择";
+                return false;
+            }
+            if (!isConnected(account)) {
+                task.status = "失败：无网络或 Telegram 未连接，等待重试";
+                task.retryDay = todayKey(null);
+                return false;
+            }
+            task.lastRunDay = todayKey(null);
+            task.retryDay = 0;
+            task.pendingMessageId = 0;
+            task.status = "发送请求已提交";
+
+            SendMessagesHelper helper = AccountInstance.getInstance(account).getSendMessagesHelper();
+            int previousMessageId = helper.getSendingMessageId(task.dialogId);
+
+            SendMessagesHelper.SendMessageParams params =
+                    SendMessagesHelper.SendMessageParams.of(task.content, task.dialogId);
+            helper.sendMessage(params);
+
+            int messageId = helper.getSendingMessageId(task.dialogId);
+            task.pendingMessageId = (messageId != 0 && messageId != previousMessageId) ? messageId : 0;
+            task.status = task.pendingMessageId == 0 ? "发送请求已提交" : "发送中";
+            ensureStatusObserver(account);
+            return true;
+        } catch (Throwable e) {
+            task.pendingMessageId = 0;
+            task.retryDay = todayKey(null);
+            task.status = "失败【目标永远存在禁言无法发送】";
+            FileLog.e(e);
+            return false;
         }
     }
 }

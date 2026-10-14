@@ -11643,6 +11643,10 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                     }, resourcesProvider);
                 } : null);
                 Drawable leftIcon = currentEncryptedChat != null ? getLockIconDrawable() : null;
+                // [Aiqiyi] 本人资料页：名字左侧显示认证角标
+                if (leftIcon == null && user.id == getUserConfig().getClientUserId() && CherrygramAppearanceConfig.INSTANCE.getAiqiyiSelfCertBadge() && getParentActivity() != null) {
+                    leftIcon = ContextCompat.getDrawable(getParentActivity(), R.drawable.aqy_cert_badge);
+                }
                 boolean rightIconIsPremium = false, rightIconIsStatus = false;
                 nameTextView[a].setRightDrawableOutside(a == 0);
                 if (a == 0 && !copyFromChatActivity) {

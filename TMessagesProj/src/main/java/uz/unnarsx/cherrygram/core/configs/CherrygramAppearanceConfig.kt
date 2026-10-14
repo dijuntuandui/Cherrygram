@@ -87,6 +87,9 @@ object CherrygramAppearanceConfig {
     var profileHidePhoneNumber by sharedPreferences.boolean("CP_ProfileHidePhoneNumber", true)
     var profileChannelPreview by sharedPreferences.boolean("CP_ProfileChannelPreview", true)
 
+    /** 爱琦艺插件 - 本人资料页名字左侧显示认证角标 */
+    var aiqiyiSelfCertBadge by sharedPreferences.boolean("CP_AiqiyiSelfCertBadge", true)
+
     const val ID_DC_NONE = 0
     const val ID_DC = 1
     var showIDDC_old by sharedPreferences.int("AP_ShowID_DC", ID_DC_NONE) // Not used anymore, use only for migration

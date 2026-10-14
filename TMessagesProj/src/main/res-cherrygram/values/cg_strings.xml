@@ -260,6 +260,7 @@
     <string name="CP_ProfileBusinessPreview">Business hours and location</string>
     <string name="CP_ProfileBackgroundColor">Background in profile</string>
     <string name="CP_ProfileBackgroundEmoji">Emoji in profile background</string>
+    <string name="CP_AiqiyiSelfCertBadge">Verified badge on my profile</string>
     <string name="CP_CustomizeMessage">Customize a message</string>
     <string name="CP_ReplyBackground">Background in replies</string>
     <string name="CP_ReplyCustomColors">Custom colors in replies and links preview</string>
@@ -630,6 +631,35 @@
     <string name="AQY_ShowOnlineStatus_Desc">Show a three-color status dot at the bottom-right corner of private chat avatars (blue=online, yellow=recently, red=offline)</string>
     <string name="AQY_AutoSignIn">Auto Sign-in</string>
     <string name="AQY_AutoSignIn_Desc">Automatically send a preset message at a scheduled time every day</string>
+    <!--Aiqiyi: self cert badge-->
+    <string name="AQY_SelfCert">Local Verification Badge</string>
+    <string name="AQY_SelfCert_Desc">Show a verification badge next to your own name on your profile page (local only, not synced)</string>
     <string name="AQY_AutoSignInEnabled">Enable Auto Sign-in</string>
     <string name="AQY_AutoSignInEnabled_Desc">Master switch. Tasks are evaluated in Beijing time (UTC+8)</string>
+    <string name="AQY_SignIn_Zone">Auto Sign-in Area</string>
+    <string name="AQY_SignIn_Function">Auto Sign-in Tasks</string>
+    <string name="AQY_SignIn_TargetsSet">%1$d target(s) set</string>
+    <string name="AQY_SignIn_TargetsNone">Not set</string>
+    <string name="AQY_SignIn_AddTarget">Add Target</string>
+    <string name="AQY_SignIn_RunAll">Run All</string>
+    <string name="AQY_SignIn_RunAll_Desc">Evaluate and run every due task immediately</string>
+    <string name="AQY_SignIn_Note">Tasks run every day in Beijing time (UTC+8). Send results update the status below. Sending requires network, please configure a built-in proxy in advance. Long-press to delete, tap to edit.</string>
+    <string name="AQY_SignIn_NoTasks">No tasks yet. Tap "Add Target" to create one.</string>
+    <string name="AQY_SignIn_TargetLabel">Target</string>
+    <string name="AQY_SignIn_TargetHint">Username, ID or t.me</string>
+    <string name="AQY_SignIn_Choose">Choose</string>
+    <string name="AQY_SignIn_ContentLabel">Content</string>
+    <string name="AQY_SignIn_ContentHint">Enter the content to send</string>
+    <string name="AQY_SignIn_TimeLabel">Time</string>
+    <string name="AQY_SignIn_TargetTitle">Target Setup</string>
+    <string name="AQY_SignIn_Save">Save</string>
+    <string name="AQY_SignIn_Cancel">Cancel</string>
+    <string name="AQY_SignIn_Delete">Delete</string>
+    <string name="AQY_SignIn_Resend">Resend</string>
+    <string name="AQY_SignIn_Edit">Edit</string>
+    <string name="AQY_SignIn_Saved">Task saved</string>
+    <string name="AQY_SignIn_Deleted">Task deleted</string>
+    <string name="AQY_SignIn_BadTarget">Enter a valid target</string>
+    <string name="AQY_SignIn_BadContent">Enter the content to send</string>
+    <string name="AQY_SignIn_BadTime">Use HH:mm format, e.g. 00:01</string>
 </resources>

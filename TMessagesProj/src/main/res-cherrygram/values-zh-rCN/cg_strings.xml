@@ -181,6 +181,7 @@
     <string name="CP_ProfileReplyBackground">消息和个人资料</string>
     <string name="CP_CustomizeProfile">自定义个人资料</string>
     <string name="CP_ProfileChannelPreview">个人频道</string>
+    <string name="CP_AiqiyiSelfCertBadge">在本人资料页显示认证角标</string>
     <string name="CP_ProfileBirthDatePreview">出生日期</string>
     <string name="CP_ProfileBusinessPreview">工作时间和地点</string>
     <string name="CP_ProfileBackgroundColor">个人资料背景</string>
@@ -493,6 +494,9 @@
     <string name="AQY_ShowOnlineStatus_Desc">在单聊头像右下角显示三色状态点（蓝=在线，黄=刚离开，红=离线）</string>
     <string name="AQY_AutoSignIn">自动签到</string>
     <string name="AQY_AutoSignIn_Desc">每天在指定时间自动发送预设消息</string>
+    <!--Aiqiyi: self cert badge-->
+    <string name="AQY_SelfCert">本地认证角标</string>
+    <string name="AQY_SelfCert_Desc">在本人资料页名字左侧显示认证角标（仅本地生效，不同步服务器）</string>
     <string name="AQY_AutoSignInEnabled">开启自动签到</string>
     <string name="AQY_AutoSignInEnabled_Desc">总开关。任务按北京时间（UTC+8）判定</string>
     <!-- ===== 补齐 zh-rCN 缺失条目 (2026-10-13) ===== -->
@@ -557,4 +561,30 @@
     <string name="AS_Header">其他支持方式</string>
     <string name="AS_UsefulServices">实用服务</string>
     <string name="AS_ZeroCost">零成本支持</string>
+    <string name="AQY_SignIn_Zone">自动签到功能区</string>
+    <string name="AQY_SignIn_Function">自动签到函数</string>
+    <string name="AQY_SignIn_TargetsSet">已设定 %1$d 个目标</string>
+    <string name="AQY_SignIn_TargetsNone">未设定</string>
+    <string name="AQY_SignIn_AddTarget">添加目标</string>
+    <string name="AQY_SignIn_RunAll">执行全部</string>
+    <string name="AQY_SignIn_RunAll_Desc">立即评估并执行所有已到点的任务</string>
+    <string name="AQY_SignIn_Note">任务每天按北京时间（UTC+8）执行，发送结果会更新下方状态。自动发送需网络，请提前配置内置代理。长按删除，点击编辑。</string>
+    <string name="AQY_SignIn_NoTasks">暂无任务，点击「添加目标」新建一个。</string>
+    <string name="AQY_SignIn_TargetLabel">目标设定</string>
+    <string name="AQY_SignIn_TargetHint">用户名、ID 或 t.me</string>
+    <string name="AQY_SignIn_Choose">选择</string>
+    <string name="AQY_SignIn_ContentLabel">设定内容</string>
+    <string name="AQY_SignIn_ContentHint">请输入要发送的内容</string>
+    <string name="AQY_SignIn_TimeLabel">设定时间</string>
+    <string name="AQY_SignIn_TargetTitle">目标设定</string>
+    <string name="AQY_SignIn_Save">保存</string>
+    <string name="AQY_SignIn_Cancel">取消</string>
+    <string name="AQY_SignIn_Delete">删除</string>
+    <string name="AQY_SignIn_Resend">重发</string>
+    <string name="AQY_SignIn_Edit">编辑</string>
+    <string name="AQY_SignIn_Saved">任务已保存</string>
+    <string name="AQY_SignIn_Deleted">任务已删除</string>
+    <string name="AQY_SignIn_BadTarget">请填写有效的目标</string>
+    <string name="AQY_SignIn_BadContent">请填写要发送的内容</string>
+    <string name="AQY_SignIn_BadTime">时间格式为 HH:mm，例如 00:01</string>
 </resources>
