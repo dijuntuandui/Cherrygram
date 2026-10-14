@@ -17,8 +17,8 @@
  */
 package uz.unnarsx.cherrygram.aiqiyi;
 
-import org.telegram.messenger.ConnectionsManager;
 import org.telegram.messenger.MessagesController;
+import org.telegram.tgnet.ConnectionsManager;
 import org.telegram.tgnet.TLRPC;
 
 public final class AiqiyiOnlineDot {
