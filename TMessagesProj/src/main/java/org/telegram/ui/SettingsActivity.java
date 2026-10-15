@@ -1439,7 +1439,13 @@ public class SettingsActivity extends BaseFragment implements NotificationCenter
 
             iconBackground.setColor(iconColorTop, iconColorBottom);
             iconView.setImageResource(icon);
-            iconView.setColorFilter(new PorterDuffColorFilter(MonetHelper.getSettingsIconForegroundColor(Color.WHITE), PorterDuff.Mode.SRC_IN));
+            // Aiqiyi: 标记为「原图模式」的项不做 SRC_IN 白色剪影，保留照片本色
+            Boolean noTint = (Boolean) iconView.getTag(R.id.cg_no_tint_tag);
+            if (noTint != null && noTint) {
+                iconView.setColorFilter(null);
+            } else {
+                iconView.setColorFilter(new PorterDuffColorFilter(MonetHelper.getSettingsIconForegroundColor(Color.WHITE), PorterDuff.Mode.SRC_IN));
+            }
             titleView.setText(title);
             subtitleView.setVisibility((twoLines = !TextUtils.isEmpty(subtitle)) ? View.VISIBLE : View.GONE);
             subtitleView.setText(subtitle);
@@ -1554,6 +1560,8 @@ public class SettingsActivity extends BaseFragment implements NotificationCenter
             public void bindView(View view, UItem item, boolean divider, UniversalAdapter adapter, UniversalRecyclerView listView) {
                 int iconColorTop    = (int) item.longValue;
                 int iconColorBottom = (int) (item.longValue >>> 32);
+                // Aiqiyi: item.cgNoTint 标记「图标不做 SRC_IN 白色剪影」
+                view.setTag(R.id.cg_no_tint_tag, item.cgNoTint);
                 ((SettingCell) view).set(
                     iconColorTop, iconColorBottom, item.iconResId,
                     item.text,
