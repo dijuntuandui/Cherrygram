@@ -431,7 +431,7 @@ class TelegramSettingsHelper(
                 0xFF6C7A89.toInt(), 0xFF4A5560.toInt(),
                 R.drawable.cg_settings_aiqiyi,
                 getString(R.string.CGP_AdvancedSettings)
-            ).also { it.cgNoTint = true }   // Aiqiyi: 原图模式，不做白色剪影
+            )
         )
 
         if (CherrygramAppearanceConfig.marketPlaceDrawerButton && DonatesManager.checkAllDonatedAccountsForMarketplace()) {

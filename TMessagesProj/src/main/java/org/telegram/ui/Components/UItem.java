@@ -63,9 +63,6 @@ public class UItem extends AdapterWithDiffUtils.Item {
     public Object object;
     public Object object2;
 
-    /** Aiqiyi: SettingCell 图标「原图模式」——不做 SRC_IN 白色剪影 */
-    public boolean cgNoTint;
-
     public boolean withUsername = true;
 
     public UItem(int viewType, boolean selectable) {
