@@ -39,6 +39,7 @@ import org.telegram.ui.ActionBar.BackDrawable;
 import org.telegram.ui.ActionBar.BaseFragment;
 import org.telegram.ui.ActionBar.BottomSheet;
 import org.telegram.ui.ActionBar.Theme;
+import org.telegram.ui.bots.AqyBotTr; // [Aiqiyi]
 import org.telegram.ui.Cells.EditTextCell;
 import org.telegram.ui.Cells.HeaderCell;
 import org.telegram.ui.Components.AnimatedFloat;
@@ -569,7 +570,7 @@ public class ReportBottomSheet extends BottomSheet {
                 if (sponsoredOption != null) {
                     for (int i = 0; i < sponsoredOption.options.size(); i++) {
                         UItem buttonItem = new UItem(UniversalAdapter.VIEW_TYPE_RIGHT_ICON_TEXT, false);
-                        buttonItem.text = sponsoredOption.options.get(i).text;
+                        buttonItem.text = AqyBotTr.tr(sponsoredOption.options.get(i).text); // [Aiqiyi] 举报理由本地化
                         buttonItem.iconResId = R.drawable.msg_arrowright;
                         buttonItem.id = i;
                         items.add(buttonItem);
@@ -578,7 +579,7 @@ public class ReportBottomSheet extends BottomSheet {
                 } else if (option != null) {
                     for (int i = 0; i < option.options.size(); i++) {
                         UItem buttonItem = new UItem(UniversalAdapter.VIEW_TYPE_RIGHT_ICON_TEXT, false);
-                        buttonItem.text = option.options.get(i).text;
+                        buttonItem.text = AqyBotTr.tr(option.options.get(i).text); // [Aiqiyi] 举报理由本地化
                         buttonItem.iconResId = R.drawable.msg_arrowright;
                         buttonItem.id = i;
                         items.add(buttonItem);
