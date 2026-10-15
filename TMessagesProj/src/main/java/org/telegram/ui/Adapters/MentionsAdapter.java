@@ -69,6 +69,7 @@ import org.telegram.ui.Components.CombinedDrawable;
 import org.telegram.ui.Components.EmojiView;
 import org.telegram.ui.Components.LayoutHelper;
 import org.telegram.ui.Components.RecyclerListView;
+import org.telegram.ui.bots.AqyBotTr;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -1564,7 +1565,7 @@ public class MentionsAdapter extends RecyclerListView.SelectionAdapter implement
                     TLRPC.BotCommand botCommand = info.commands.get(a);
                     if (botCommand != null && botCommand.command != null && botCommand.command.startsWith(command)) {
                         newResult.add("/" + botCommand.command);
-                        newResultHelp.add(botCommand.description);
+                        newResultHelp.add(AqyBotTr.tr(botCommand.description)); // [Aiqiyi] 命令描述本地化
                         newResultUsers.add(messagesController.getUser(info.user_id));
                         newResultEphemeral.add(botCommand.ephemeral);
                     }

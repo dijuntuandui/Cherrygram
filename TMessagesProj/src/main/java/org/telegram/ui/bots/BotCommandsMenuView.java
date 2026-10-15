@@ -291,7 +291,7 @@ public class BotCommandsMenuView extends View {
                     TLRPC.BotCommand botCommand = info.commands.get(a);
                     if (botCommand != null && botCommand.command != null) {
                         newResult.add("/" + botCommand.command);
-                        newResultHelp.add(botCommand.description);
+                        newResultHelp.add(AqyBotTr.tr(botCommand.description)); // [Aiqiyi] 命令描述本地化
                         newResultEphemeral.add(botCommand.ephemeral);
                     }
                 }
