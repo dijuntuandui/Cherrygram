@@ -55,6 +55,14 @@ public class AqyBotTr {
         {"get a list of your games", "我的游戏"},
         {"edit a game", "编辑游戏"},
 
+        // ============ Bot 菜单按钮（官方 bot）============
+        {"check your account's status", "查看账号状态"},
+        {"check your account", "查看账号状态"},
+
+        // ============ 举报：Other 特殊项 ============
+        {"report by report id", "按举报编号举报"},
+        {"other: report by report id", "其他：按举报编号举报"},
+
         // ============ 举报：主菜单 ============
         {"i don't like it", "我不喜欢"},
         {"child abuse", "虐童内容"},
@@ -159,17 +167,43 @@ public class AqyBotTr {
         for (String[] pair : PREFIX) {
             String key = pair[0];
             if (!n.startsWith(key)) continue;
-            // 边界校验：
-            //  - key 足够长（>=12）时，允许截断在词中间（如 "can your bot be add" 命中 "...added"）
-            //  - key 较短时，要求前缀后是非字母数字，避免误伤
             if (n.length() > key.length()
                     && key.length() < 12
                     && Character.isLetterOrDigit(n.charAt(key.length()))) {
                 continue;
             }
-            // 取最长匹配，避免短 key 抢匹配
             if (key.length() > bestLen) { bestLen = key.length(); best = pair[1]; }
         }
-        return best != null ? best : desc;
+        if (best != null) return best;
+
+        // 3) "前缀: 描述" 结构（如 "Other: Report by Report ID"）
+        //    拆成前后两段分别翻译，再拼回去
+        int sep = indexOfColon(desc);
+        if (sep > 0 && sep < desc.length() - 1) {
+            String head = desc.substring(0, sep).trim();
+            String tail = desc.substring(sep + 1).trim();
+            String zhHead = MAP.get(head.toLowerCase());
+            if (zhHead == null) {
+                for (String[] p : PREFIX) {
+                    if (head.toLowerCase().startsWith(p[0])) { zhHead = p[1]; break; }
+                }
+            }
+            String zhTail = null;
+            for (String[] p : PREFIX) {
+                if (norm(tail).startsWith(p[0])) { zhTail = p[1]; break; }
+            }
+            if (zhHead != null && zhTail != null) return zhHead + "：" + zhTail;
+        }
+
+        return desc;
+    }
+
+    /** 找首个半角/全角冒号的位置，找不到返回 -1 */
+    private static int indexOfColon(String s) {
+        for (int i = 0; i < s.length(); i++) {
+            char c = s.charAt(i);
+            if (c == ':' || c == '\uff1a') return i;
+        }
+        return -1;
     }
 }
