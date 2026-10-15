@@ -15259,28 +15259,24 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
             }
         }
         transitionParams.recordDrawingState();
-
         checkStakedDice();
-
-        // [Aiqiyi] 群聊发言人头像右下角三色在线状态点
-        drawAiqiyiOnlineDot(canvas);
     }
 
     /**
      * [Aiqiyi] 在群聊消息左侧发言人头像的右下角绘制三色在线状态点。
      *
-     * 只在以下条件同时满足时绘制：
-     *   - 单聊/私密会话不画（那里头像不是发言人）
-     *   - 开关已打开
-     *   - 头像可见、且不是自己发的消息
-     *   - 发言人是普通用户（非 bot / 非频道 / 非匿名管理员）
+     * 注意：必须由 onDraw 在 avatarImage 坐标设置之后、还原之前调用，
+     * 且显式传入头像中心与直径，不能依赖 avatarImage 的残留状态
+     * （avatarImage 在绘制后立刻被 setImageCoords/setVisible 还原）。
      *
-     * 设计：只读缓存、不发请求；谁发言标谁，没发言的成员完全不涉及，
-     * 因此开销与消息条数成正比，与群规模无关。
+     * @param centerX 头像中心 X（canvas 坐标）
+     * @param centerY 头像中心 Y（canvas 坐标）
+     * @param avatarSize 头像直径
+     * @param alpha 头像当前透明度（0~1），圆点同步淡出
      */
-    private void drawAiqiyiOnlineDot(Canvas canvas) {
+    private void drawAiqiyiOnlineDot(Canvas canvas, float centerX, float centerY, float avatarSize, float alpha) {
         try {
-            if (!isChat || !isAvatarVisible || currentUser == null) {
+            if (!isChat || currentUser == null) {
                 return;
             }
             if (currentMessageObject == null || currentMessageObject.isOutOwner()) {
@@ -15289,38 +15285,30 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
             if (currentMessageObject.isSponsored()) {
                 return;
             }
+            if (alpha <= 0.01f || avatarSize <= 0) {
+                return;
+            }
             if (!uz.unnarsx.cherrygram.core.configs.CherrygramAppearanceConfig.INSTANCE.getAiqiyiShowOnlineStatus()) {
                 return;
             }
-            // 头像自身尚未成功绘制（透明/隐藏）时不叠加
-            if (!avatarImage.getVisible() || avatarImage.getCurrentAlpha() <= 0.01f) {
-                return;
-            }
-
             final int dotColor = uz.unnarsx.cherrygram.aiqiyi.AiqiyiOnlineDot.getDotColor(currentAccount, currentUser);
             if (dotColor == 0) {
                 return;
             }
-
-            final float radius = avatarImage.getImageWidth() / 2f;
-            if (radius <= 0) {
-                return;
-            }
-            // 头像圆心 → 右下 45° 方向的圆周点
-            final float cx = avatarImage.getCenterX() + (float) (radius * 0.7071);
-            final float cy = avatarImage.getCenterY() + (float) (radius * 0.7071);
-
+            // 头像半径
+            final float radius = avatarSize / 2f;
+            // 右下 45° 方向的圆周点（与 DialogCell 一致的视觉位置）
+            final float cx = centerX + (float) (radius * 0.7071);
+            final float cy = centerY + (float) (radius * 0.7071);
+            // 圆点尺寸随头像缩放（26dp 头像用 7.5/6dp，与 DialogCell 同规格）
             final float outer = dp(7.5f);
             final float inner = dp(6f);
-
             final int saveAlpha = canvas.saveLayerAlpha(0, 0, getWidth(), getHeight(),
-                    (int) (255 * avatarImage.getCurrentAlpha()), Canvas.ALL_SAVE_FLAG);
-
+                    (int) (255 * alpha), Canvas.ALL_SAVE_FLAG);
             Theme.dialogs_onlineCirclePaint.setColor(0xFFFFFFFF);
             canvas.drawCircle(cx, cy, outer, Theme.dialogs_onlineCirclePaint);
             Theme.dialogs_onlineCirclePaint.setColor(dotColor);
             canvas.drawCircle(cx, cy, inner, Theme.dialogs_onlineCirclePaint);
-
             canvas.restoreToCount(saveAlpha);
         } catch (Throwable e) {
             FileLog.e(e);
@@ -22385,6 +22373,13 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
                 avatarImage.setImageCoords(avatarX, ny + dp(13) * (1.0f - scale), dp(26) * scale, dp(26) * scale);
                 avatarImage.setAlpha(avatarAlpha);
                 avatarImage.draw(canvas);
+                // [Aiqiyi] 群聊发言人头像右下角三色在线状态点
+                // 必须在 setImageCoords 生效期间调用，之后会被还原
+                drawAiqiyiOnlineDot(canvas,
+                        avatarX + dp(26) * scale / 2f,
+                        ny + dp(13) * (1.0f - scale) + dp(26) * scale / 2f,
+                        dp(26) * scale,
+                        avatarAlpha);
                 avatarImage.setImageCoords(wasX, wasY, wasWidth, wasHeight);
                 avatarImage.setAlpha(wasAlpha);
                 avatarImage.setVisible(wasVisible, false);
