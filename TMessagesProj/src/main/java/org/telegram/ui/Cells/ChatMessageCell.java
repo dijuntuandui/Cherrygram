@@ -10933,9 +10933,8 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
                             if (TLKeyboardHelper.isType(botButton.button, TL_keyboard.TL_inlineButtonTypeBuy.class) && (MessageObject.getMedia(messageObject.messageOwner).flags & 4) != 0) {
                                 buttonText = getString(R.string.PaymentReceipt);
                             } else {
-                                buttonText = inlineButton.getText();
+                                buttonText = org.telegram.ui.bots.AqyBotTr.trButton(inlineButton.getText());
                             }
-
                             if (inlineButton instanceof BotInlineKeyboard.ButtonCustom) {
                                 if (((BotInlineKeyboard.ButtonCustom) inlineButton).id == BotInlineKeyboard.ButtonCustom.OPEN_MESSAGE_THREAD) {
                                     buttonText = new SpannableStringBuilder(buttonText).append(">");

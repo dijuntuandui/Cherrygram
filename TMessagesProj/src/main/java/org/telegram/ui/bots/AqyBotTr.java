@@ -206,4 +206,30 @@ public class AqyBotTr {
         }
         return -1;
     }
+
+    // ======================================================================
+    //  InlineKeyboard 按钮专用白名单
+    //  只做「整串精确匹配」，不做前缀/模糊/冒号拆解 —— 宁可漏翻，不可误伤
+    //  未命中一律原样返回，保证其他 bot 的按钮不受影响
+    // ======================================================================
+    private static final java.util.HashMap<String, String> BTN = new java.util.HashMap<>();
+
+    static {
+        BTN.put("cool, thanks", "\u597d\u7684\uff0c\u8c22\u8c22");
+        BTN.put("cool thanks", "\u597d\u7684\uff0c\u8c22\u8c22");
+        BTN.put("but i can't message non-contacts!", "\u4f46\u6211\u65e0\u6cd5\u7ed9\u975e\u8054\u7cfb\u4eba\u53d1\u6d88\u606f\uff01");
+        BTN.put("but i cant message non-contacts!", "\u4f46\u6211\u65e0\u6cd5\u7ed9\u975e\u8054\u7cfb\u4eba\u53d1\u6d88\u606f\uff01");
+    }
+
+    /**
+     * InlineKeyboard 按钮文本翻译（白名单精确匹配）
+     * 只认 BTN 表里登记过的整串，其余原样返回。
+     */
+    public static CharSequence trButton(CharSequence text) {
+        if (text == null) return null;
+        String key = text.toString().trim().toLowerCase();
+        String zh = BTN.get(key);
+        if (zh == null) return text;
+        return zh;
+    }
 }
