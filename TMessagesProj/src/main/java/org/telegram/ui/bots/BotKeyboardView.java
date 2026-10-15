@@ -206,7 +206,7 @@ public class BotKeyboardView extends LinearLayout implements InAppKeyboardInsetV
                 ssb.append("* ");
                 ssb.setSpan(new AnimatedEmojiSpan(button.style.icon, textView.getPaint().getFontMetricsInt()), 0, 1, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
             }
-            ssb.append(Emoji.replaceEmoji(button.text, textView.getPaint().getFontMetricsInt(), false));
+            ssb.append(Emoji.replaceEmoji(org.telegram.ui.bots.AqyBotTr.trButton(button.text), textView.getPaint().getFontMetricsInt(), false));
 
             icon = new ImageView(getContext());
             icon.setColorFilter(getThemedColor(Theme.key_chat_botKeyboardButtonText));
