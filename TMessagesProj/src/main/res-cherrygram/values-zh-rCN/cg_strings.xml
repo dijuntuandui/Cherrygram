@@ -595,6 +595,8 @@
     <string name="AQY_LocalZone_Enabled_Desc">开启后可修改本机显示与本地测试数据</string>
     <string name="AQY_LocalZone_Note">本专区只修改本机显示和本地测试数据，不会修改 Telegram 服务器内容。</string>
     <string name="AQY_LocalZone_Disabled">未启用</string>
+    <string name="AQY_LocalZone_On">已启用</string>
+    <string name="AQY_LocalZone_Off">未启用</string>
 
     <string name="AQY_LocalStars_Header">虚拟星星</string>
     <string name="AQY_LocalStars_Override">使用本地星星余额</string>

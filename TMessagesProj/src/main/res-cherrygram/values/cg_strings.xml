@@ -670,6 +670,8 @@
     <string name="AQY_LocalZone_Enabled_Desc">Modify on-device display and local test data</string>
     <string name="AQY_LocalZone_Note">This section only modifies on-device display and local test data. It never changes Telegram server data.</string>
     <string name="AQY_LocalZone_Disabled">Disabled</string>
+    <string name="AQY_LocalZone_On">On</string>
+    <string name="AQY_LocalZone_Off">Off</string>
 
     <string name="AQY_LocalStars_Header">Virtual Stars</string>
     <string name="AQY_LocalStars_Override">Use local stars balance</string>

@@ -273,7 +273,7 @@ items.add(SettingsHelper.asTextDetail(aiqiyiAutoSignInRow, 0, getString(R.string
                 .setChecked(CherrygramAppearanceConfig.INSTANCE.getAiqiyiSelfCertBadge())
                 .slug("aiqiyi_self_cert")
         );
-        items.add(UItem.asButton(aiqiyiLocalZoneRow, getString(R.string.AQY_LocalZone), getString(R.string.AQY_LocalZone_Enabled_Desc))
+        items.add(SettingsHelper.asTextDetail(aiqiyiLocalZoneRow, 0, getString(R.string.AQY_LocalZone), getAiqiyiLocalZoneSummary())
                 .slug("aqy_local_zone")
         );
         items.add(UItem.asShadow(null));
@@ -449,7 +449,6 @@ items.add(SettingsHelper.asTextDetail(aiqiyiAutoSignInRow, 0, getString(R.string
         // Task count may have changed on the sign-in pages.
         updateRows(false);
     }
-
     private CharSequence getAutoSignInSummary() {
         int count = uz.unnarsx.cherrygram.aiqiyi.signin.AiqiyiSignInHelper.getTasks(UserConfig.selectedAccount).size();
         if (count <= 0) {
@@ -457,6 +456,13 @@ items.add(SettingsHelper.asTextDetail(aiqiyiAutoSignInRow, 0, getString(R.string
         }
         return org.telegram.messenger.LocaleController.formatString(R.string.AQY_SignIn_TargetsSet, count);
     }
+
+    // [Aiqiyi local] 本地功能专区入口的摘要（短文案，避免窄屏截断标题）
+    private CharSequence getAiqiyiLocalZoneSummary() {
+        boolean on = uz.unnarsx.cherrygram.core.configs.AiqiyiLocalDataConfig.INSTANCE.getLocalZoneEnabled();
+        return getString(on ? R.string.AQY_LocalZone_On : R.string.AQY_LocalZone_Off);
+    }
+
 
     private String getCustomDeletedMarkText() {
         String t = CherrygramMessagesConfig.INSTANCE.getAiqiyiCustomDeletedMark();
