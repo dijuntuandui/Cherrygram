@@ -294,6 +294,8 @@ public class ApplicationLoader extends Application {
                     uz.unnarsx.cherrygram.aiqiyi.signin.AiqiyiSignInHelper.executeDueTasks(a);
                 }
             }
+            // [Aiqiyi local] 同步本地消息替换的内存开关（避免 MessageObject 高频读 SP）
+            uz.unnarsx.cherrygram.aiqiyi.local.AiqiyiLocalMessageHelper.syncFastEnabled();
         } catch (Throwable e) {
             CherrygramLogger.e(e);
         }

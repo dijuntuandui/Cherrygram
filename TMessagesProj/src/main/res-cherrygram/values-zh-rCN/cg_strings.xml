@@ -598,6 +598,16 @@
     <string name="AQY_LocalZone_On">已启用</string>
     <string name="AQY_LocalZone_Off">未启用</string>
 
+    <!-- 本地消息修改 -->
+    <string name="AQY_LocalMessage_Header">本地消息</string>
+    <string name="AQY_LocalMessage_Override">启用消息替换</string>
+    <string name="AQY_LocalMessage_Override_Desc">仅本机显示，对方和服务器不受影响</string>
+    <string name="AQY_LocalMessage_Rules">替换规则</string>
+    <string name="AQY_LocalMessage_RulesHint">每行一条，格式：关键词=替换值\n例：\n你好=heihei\n在吗=在的呀</string>
+    <string name="AQY_LocalMessage_RulesNone">未配置</string>
+    <string name="AQY_LocalMessage_RulesCount">已配置 %1$d 条</string>
+    <string name="AQY_LocalMessage_Note">消息替换只改变本机看到的文字，不会把改动发送给对方，也不会写入 Telegram 服务器。</string>
+
     <string name="AQY_LocalStars_Header">虚拟星星</string>
     <string name="AQY_LocalStars_Override">使用本地星星余额</string>
     <string name="AQY_LocalStars_Override_Desc">开启后余额显示为本机设定值，关闭则读真实余额</string>

@@ -6097,6 +6097,11 @@ public class MessageObject {
             messageText = "";
         }
 
+        // [Aiqiyi local] 本地消息文本替换（仅本机渲染，不回写服务器）
+        if (messageText != null && messageText.length() > 0) {
+            messageText = uz.unnarsx.cherrygram.aiqiyi.local.AiqiyiLocalMessageHelper.apply(messageText);
+        }
+
         isEmbedVideoCached = null;
         cachedStartsTimestamp = null;
         cachedSavedTimestamp = null;

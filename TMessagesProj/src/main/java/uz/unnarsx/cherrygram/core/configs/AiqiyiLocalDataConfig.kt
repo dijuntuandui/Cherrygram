@@ -70,6 +70,15 @@ object AiqiyiLocalDataConfig {
     /** 本地修改消息 */
     var localMessageOverride by sharedPreferences.boolean("AQY_LocalMessage_Override", false)
 
+    /**
+     * 本地消息替换规则。
+     * 每行一条，格式：关键词=替换值
+     * 例：
+     *   你好=heihei
+     *   hello=hi
+     */
+    var localMessageRules by sharedPreferences.string("AQY_LocalMessage_Rules", "")
+
     /** 本地修改时间 */
     var localTimeOverride by sharedPreferences.boolean("AQY_LocalTime_Override", false)
 

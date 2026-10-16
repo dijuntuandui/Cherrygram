@@ -673,6 +673,16 @@
     <string name="AQY_LocalZone_On">On</string>
     <string name="AQY_LocalZone_Off">Off</string>
 
+    <!-- Local message override -->
+    <string name="AQY_LocalMessage_Header">Local Messages</string>
+    <string name="AQY_LocalMessage_Override">Enable message replacement</string>
+    <string name="AQY_LocalMessage_Override_Desc">On-device only; peers and servers are unaffected</string>
+    <string name="AQY_LocalMessage_Rules">Replacement rules</string>
+    <string name="AQY_LocalMessage_RulesHint">One rule per line, format: keyword=replacement\nExample:\nhello=hi\nthere=here</string>
+    <string name="AQY_LocalMessage_RulesNone">Not configured</string>
+    <string name="AQY_LocalMessage_RulesCount">%1$d rule(s) configured</string>
+    <string name="AQY_LocalMessage_Note">Message replacement only changes the text shown on this device. Nothing is sent to the peer or written to Telegram servers.</string>
+
     <string name="AQY_LocalStars_Header">Virtual Stars</string>
     <string name="AQY_LocalStars_Override">Use local stars balance</string>
     <string name="AQY_LocalStars_Override_Desc">Show a local value instead of the real balance</string>

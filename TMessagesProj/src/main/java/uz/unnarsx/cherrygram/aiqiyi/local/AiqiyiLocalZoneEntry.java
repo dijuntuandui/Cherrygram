@@ -40,6 +40,8 @@ public class AiqiyiLocalZoneEntry extends BaseCGPreferencesEntry {
     private final int localBusinessRow = 326;
     private final int localGiftCountRow = 327;
     private final int clearLocalGiftsRow = 328;
+    private final int localMessageOverrideRow = 329;
+    private final int localMessageRulesRow = 330;
 
     @Override
     protected CharSequence getTitle() {
@@ -112,6 +114,19 @@ public class AiqiyiLocalZoneEntry extends BaseCGPreferencesEntry {
                 .slug("aqy_local_gift_clear")
         );
         items.add(UItem.asShadow(getString(R.string.AQY_LocalGift_Note)));
+
+        // ===== 本地消息 =====
+        items.add(UItem.asHeader(getString(R.string.AQY_LocalMessage_Header)));
+        items.add(SettingsHelper.asSwitchCG(localMessageOverrideRow, getString(R.string.AQY_LocalMessage_Override),
+                        getString(R.string.AQY_LocalMessage_Override_Desc))
+                .setChecked(AiqiyiLocalDataConfig.INSTANCE.getLocalMessageOverride())
+                .slug("aqy_local_message_override")
+        );
+        items.add(SettingsHelper.asTextDetail(localMessageRulesRow, 0,
+                        getString(R.string.AQY_LocalMessage_Rules), getMessageRulesText())
+                .slug("aqy_local_message_rules")
+        );
+        items.add(UItem.asShadow(getString(R.string.AQY_LocalMessage_Note)));
     }
 
     @Override
@@ -140,6 +155,12 @@ public class AiqiyiLocalZoneEntry extends BaseCGPreferencesEntry {
         } else if (item.id == clearLocalGiftsRow) {
             AiqiyiLocalDataConfig.INSTANCE.clearLocalGifts();
             listView.adapter.update(true);
+        } else if (item.id == localMessageOverrideRow) {
+            AiqiyiLocalDataConfig.INSTANCE.setLocalMessageOverride(!AiqiyiLocalDataConfig.INSTANCE.getLocalMessageOverride());
+            AiqiyiLocalMessageHelper.invalidate();
+            listView.adapter.update(true);
+        } else if (item.id == localMessageRulesRow) {
+            showMessageRulesInput();
         } else {
             super.onClick(item, view, position, x, y);
         }
@@ -191,5 +212,35 @@ public class AiqiyiLocalZoneEntry extends BaseCGPreferencesEntry {
 
     private CharSequence getGiftCountText() {
         return String.valueOf(AiqiyiLocalDataConfig.INSTANCE.getLocalGiftCount());
+    }
+
+    private CharSequence getMessageRulesText() {
+        int count = AiqiyiLocalMessageHelper.getRuleCount();
+        if (count <= 0) {
+            return getString(R.string.AQY_LocalMessage_RulesNone);
+        }
+        return String.format(getString(R.string.AQY_LocalMessage_RulesCount), count);
+    }
+
+    private void showMessageRulesInput() {
+        AlertDialog.Builder builder = new AlertDialog.Builder(getParentActivity());
+        builder.setTitle(getString(R.string.AQY_LocalMessage_Rules));
+
+        final EditTextBoldCursor editText = new EditTextBoldCursor(getParentActivity());
+        editText.setText(AiqiyiLocalDataConfig.INSTANCE.getLocalMessageRules());
+        editText.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_MULTI_LINE);
+        editText.setSingleLine(false);
+        editText.setMinLines(5);
+        editText.setMaxLines(12);
+        editText.setHint(getString(R.string.AQY_LocalMessage_RulesHint));
+
+        builder.setView(editText);
+        builder.setPositiveButton(getString(R.string.OK), (dialog, which) -> {
+            AiqiyiLocalDataConfig.INSTANCE.setLocalMessageRules(editText.getText().toString());
+            AiqiyiLocalMessageHelper.invalidate();
+            listView.adapter.update(true);
+        });
+        builder.setNegativeButton(getString(R.string.Cancel), null);
+        builder.show();
     }
 }
