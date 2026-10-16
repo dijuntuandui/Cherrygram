@@ -140,11 +140,12 @@ public class AiqiyiMessageMenuInjector {
     private static void refreshChat(ChatActivity chatActivity) {
         try {
             // 1) 刷新已加载消息的文本缓存
-            if (chatActivity.getMessages() != null) {
-                AiqiyiMessageReplaceStore.applyTo(chatActivity.getMessages());
-            }
+            //    chatActivity.messages 与 chatActivity.chatAdapter 均为 public 字段
+            AiqiyiMessageReplaceStore.applyTo(chatActivity.messages);
             // 2) 让可见行重绘
-            chatActivity.getChatAdapter().updateRowsSafe();
+            if (chatActivity.chatAdapter != null) {
+                chatActivity.chatAdapter.updateRowsSafe();
+            }
         } catch (Throwable ignore) {
         }
     }
