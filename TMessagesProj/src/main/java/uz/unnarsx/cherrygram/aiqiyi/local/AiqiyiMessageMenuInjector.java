@@ -28,6 +28,8 @@ import org.telegram.ui.ChatActivity;
 import org.telegram.ui.Components.EditTextBoldCursor;
 import org.telegram.ui.Components.LayoutHelper;
 
+import uz.unnarsx.cherrygram.core.configs.AiqiyiLocalDataConfig;
+
 public class AiqiyiMessageMenuInjector {
 
     /**
