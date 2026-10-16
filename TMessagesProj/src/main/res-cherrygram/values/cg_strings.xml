@@ -683,6 +683,11 @@
     <string name="AQY_LocalMessage_RulesCount">%1$d rule(s) configured</string>
     <string name="AQY_LocalMessage_Note">Message replacement only changes the text shown on this device. Nothing is sent to the peer or written to Telegram servers.</string>
 
+    <!-- Long-press menu: per-message replace -->
+    <string name="AQY_Menu_ReplaceText">Replace displayed text</string>
+    <string name="AQY_Menu_RestoreText">Restore original</string>
+    <string name="AQY_Menu_ReplaceHint">What this message should show on this device</string>
+
     <!-- Local message time -->
     <string name="AQY_LocalTime_Header">Local Time</string>
     <string name="AQY_LocalTime_Override">Enable time disguise</string>

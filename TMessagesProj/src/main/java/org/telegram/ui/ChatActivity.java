@@ -32485,6 +32485,13 @@ public class ChatActivity extends BaseFragment implements
                     CGMessageMenuInjector.INSTANCE.showGeminiItems(this, popupLayout, selectedObject);
                 }
 
+                // [Aiqiyi local] 长按菜单追加「替换显示文字」（独立 Cell，不碰原生 options）
+                try {
+                    uz.unnarsx.cherrygram.aiqiyi.local.AiqiyiMessageMenuInjector
+                            .showReplaceItems(this, popupLayout, selectedObject);
+                } catch (Throwable ignore) {
+                }
+
                 scrimPopupWindowItems = new ActionBarMenuSubItem[items.size()];
                 for (int a = 0, N = items.size(); a < N; a++) {
                     final Integer option = options.get(a);

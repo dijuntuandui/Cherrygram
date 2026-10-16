@@ -6096,11 +6096,19 @@ public class MessageObject {
         if (messageText == null) {
             messageText = "";
         }
-
         // [Aiqiyi local] 本地消息文本替换（仅本机渲染，不回写服务器）
         if (messageText != null && messageText.length() > 0) {
             messageText = uz.unnarsx.cherrygram.aiqiyi.local.AiqiyiLocalMessageHelper.apply(messageText);
         }
+
+        // [Aiqiyi local] 单条消息替换（长按菜单设置，优先级高于规则式替换）
+        if (messageOwner != null && messageText != null && messageText.length() > 0) {
+            final String perMsg = uz.unnarsx.cherrygram.aiqiyi.local.AiqiyiMessageReplaceStore.get(messageOwner.dialog_id, messageOwner.id);
+            if (perMsg != null) {
+                messageText = perMsg;
+            }
+        }
+
 
         isEmbedVideoCached = null;
         cachedStartsTimestamp = null;

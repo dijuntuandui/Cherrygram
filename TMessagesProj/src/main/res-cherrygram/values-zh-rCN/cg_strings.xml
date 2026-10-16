@@ -608,6 +608,11 @@
     <string name="AQY_LocalMessage_RulesCount">已配置 %1$d 条</string>
     <string name="AQY_LocalMessage_Note">消息替换只改变本机看到的文字，不会把改动发送给对方，也不会写入 Telegram 服务器。</string>
 
+    <!-- 长按菜单：单条消息替换 -->
+    <string name="AQY_Menu_ReplaceText">替换显示文字</string>
+    <string name="AQY_Menu_RestoreText">恢复原文</string>
+    <string name="AQY_Menu_ReplaceHint">填这条消息在本机要显示成什么</string>
+
     <!-- 本地时间显示 -->
     <string name="AQY_LocalTime_Header">本地时间</string>
     <string name="AQY_LocalTime_Override">启用时间伪装</string>
