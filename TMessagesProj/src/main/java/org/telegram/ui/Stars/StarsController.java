@@ -241,6 +241,14 @@ public class StarsController {
             AmountUtils.Amount b = AmountUtils.Amount.ofSafe(balance);
             return AmountUtils.Amount.fromDecimal(Math.max(0, b.asDecimal() - minus), b.currency).toTl();
         }
+        // [Aiqiyi local] 本地功能专区：星星余额覆盖（仅本机显示，不污染真实字段）
+        try {
+            if (!ton && com.aiqiyi.local.AiqiyiLocalStarsHelper.isEnabled()) {
+                return TL_stars.StarsAmount.ofStars(com.aiqiyi.local.AiqiyiLocalStarsHelper.getBalance());
+            }
+        } catch (Throwable ignore) {
+            // 本地覆盖失败时回退真实余额
+        }
         return balance;
     }
 

@@ -572,6 +572,11 @@ public class UserConfig extends BaseController {
     }
 
     public boolean isPremium() {
+        // [Aiqiyi local] 本地功能专区：本地高级版伪装（仅本机显示）
+        if (uz.unnarsx.cherrygram.core.configs.AiqiyiLocalDataConfig.INSTANCE.getLocalZoneEnabled()
+                && uz.unnarsx.cherrygram.core.configs.AiqiyiLocalDataConfig.INSTANCE.getLocalPremiumOverride()) {
+            return true;
+        }
         TLRPC.User user = currentUser;
         if (user == null) {
             return false;
