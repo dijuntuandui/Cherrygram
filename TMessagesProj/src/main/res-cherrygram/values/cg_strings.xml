@@ -683,6 +683,22 @@
     <string name="AQY_LocalMessage_RulesCount">%1$d rule(s) configured</string>
     <string name="AQY_LocalMessage_Note">Message replacement only changes the text shown on this device. Nothing is sent to the peer or written to Telegram servers.</string>
 
+    <!-- Local message time -->
+    <string name="AQY_LocalTime_Header">Local Time</string>
+    <string name="AQY_LocalTime_Override">Enable time disguise</string>
+    <string name="AQY_LocalTime_Override_Desc">Changes only the bubble time display; sorting is unaffected</string>
+    <string name="AQY_LocalTime_Mode">Mode</string>
+    <string name="AQY_LocalTime_ModeOffset">Fixed offset</string>
+    <string name="AQY_LocalTime_ModeFixed">Fixed time of day</string>
+    <string name="AQY_LocalTime_Value">Value</string>
+    <string name="AQY_LocalTime_ValueNone">Not set</string>
+    <string name="AQY_LocalTime_ValueH">%1$s%2$d h</string>
+    <string name="AQY_LocalTime_ValueM">%1$s%2$d min</string>
+    <string name="AQY_LocalTime_ValueHM">%1$s%2$d h %3$d min</string>
+    <string name="AQY_LocalTime_ValueHintOffset">Offset in seconds, may be negative. e.g. 3600 = 1 hour ahead</string>
+    <string name="AQY_LocalTime_ValueHintFixed">Format HH:mm, e.g. 12:00</string>
+    <string name="AQY_LocalTime_Note">Time disguise only affects the time text drawn on this device. The message timestamp itself is unchanged, so sorting, unread state, search and forwarding are all unaffected.</string>
+
     <string name="AQY_LocalStars_Header">Virtual Stars</string>
     <string name="AQY_LocalStars_Override">Use local stars balance</string>
     <string name="AQY_LocalStars_Override_Desc">Show a local value instead of the real balance</string>

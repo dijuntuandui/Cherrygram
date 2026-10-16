@@ -18659,7 +18659,9 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
         } else if (currentMessageObject.shouldBlockMessage()) {
             timeString = "\uD83D\uDEAB " + LocaleController.getInstance().getFormatterDay().format((long) (messageObject.messageOwner.date) * 1000);
         } else {
-            timeString = !currentMessageObject.isMusic() && messageObject.messageOwner.forwards > 0 ? ChatsHelper.createForwardedString(messageObject) : LocaleController.getInstance().getFormatterDay().format((long) (messageObject.messageOwner.date) * 1000);
+            // [Aiqiyi local] 时间显示覆盖（仅渲染层，不动 messageOwner.date）
+            final int displayDate = uz.unnarsx.cherrygram.aiqiyi.local.AiqiyiLocalTimeHelper.displayDate(messageObject.messageOwner.date);
+            timeString = !currentMessageObject.isMusic() && messageObject.messageOwner.forwards > 0 ? ChatsHelper.createForwardedString(messageObject) : LocaleController.getInstance().getFormatterDay().format((long) (displayDate) * 1000);
         }
         currentTimeString = new SpannableStringBuilder(timeString);
         if (signString != null) {

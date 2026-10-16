@@ -608,6 +608,22 @@
     <string name="AQY_LocalMessage_RulesCount">已配置 %1$d 条</string>
     <string name="AQY_LocalMessage_Note">消息替换只改变本机看到的文字，不会把改动发送给对方，也不会写入 Telegram 服务器。</string>
 
+    <!-- 本地时间显示 -->
+    <string name="AQY_LocalTime_Header">本地时间</string>
+    <string name="AQY_LocalTime_Override">启用时间伪装</string>
+    <string name="AQY_LocalTime_Override_Desc">仅改变气泡时间的显示，消息排序等逻辑不受影响</string>
+    <string name="AQY_LocalTime_Mode">伪装模式</string>
+    <string name="AQY_LocalTime_ModeOffset">固定偏移</string>
+    <string name="AQY_LocalTime_ModeFixed">固定时刻</string>
+    <string name="AQY_LocalTime_Value">数值</string>
+    <string name="AQY_LocalTime_ValueNone">未设置</string>
+    <string name="AQY_LocalTime_ValueH">%1$s%2$d 小时</string>
+    <string name="AQY_LocalTime_ValueM">%1$s%2$d 分钟</string>
+    <string name="AQY_LocalTime_ValueHM">%1$s%2$d 小时 %3$d 分</string>
+    <string name="AQY_LocalTime_ValueHintOffset">偏移秒数，可正可负。例：3600 = 快 1 小时</string>
+    <string name="AQY_LocalTime_ValueHintFixed">格式 HH:mm，例：12:00</string>
+    <string name="AQY_LocalTime_Note">时间伪装只影响本机气泡上的时间文字，不修改消息本身的时间戳，因此排序、未读、查找、转发等都不受影响。</string>
+
     <string name="AQY_LocalStars_Header">虚拟星星</string>
     <string name="AQY_LocalStars_Override">使用本地星星余额</string>
     <string name="AQY_LocalStars_Override_Desc">开启后余额显示为本机设定值，关闭则读真实余额</string>

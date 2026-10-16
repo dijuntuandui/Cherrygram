@@ -82,6 +82,15 @@ object AiqiyiLocalDataConfig {
     /** 本地修改时间 */
     var localTimeOverride by sharedPreferences.boolean("AQY_LocalTime_Override", false)
 
+    /** 时间模式：0=关闭 1=固定偏移 2=固定时刻 */
+    var localTimeMode by sharedPreferences.int("AQY_LocalTime_Mode", 1)
+
+    /** 偏移秒数（模式1，可正可负） */
+    var localTimeOffset by sharedPreferences.int("AQY_LocalTime_Offset", 0)
+
+    /** 固定时刻（模式2，当天秒数 0~86399） */
+    var localTimeFixedSeconds by sharedPreferences.int("AQY_LocalTime_FixedSeconds", 12 * 3600)
+
     // ============ 本地虚拟礼物 ============
 
     /** 本地虚拟礼物记录数量（仅用于展示） */

@@ -296,6 +296,7 @@ public class ApplicationLoader extends Application {
             }
             // [Aiqiyi local] 同步本地消息替换的内存开关（避免 MessageObject 高频读 SP）
             uz.unnarsx.cherrygram.aiqiyi.local.AiqiyiLocalMessageHelper.syncFastEnabled();
+            uz.unnarsx.cherrygram.aiqiyi.local.AiqiyiLocalTimeHelper.syncFast();
         } catch (Throwable e) {
             CherrygramLogger.e(e);
         }
