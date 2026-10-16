@@ -19,6 +19,8 @@ import java.util.Map;
 public class AiqiyiMessageReplaceStore {
 
     private static final String PREFIX = "AQY_MR_";
+    /** 单条时间伪装：value = 当天秒数（0~86399），显示为 HH:mm */
+    private static final String T_PREFIX = "AQY_MT_";
     private static SharedPreferences sp;
 
     private static SharedPreferences sp() {
@@ -103,7 +105,6 @@ public class AiqiyiMessageReplaceStore {
         } catch (Throwable ignore) {
         }
     }
-
     /**
      * 取这条消息「当前应该显示的文字」（考虑替换后的结果）。
      * 用于通知时直接刷 messageText 缓存。
@@ -115,6 +116,155 @@ public class AiqiyiMessageReplaceStore {
         }
         return original;
     }
+
+    // ======================================================================
+    // 单条时间伪装
+    // ======================================================================
+
+    private static String tkey(long chatId, int messageId) {
+        return T_PREFIX + chatId + "_" + messageId;
+    }
+
+    /**
+     * 给一条消息设置伪装时间。
+     *
+     * @param seconds 当天秒数（0~86399），负数表示清除
+     */
+    public static void putTime(long chatId, int messageId, int seconds) {
+        if (seconds < 0) {
+            removeTime(chatId, messageId);
+            return;
+        }
+        sp().edit().putInt(tkey(chatId, messageId), seconds).apply();
+    }
+
+    /**
+     * 取一条消息的伪装时间；没设过返回 -1。
+     */
+    public static int getTime(long chatId, int messageId) {
+        try {
+            return sp().getInt(tkey(chatId, messageId), -1);
+        } catch (Throwable e) {
+            return -1;
+        }
+    }
+
+    /**
+     * 这条消息有没有伪装时间。
+     */
+    public static boolean hasTime(long chatId, int messageId) {
+        return getTime(chatId, messageId) >= 0;
+    }
+
+    /**
+     * 移除一条消息的伪装时间。
+     */
+    public static void removeTime(long chatId, int messageId) {
+        sp().edit().remove(tkey(chatId, messageId)).apply();
+    }
+
+    /**
+     * 当前一共有多少条伪装时间（设置页显示用）。
+     */
+    public static int timeCount() {
+        int n = 0;
+        try {
+            for (String k : sp().getAll().keySet()) {
+                if (k.startsWith(T_PREFIX)) {
+                    n++;
+                }
+            }
+        } catch (Throwable ignore) {
+        }
+        return n;
+    }
+
+    /**
+     * 清空所有时间伪装。
+     */
+    public static void clearAllTime() {
+        try {
+            SharedPreferences.Editor ed = sp().edit();
+            for (String k : sp().getAll().keySet()) {
+                if (k.startsWith(T_PREFIX)) {
+                    ed.remove(k);
+                }
+            }
+            ed.apply();
+        } catch (Throwable ignore) {
+        }
+    }
+
+    // ======================================================================
+    // 列表查询（设置页「已替换 N 条」点击后展示用）
+    // ======================================================================
+
+    /**
+     * 列出所有有记录（文字替换或时间伪装）的 chatId。
+     */
+    public static java.util.ArrayList<Long> listChatIds() {
+        java.util.HashSet<Long> set = new java.util.HashSet<>();
+        try {
+            for (String k : sp().getAll().keySet()) {
+                String body;
+                if (k.startsWith(PREFIX)) {
+                    body = k.substring(PREFIX.length());
+                } else if (k.startsWith(T_PREFIX)) {
+                    body = k.substring(T_PREFIX.length());
+                } else {
+                    continue;
+                }
+                int idx = body.indexOf('_');
+                if (idx <= 0) {
+                    continue;
+                }
+                try {
+                    set.add(Long.parseLong(body.substring(0, idx)));
+                } catch (Throwable ignore) {
+                }
+            }
+        } catch (Throwable ignore) {
+        }
+        return new java.util.ArrayList<>(set);
+    }
+
+    /**
+     * 列出某会话下所有有记录的消息 id（文字替换 + 时间伪装）。
+     * 返回 int[]{messageId}，去重。
+     */
+    public static java.util.ArrayList<int[]> listMessageIds(long chatId) {
+        java.util.HashSet<Integer> set = new java.util.HashSet<>();
+        final String p1 = PREFIX + chatId + "_";
+        final String p2 = T_PREFIX + chatId + "_";
+        try {
+            for (String k : sp().getAll().keySet()) {
+                String body = null;
+                if (k.startsWith(p1)) {
+                    body = k.substring(p1.length());
+                } else if (k.startsWith(p2)) {
+                    body = k.substring(p2.length());
+                }
+                if (body == null) {
+                    continue;
+                }
+                int idx = body.indexOf('_');
+                if (idx >= 0) {
+                    body = body.substring(0, idx);
+                }
+                try {
+                    set.add(Integer.parseInt(body));
+                } catch (Throwable ignore) {
+                }
+            }
+        } catch (Throwable ignore) {
+        }
+        java.util.ArrayList<int[]> out = new java.util.ArrayList<>();
+        for (Integer i : set) {
+            out.add(new int[]{i});
+        }
+        return out;
+    }
+
 
     /**
      * 替换数据变更后由界面调用：

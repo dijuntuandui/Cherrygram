@@ -18660,7 +18660,9 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
             timeString = "\uD83D\uDEAB " + LocaleController.getInstance().getFormatterDay().format((long) (messageObject.messageOwner.date) * 1000);
         } else {
             // [Aiqiyi local] 时间显示覆盖（仅渲染层，不动 messageOwner.date）
-            final int displayDate = uz.unnarsx.cherrygram.aiqiyi.local.AiqiyiLocalTimeHelper.displayDate(messageObject.messageOwner.date);
+            // 单条伪装优先，其次全局偏移/固定时刻
+            final int displayDate = uz.unnarsx.cherrygram.aiqiyi.local.AiqiyiLocalTimeHelper.displayDate(
+                    messageObject.getDialogId(), messageObject.getId(), messageObject.messageOwner.date);
             timeString = !currentMessageObject.isMusic() && messageObject.messageOwner.forwards > 0 ? ChatsHelper.createForwardedString(messageObject) : LocaleController.getInstance().getFormatterDay().format((long) (displayDate) * 1000);
         }
         currentTimeString = new SpannableStringBuilder(timeString);

@@ -605,13 +605,21 @@
     <string name="AQY_LocalMessage_Rules">替换规则</string>
     <string name="AQY_LocalMessage_RulesHint">每行一条，格式：关键词=替换值\n例：\n你好=heihei\n在吗=在的呀</string>
     <string name="AQY_LocalMessage_RulesNone">未配置</string>
-    <string name="AQY_LocalMessage_RulesCount">已配置 %1$d 条</string>
+    <string name="AQY_LocalMessage_RulesCount">%1$d 条</string>
+    <string name="AQY_LocalMessage_Replaced">已替换的消息</string>
+    <string name="AQY_LocalMessage_ReplacedNone">还没有替换过。\n长按消息 → 替换显示文字</string>
+    <string name="AQY_LocalTime_Faked">已伪装的时间</string>
+    <string name="AQY_LocalTime_FakedNone">还没有伪装过。\n长按消息 → 伪装发送时间</string>
+    <string name="AQY_LocalMessage_ClearAll">全部清除</string>
     <string name="AQY_LocalMessage_Note">消息替换只改变本机看到的文字，不会把改动发送给对方，也不会写入 Telegram 服务器。</string>
 
     <!-- 长按菜单：单条消息替换 -->
     <string name="AQY_Menu_ReplaceText">替换显示文字</string>
     <string name="AQY_Menu_RestoreText">恢复原文</string>
     <string name="AQY_Menu_ReplaceHint">填这条消息在本机要显示成什么</string>
+    <string name="AQY_Menu_FakeTime">伪装发送时间</string>
+    <string name="AQY_Menu_RestoreTime">恢复原始时间</string>
+    <string name="AQY_Menu_FakeTimeHint">HH:mm（例如 12:00）</string>
 
     <!-- 本地时间显示 -->
     <string name="AQY_LocalTime_Header">本地时间</string>

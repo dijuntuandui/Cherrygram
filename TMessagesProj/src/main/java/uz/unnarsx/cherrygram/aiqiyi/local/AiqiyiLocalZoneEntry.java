@@ -44,7 +44,6 @@ public class AiqiyiLocalZoneEntry extends BaseCGPreferencesEntry {
     private final int localMessageRulesRow = 330;
     private final int localTimeOverrideRow = 331;
     private final int localTimeModeRow = 332;
-    private final int localTimeValueRow = 333;
 
     @Override
     protected CharSequence getTitle() {
@@ -126,7 +125,7 @@ public class AiqiyiLocalZoneEntry extends BaseCGPreferencesEntry {
                 .slug("aqy_local_message_override")
         );
         items.add(SettingsHelper.asTextDetail(localMessageRulesRow, 0,
-                        getString(R.string.AQY_LocalMessage_Rules), getMessageRulesText())
+                        getString(R.string.AQY_LocalMessage_Replaced), getMessageRulesText())
                 .slug("aqy_local_message_rules")
         );
         items.add(UItem.asShadow(getString(R.string.AQY_LocalMessage_Note)));
@@ -139,12 +138,8 @@ public class AiqiyiLocalZoneEntry extends BaseCGPreferencesEntry {
                 .slug("aqy_local_time_override")
         );
         items.add(SettingsHelper.asTextDetail(localTimeModeRow, 0,
-                        getString(R.string.AQY_LocalTime_Mode), getTimeModeText())
-                .slug("aqy_local_time_mode")
-        );
-        items.add(SettingsHelper.asTextDetail(localTimeValueRow, 0,
-                        getString(R.string.AQY_LocalTime_Value), getTimeValueText())
-                .slug("aqy_local_time_value")
+                        getString(R.string.AQY_LocalTime_Faked), getTimeCountText())
+                .slug("aqy_local_time_count")
         );
         items.add(UItem.asShadow(getString(R.string.AQY_LocalTime_Note)));
     }
@@ -180,15 +175,13 @@ public class AiqiyiLocalZoneEntry extends BaseCGPreferencesEntry {
             AiqiyiLocalMessageHelper.invalidate();
             listView.adapter.update(true);
         } else if (item.id == localMessageRulesRow) {
-            showMessageRulesInput();
+            showReplaceListDialog();
         } else if (item.id == localTimeOverrideRow) {
             AiqiyiLocalDataConfig.INSTANCE.setLocalTimeOverride(!AiqiyiLocalDataConfig.INSTANCE.getLocalTimeOverride());
             AiqiyiLocalTimeHelper.invalidate();
             listView.adapter.update(true);
         } else if (item.id == localTimeModeRow) {
-            showTimeModeSelect();
-        } else if (item.id == localTimeValueRow) {
-            showTimeValueInput();
+            showFakeTimeListDialog();
         } else {
             super.onClick(item, view, position, x, y);
         }
@@ -243,141 +236,97 @@ public class AiqiyiLocalZoneEntry extends BaseCGPreferencesEntry {
     }
 
     private CharSequence getMessageRulesText() {
-        int count = AiqiyiLocalMessageHelper.getRuleCount();
+        int count = AiqiyiMessageReplaceStore.count();
         if (count <= 0) {
             return getString(R.string.AQY_LocalMessage_RulesNone);
         }
         return String.format(getString(R.string.AQY_LocalMessage_RulesCount), count);
     }
 
-    private void showMessageRulesInput() {
-        AlertDialog.Builder builder = new AlertDialog.Builder(getParentActivity());
-        builder.setTitle(getString(R.string.AQY_LocalMessage_Rules));
-
-        final EditTextBoldCursor editText = new EditTextBoldCursor(getParentActivity());
-        editText.setText(AiqiyiLocalDataConfig.INSTANCE.getLocalMessageRules());
-        editText.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_MULTI_LINE);
-        editText.setSingleLine(false);
-        editText.setMinLines(5);
-        editText.setMaxLines(12);
-        editText.setHint(getString(R.string.AQY_LocalMessage_RulesHint));
-
-        builder.setView(editText);
-        builder.setPositiveButton(getString(R.string.OK), (dialog, which) -> {
-            AiqiyiLocalDataConfig.INSTANCE.setLocalMessageRules(editText.getText().toString());
-            AiqiyiLocalMessageHelper.invalidate();
-            listView.adapter.update(true);
-        });
-        builder.setNegativeButton(getString(R.string.Cancel), null);
-        builder.show();
+    private CharSequence getTimeCountText() {
+        int count = AiqiyiMessageReplaceStore.timeCount();
+        if (count <= 0) {
+            return getString(R.string.AQY_LocalMessage_RulesNone);
+        }
+        return String.format(getString(R.string.AQY_LocalMessage_RulesCount), count);
     }
 
-    // ===== 本地时间 =====
+    /**
+     * 「已替换 N 条」——点进去查看单条替换，可直接清除。
+     */
+    private void showReplaceListDialog() {
+        final java.util.ArrayList<Long> keys = AiqiyiMessageReplaceStore.listChatIds();
+        final java.util.List<String> lines = new java.util.ArrayList<>();
+        final java.util.List<long[]> refs = new java.util.ArrayList<>();
 
-    private CharSequence getTimeModeText() {
-        int mode = AiqiyiLocalDataConfig.INSTANCE.getLocalTimeMode();
-        if (mode == 2) {
-            return getString(R.string.AQY_LocalTime_ModeFixed);
-        }
-        return getString(R.string.AQY_LocalTime_ModeOffset);
-    }
-
-    private CharSequence getTimeValueText() {
-        int mode = AiqiyiLocalDataConfig.INSTANCE.getLocalTimeMode();
-        if (mode == 2) {
-            int s = AiqiyiLocalDataConfig.INSTANCE.getLocalTimeFixedSeconds();
-            return String.format("%02d:%02d", (s / 3600) % 24, (s % 3600) / 60);
-        }
-        int offset = AiqiyiLocalDataConfig.INSTANCE.getLocalTimeOffset();
-        if (offset == 0) {
-            return getString(R.string.AQY_LocalTime_ValueNone);
-        }
-        String sign = offset > 0 ? "+" : "-";
-        int abs = Math.abs(offset);
-        int h = abs / 3600;
-        int m = (abs % 3600) / 60;
-        if (h > 0 && m > 0) {
-            return String.format(getString(R.string.AQY_LocalTime_ValueHM), sign, h, m);
-        } else if (h > 0) {
-            return String.format(getString(R.string.AQY_LocalTime_ValueH), sign, h);
-        } else {
-            return String.format(getString(R.string.AQY_LocalTime_ValueM), sign, m);
-        }
-    }
-
-    private void showTimeModeSelect() {
-        AlertDialog.Builder builder = new AlertDialog.Builder(getParentActivity());
-        builder.setTitle(getString(R.string.AQY_LocalTime_Mode));
-        CharSequence[] modes = new CharSequence[]{
-                getString(R.string.AQY_LocalTime_ModeOffset),
-                getString(R.string.AQY_LocalTime_ModeFixed)
-        };
-        builder.setItems(modes, (dialog, which) -> {
-            AiqiyiLocalDataConfig.INSTANCE.setLocalTimeMode(which == 1 ? 2 : 1);
-            AiqiyiLocalTimeHelper.invalidate();
-            listView.adapter.update(true);
-        });
-        builder.setNegativeButton(getString(R.string.Cancel), null);
-        builder.show();
-    }
-
-    private void showTimeValueInput() {
-        int mode = AiqiyiLocalDataConfig.INSTANCE.getLocalTimeMode();
-        AlertDialog.Builder builder = new AlertDialog.Builder(getParentActivity());
-        builder.setTitle(getString(R.string.AQY_LocalTime_Value));
-
-        final EditTextBoldCursor editText = new EditTextBoldCursor(getParentActivity());
-        editText.setInputType(InputType.TYPE_CLASS_TEXT);
-        editText.setSingleLine(true);
-        if (mode == 2) {
-            int s = AiqiyiLocalDataConfig.INSTANCE.getLocalTimeFixedSeconds();
-            editText.setText(String.format("%02d:%02d", (s / 3600) % 24, (s % 3600) / 60));
-            editText.setHint(getString(R.string.AQY_LocalTime_ValueHintFixed));
-        } else {
-            editText.setText(String.valueOf(AiqiyiLocalDataConfig.INSTANCE.getLocalTimeOffset()));
-            editText.setHint(getString(R.string.AQY_LocalTime_ValueHintOffset));
-        }
-
-        builder.setView(editText);
-        builder.setPositiveButton(getString(R.string.OK), (dialog, which) -> {
-            String raw = editText.getText().toString().trim();
-            if (mode == 2) {
-                int sec = parseHhMm(raw);
-                if (sec >= 0) {
-                    AiqiyiLocalDataConfig.INSTANCE.setLocalTimeFixedSeconds(sec);
-                }
-            } else {
-                try {
-                    AiqiyiLocalDataConfig.INSTANCE.setLocalTimeOffset(Integer.parseInt(raw));
-                } catch (Throwable ignore) {
-                }
+        for (Long cidObj : keys) {
+            long cid = cidObj;
+            for (int[] pair : AiqiyiMessageReplaceStore.listMessageIds(cid)) {
+                int mid = pair[0];
+                String text = AiqiyiMessageReplaceStore.get(cid, mid);
+                if (text == null) continue;
+                lines.add("chat " + cid + " / msg " + mid + " → " + text);
+                refs.add(new long[]{cid, mid});
             }
-            AiqiyiLocalTimeHelper.invalidate();
-            listView.adapter.update(true);
-        });
-        builder.setNegativeButton(getString(R.string.Cancel), null);
+        }
+
+        AlertDialog.Builder builder = new AlertDialog.Builder(getParentActivity());
+        builder.setTitle(getString(R.string.AQY_LocalMessage_Replaced));
+        if (lines.isEmpty()) {
+            builder.setMessage(getString(R.string.AQY_LocalMessage_ReplacedNone));
+            builder.setNegativeButton(getString(R.string.Close), null);
+        } else {
+            builder.setItems(lines.toArray(new CharSequence[0]), (dialog, which) -> {
+                long[] ref = refs.get(which);
+                AiqiyiMessageReplaceStore.remove(ref[0], (int) ref[1]);
+                listView.adapter.update(true);
+            });
+            builder.setNeutralButton(getString(R.string.AQY_LocalMessage_ClearAll), (dialog, which) -> {
+                AiqiyiMessageReplaceStore.clearAll();
+                listView.adapter.update(true);
+            });
+            builder.setNegativeButton(getString(R.string.Cancel), null);
+        }
         builder.show();
     }
 
-    /** 解析 HH:mm 为当天秒数；失败返回 -1 */
-    private static int parseHhMm(String s) {
-        if (s == null) {
-            return -1;
-        }
-        s = s.trim().replace('：', ':');
-        int idx = s.indexOf(':');
-        if (idx <= 0) {
-            return -1;
-        }
-        try {
-            int h = Integer.parseInt(s.substring(0, idx).trim());
-            int m = Integer.parseInt(s.substring(idx + 1).trim());
-            if (h < 0 || h > 23 || m < 0 || m > 59) {
-                return -1;
+    /**
+     * 「已伪装 N 条」——点进去查看单条时间伪装，可直接清除。
+     */
+    private void showFakeTimeListDialog() {
+        final java.util.ArrayList<Long> keys = AiqiyiMessageReplaceStore.listChatIds();
+        final java.util.List<String> lines = new java.util.ArrayList<>();
+        final java.util.List<long[]> refs = new java.util.ArrayList<>();
+
+        for (Long cidObj : keys) {
+            long cid = cidObj;
+            for (int[] pair : AiqiyiMessageReplaceStore.listMessageIds(cid)) {
+                int mid = pair[0];
+                int sec = AiqiyiMessageReplaceStore.getTime(cid, mid);
+                if (sec < 0) continue;
+                lines.add("chat " + cid + " / msg " + mid + " → "
+                        + String.format("%02d:%02d", (sec / 3600) % 24, (sec % 3600) / 60));
+                refs.add(new long[]{cid, mid});
             }
-            return h * 3600 + m * 60;
-        } catch (Throwable e) {
-            return -1;
         }
+
+        AlertDialog.Builder builder = new AlertDialog.Builder(getParentActivity());
+        builder.setTitle(getString(R.string.AQY_LocalTime_Faked));
+        if (lines.isEmpty()) {
+            builder.setMessage(getString(R.string.AQY_LocalTime_FakedNone));
+            builder.setNegativeButton(getString(R.string.Close), null);
+        } else {
+            builder.setItems(lines.toArray(new CharSequence[0]), (dialog, which) -> {
+                long[] ref = refs.get(which);
+                AiqiyiMessageReplaceStore.removeTime(ref[0], (int) ref[1]);
+                listView.adapter.update(true);
+            });
+            builder.setNeutralButton(getString(R.string.AQY_LocalMessage_ClearAll), (dialog, which) -> {
+                AiqiyiMessageReplaceStore.clearAllTime();
+                listView.adapter.update(true);
+            });
+            builder.setNegativeButton(getString(R.string.Cancel), null);
+        }
+        builder.show();
     }
 }

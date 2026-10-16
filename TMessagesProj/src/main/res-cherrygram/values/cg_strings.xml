@@ -680,13 +680,21 @@
     <string name="AQY_LocalMessage_Rules">Replacement rules</string>
     <string name="AQY_LocalMessage_RulesHint">One rule per line, format: keyword=replacement\nExample:\nhello=hi\nthere=here</string>
     <string name="AQY_LocalMessage_RulesNone">Not configured</string>
-    <string name="AQY_LocalMessage_RulesCount">%1$d rule(s) configured</string>
+    <string name="AQY_LocalMessage_RulesCount">%1$d item(s)</string>
+    <string name="AQY_LocalMessage_Replaced">Replaced messages</string>
+    <string name="AQY_LocalMessage_ReplacedNone">Nothing replaced yet.\nLong-press a message → Replace displayed text.</string>
+    <string name="AQY_LocalTime_Faked">Faked times</string>
+    <string name="AQY_LocalTime_FakedNone">Nothing faked yet.\nLong-press a message → Fake sent time.</string>
+    <string name="AQY_LocalMessage_ClearAll">Clear all</string>
     <string name="AQY_LocalMessage_Note">Message replacement only changes the text shown on this device. Nothing is sent to the peer or written to Telegram servers.</string>
 
     <!-- Long-press menu: per-message replace -->
     <string name="AQY_Menu_ReplaceText">Replace displayed text</string>
     <string name="AQY_Menu_RestoreText">Restore original</string>
     <string name="AQY_Menu_ReplaceHint">What this message should show on this device</string>
+    <string name="AQY_Menu_FakeTime">Fake sent time</string>
+    <string name="AQY_Menu_RestoreTime">Restore original time</string>
+    <string name="AQY_Menu_FakeTimeHint">HH:mm (e.g. 12:00)</string>
 
     <!-- Local message time -->
     <string name="AQY_LocalTime_Header">Local Time</string>
