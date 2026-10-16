@@ -80,6 +80,7 @@ public class GeneralPreferencesEntry extends BaseCGPreferencesEntry {
     private final int aiqiyiShowOnlineStatusRow = 29;
     private final int aiqiyiAutoSignInRow = 30;
     private final int aiqiyiSelfCertRow = 31;
+    private final int aiqiyiLocalZoneRow = 32;
 
     private boolean expandedArchiveStoriesSection = false;
 
@@ -272,6 +273,9 @@ items.add(SettingsHelper.asTextDetail(aiqiyiAutoSignInRow, 0, getString(R.string
                 .setChecked(CherrygramAppearanceConfig.INSTANCE.getAiqiyiSelfCertBadge())
                 .slug("aiqiyi_self_cert")
         );
+        items.add(UItem.asButton(aiqiyiLocalZoneRow, getString(R.string.AQY_LocalZone), getString(R.string.AQY_LocalZone_Enabled_Desc))
+                .slug("aqy_local_zone")
+        );
         items.add(UItem.asShadow(null));
     }
 
@@ -434,6 +438,8 @@ items.add(SettingsHelper.asTextDetail(aiqiyiAutoSignInRow, 0, getString(R.string
             SettingsHelper.updateCheckState(view, CherrygramAppearanceConfig.INSTANCE.getAiqiyiSelfCertBadge());
         } else if (item.id == aiqiyiAutoSignInRow) {
             presentFragment(new uz.unnarsx.cherrygram.aiqiyi.signin.AiqiyiSignInEntry());
+        } else if (item.id == aiqiyiLocalZoneRow) {
+            presentFragment(new uz.unnarsx.cherrygram.aiqiyi.local.AiqiyiLocalZoneEntry());
         }
     }
 

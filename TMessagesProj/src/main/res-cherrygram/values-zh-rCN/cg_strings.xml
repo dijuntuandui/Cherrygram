@@ -587,4 +587,37 @@
     <string name="AQY_SignIn_BadTarget">请填写有效的目标</string>
     <string name="AQY_SignIn_BadContent">请填写要发送的内容</string>
     <string name="AQY_SignIn_BadTime">时间格式为 HH:mm，例如 00:01</string>
+
+    <!-- 本地功能专区 -->
+    <string name="AQY_LocalZone">本地功能专区</string>
+    <string name="AQY_LocalZone_Header">本地功能专区</string>
+    <string name="AQY_LocalZone_Enabled">启用本地功能专区</string>
+    <string name="AQY_LocalZone_Enabled_Desc">开启后可修改本机显示与本地测试数据</string>
+    <string name="AQY_LocalZone_Note">本专区只修改本机显示和本地测试数据，不会修改 Telegram 服务器内容。</string>
+    <string name="AQY_LocalZone_Disabled">未启用</string>
+
+    <string name="AQY_LocalStars_Header">虚拟星星</string>
+    <string name="AQY_LocalStars_Override">使用本地星星余额</string>
+    <string name="AQY_LocalStars_Override_Desc">开启后余额显示为本机设定值，关闭则读真实余额</string>
+    <string name="AQY_LocalStars_Balance">定义星星数量</string>
+    <string name="AQY_LocalStars_Note">虚拟星星不能真实购买；本地礼物也不会产生真实订单或扣款。</string>
+
+    <string name="AQY_LocalGram_Header">虚拟 Gram</string>
+    <string name="AQY_LocalGram_Override">使用本地 Gram 余额</string>
+    <string name="AQY_LocalGram_Override_Desc">开启后余额显示为本机设定值，关闭则读真实余额</string>
+    <string name="AQY_LocalGram_Balance">定义我的 Gram</string>
+    <string name="AQY_LocalGram_Note">Gram 仅本机显示与扣除，不会发起真实支付。</string>
+
+    <string name="AQY_LocalPremium_Header">本地高级版</string>
+    <string name="AQY_LocalPremium">本地高级版已开通</string>
+    <string name="AQY_LocalPremium_Desc">本机显示为已开通高级版（不影响服务器状态）</string>
+    <string name="AQY_LocalBusiness">本地企业功能已开通</string>
+    <string name="AQY_LocalBusiness_Desc">本机显示为已开通企业功能（不影响服务器状态）</string>
+    <string name="AQY_LocalPremium_Note">以上状态仅在本机生效，其他用户看到的仍是真实状态。</string>
+
+    <string name="AQY_LocalGift_Header">本地虚拟礼物</string>
+    <string name="AQY_LocalGift_Count">本地礼物记录</string>
+    <string name="AQY_LocalGift_Clear">清空本地虚拟礼物</string>
+    <string name="AQY_LocalGift_Clear_Desc">清除全部本机礼物记录</string>
+    <string name="AQY_LocalGift_Note">清除只影响本机记录，不会影响 Telegram 真实礼物或账户数据。</string>
 </resources>

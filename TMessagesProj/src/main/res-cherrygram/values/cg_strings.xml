@@ -662,4 +662,37 @@
     <string name="AQY_SignIn_BadTarget">Enter a valid target</string>
     <string name="AQY_SignIn_BadContent">Enter the content to send</string>
     <string name="AQY_SignIn_BadTime">Use HH:mm format, e.g. 00:01</string>
+
+    <!-- Local Zone -->
+    <string name="AQY_LocalZone">Local Features</string>
+    <string name="AQY_LocalZone_Header">Local Features</string>
+    <string name="AQY_LocalZone_Enabled">Enable Local Features</string>
+    <string name="AQY_LocalZone_Enabled_Desc">Modify on-device display and local test data</string>
+    <string name="AQY_LocalZone_Note">This section only modifies on-device display and local test data. It never changes Telegram server data.</string>
+    <string name="AQY_LocalZone_Disabled">Disabled</string>
+
+    <string name="AQY_LocalStars_Header">Virtual Stars</string>
+    <string name="AQY_LocalStars_Override">Use local stars balance</string>
+    <string name="AQY_LocalStars_Override_Desc">Show a local value instead of the real balance</string>
+    <string name="AQY_LocalStars_Balance">Define stars amount</string>
+    <string name="AQY_LocalStars_Note">Virtual stars cannot be really purchased; local gifts create no real order or charge.</string>
+
+    <string name="AQY_LocalGram_Header">Virtual Gram</string>
+    <string name="AQY_LocalGram_Override">Use local Gram balance</string>
+    <string name="AQY_LocalGram_Override_Desc">Show a local value instead of the real balance</string>
+    <string name="AQY_LocalGram_Balance">Define my Gram</string>
+    <string name="AQY_LocalGram_Note">Gram is display-only and never triggers a real payment.</string>
+
+    <string name="AQY_LocalPremium_Header">Local Premium</string>
+    <string name="AQY_LocalPremium">Local Premium active</string>
+    <string name="AQY_LocalPremium_Desc">Show as Premium on this device only</string>
+    <string name="AQY_LocalBusiness">Local Business active</string>
+    <string name="AQY_LocalBusiness_Desc">Show Business features on this device only</string>
+    <string name="AQY_LocalPremium_Note">These states are local only; other users still see your real status.</string>
+
+    <string name="AQY_LocalGift_Header">Local Virtual Gifts</string>
+    <string name="AQY_LocalGift_Count">Local gift records</string>
+    <string name="AQY_LocalGift_Clear">Clear local virtual gifts</string>
+    <string name="AQY_LocalGift_Clear_Desc">Remove all local gift records</string>
+    <string name="AQY_LocalGift_Note">Clearing only affects local records and never touches real Telegram gifts or account data.</string>
 </resources>

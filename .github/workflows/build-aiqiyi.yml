@@ -3,7 +3,7 @@ name: Build Aiqiyi APK
 on:
   workflow_dispatch:
   push:
-    branches: [ aiqiyi-ui ]
+    branches: [ aiqiyi-ui, aiqiyi-local ]
 
 jobs:
   build:
