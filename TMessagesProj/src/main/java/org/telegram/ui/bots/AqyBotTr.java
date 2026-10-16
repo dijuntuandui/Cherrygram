@@ -219,6 +219,10 @@ public class AqyBotTr {
         BTN.put("cool thanks", "\u597d\u7684\uff0c\u8c22\u8c22");
         BTN.put("but i can't message non-contacts!", "\u4f46\u6211\u65e0\u6cd5\u7ed9\u975e\u8054\u7cfb\u4eba\u53d1\u6d88\u606f\uff01");
         BTN.put("but i cant message non-contacts!", "\u4f46\u6211\u65e0\u6cd5\u7ed9\u975e\u8054\u7cfb\u4eba\u53d1\u6d88\u606f\uff01");
+        BTN.put("yes", "\u662f");
+        BTN.put("no", "\u5426");
+        BTN.put("ok", "\u597d");
+        BTN.put("okay", "\u597d");
     }
 
     /**
@@ -227,7 +231,13 @@ public class AqyBotTr {
      */
     public static CharSequence trButton(CharSequence text) {
         if (text == null) return null;
-        String key = text.toString().trim().toLowerCase();
+        // 撇号归一化：弯撇号 U+2019 / U+2018 / 反引号 折叠成 ASCII (U+0027)
+        // 服务器下发常用弯撇号（can’t），表里写的是直撇号（can't），不折叠就精确匹配不到
+        String key = text.toString().trim().toLowerCase()
+                .replace('\u2019', '\'')
+                .replace('\u2018', '\'')
+                .replace('\u02BC', '\'')
+                .replace('\u0060', '\'');
         String zh = BTN.get(key);
         if (zh == null) return text;
         return zh;
