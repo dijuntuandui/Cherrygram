@@ -13721,7 +13721,12 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                         DecimalFormat df = new DecimalFormat("#,###", new DecimalFormatSymbols(Locale.US) {{ setGroupingSeparator(' '); }});
                         CharSequence formattedID = chatId != 0 ? "-100 " + df.format(id) : df.format(id);
 
-                        detailCell.setTextAndValue("ID: " + formattedID, userDcLine, false);
+                        // [Aiqiyi] 本地修改 ID（仅自己可见）
+                        String aqyLocalId = (userId != 0 && userId == getUserConfig().getClientUserId())
+                                ? uz.unnarsx.cherrygram.aiqiyi.local.AiqiyiLocalProfileHelper.getFormattedUserId()
+                                : null;
+                        CharSequence aqyIdValue = aqyLocalId != null ? aqyLocalId : formattedID;
+                        detailCell.setTextAndValue("ID: " + aqyIdValue, userDcLine, false);
                     } else if (position == birthdayRow) {
                         TLRPC.UserFull userFull = getMessagesController().getUserFull(userId);
                         if (userFull != null && userFull.birthday != null) {
@@ -15876,7 +15881,12 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
             showDialog(new GiftSheet(getContext(), currentAccount, userId, null, null));*/
             Extra.INSTANCE.addBirthdayToCalendar(getParentActivity(), userId);
         } else if (parent.getTag() != null && ((int) parent.getTag()) == idDcRow) {
-            showCreationDateHint(view, Extra.INSTANCE.getRegistrationDate(this, userId, chatId));
+            // [Aiqiyi] 本人 ID 行：弹本地修改菜单；非本人保持原「注册日期」提示
+            if (userId != 0 && userId == getUserConfig().getClientUserId() && uz.unnarsx.cherrygram.core.configs.AiqiyiLocalDataConfig.INSTANCE.getLocalZoneEnabled()) {
+                showAqyIdMenu(view);
+            } else {
+                showCreationDateHint(view, Extra.INSTANCE.getRegistrationDate(this, userId, chatId));
+            }
         }
     }
 
@@ -17373,6 +17383,29 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
 
         updateEmojiStatusDrawableColor();
         return cherrygramStatusDrawable;
+    }
+
+    /**
+     * [Aiqiyi] 本人 ID 行菜单：修改 / 恢复 / 注册日期。
+     * 用 ItemOptions 而非 AlertDialog，避开自定义 View 高度塌陷问题。
+     */
+    private void showAqyIdMenu(View anchor) {
+        Runnable onChanged = () -> {
+            if (idDcRow >= 0 && listAdapter != null) {
+                listAdapter.notifyItemChanged(idDcRow);
+            }
+        };
+        ItemOptions options = ItemOptions.makeOptions(this, anchor);
+        options.add(R.drawable.msg_edit, LocaleController.getString(R.string.AQY_Menu_CustomId), () ->
+                AiqiyiLocalDataInputHelper.show(this, AiqiyiLocalDataInputHelper.TYPE_USER_ID, onChanged));
+        options.add(R.drawable.msg_reset, LocaleController.getString(R.string.AQY_Menu_CustomIdClear), () -> {
+            uz.unnarsx.cherrygram.aiqiyi.local.AiqiyiLocalProfileHelper.setUserId("");
+            onChanged.run();
+        });
+        options.addGap();
+        options.add(R.drawable.msg_info, LocaleController.getString(R.string.AQY_Menu_CustomIdDate), () ->
+                showCreationDateHint(anchor, Extra.INSTANCE.getRegistrationDate(this, userId, chatId)));
+        options.show();
     }
 
     public void showCreationDateHint(View view, CharSequence text) {

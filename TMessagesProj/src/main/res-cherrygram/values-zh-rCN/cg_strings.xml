@@ -661,4 +661,9 @@
     <string name="AQY_LocalGift_Clear">清空本地虚拟礼物</string>
     <string name="AQY_LocalGift_Clear_Desc">清除全部本机礼物记录</string>
     <string name="AQY_LocalGift_Note">清除只影响本机记录，不会影响 Telegram 真实礼物或账户数据。</string>
+    <string name="AQY_Menu_CustomId">本地修改ID</string>
+    <string name="AQY_Menu_CustomIdClear">恢复原始ID</string>
+    <string name="AQY_Menu_CustomIdDate">注册日期</string>
+    <string name="AQY_Menu_CustomIdHint">输入新的ID（仅本地生效）</string>
+    <string name="AQY_Menu_OK">确定</string>
 </resources>

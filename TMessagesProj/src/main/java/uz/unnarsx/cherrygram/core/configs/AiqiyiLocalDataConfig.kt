@@ -70,6 +70,14 @@ object AiqiyiLocalDataConfig {
     /** 本地修改消息 */
     var localMessageOverride by sharedPreferences.boolean("AQY_LocalMessage_Override", false)
 
+    // ============ 本地修改 ID（仅自己可见） ============
+
+    /** 本地自定义 ID 开关 */
+    var localUserIdOverride by sharedPreferences.boolean("AQY_LocalUserId_Override", false)
+
+    /** 本地自定义 ID 内容（随意填，纯数字时自动空格分组） */
+    var localUserIdText by sharedPreferences.string("AQY_LocalUserId_Text", "")
+
     /**
      * 本地消息替换规则。
      * 每行一条，格式：关键词=替换值

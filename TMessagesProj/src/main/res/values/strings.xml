@@ -11244,4 +11244,9 @@
     <string name="RoundVideoComposition">Composition</string>
     <string name="RoundVideoCompositionEnabled">Round video styling</string>
     <string name="RoundVideoCompositionInfo">Disable styling to record a plain square without outside-circle blur, dimming or Telegram overlays.</string>
+    <string name="AQY_Menu_CustomId">Modify ID Locally</string>
+    <string name="AQY_Menu_CustomIdClear">Restore Original ID</string>
+    <string name="AQY_Menu_CustomIdDate">Registration Date</string>
+    <string name="AQY_Menu_CustomIdHint">Enter new ID (local only)</string>
+    <string name="AQY_Menu_OK">OK</string>
 </resources>
