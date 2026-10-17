@@ -11332,7 +11332,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
     /** 手机号行菜单：追加本地修改/恢复两项 */
     private void addLocalPhoneMenuItems(ItemOptions o, TLRPC.User user) {
         try {
-            if (userId == 0 || userId != getUserConfig().getClientUserId()) {
+            if (!myProfile && (userId == 0 || userId != getUserConfig().getClientUserId())) {
                 return;
             }
             o.add(R.drawable.msg_edit, "\u672c\u5730\u4fee\u6539\u53f7\u7801", () -> {
@@ -11355,7 +11355,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
     /** 用户名行菜单：追加本地修改/恢复两项 */
     private void addLocalUsernameMenuItems(ItemOptions o, TLRPC.User user) {
         try {
-            if (userId == 0 || userId != getUserConfig().getClientUserId()) {
+            if (!myProfile && (userId == 0 || userId != getUserConfig().getClientUserId())) {
                 return;
             }
             o.add(R.drawable.msg_edit, "\u672c\u5730\u4fee\u6539\u7528\u6237\u540d", () -> {
@@ -16877,6 +16877,8 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
             });
             if (selfPhone) {
                 getProfileActivityHelper().injectPhoneNumber(this, itemOptions, user.phone);
+                // [Aiqiyi] 本人主页手机号：追加本地修改/恢复
+                addLocalPhoneMenuItems(itemOptions, user);
             }
         }
 
