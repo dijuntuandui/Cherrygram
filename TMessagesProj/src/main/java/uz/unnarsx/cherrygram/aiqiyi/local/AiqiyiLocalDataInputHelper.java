@@ -17,6 +17,7 @@ import org.telegram.ui.ActionBar.AlertDialog;
 import org.telegram.ui.ActionBar.BaseFragment;
 import org.telegram.ui.ActionBar.Theme;
 import org.telegram.ui.Components.EditTextBoldCursor;
+import org.telegram.ui.Components.ItemOptions;
 
 public final class AiqiyiLocalDataInputHelper {
 
@@ -70,5 +71,20 @@ public final class AiqiyiLocalDataInputHelper {
         });
         builder.setNegativeButton(LocaleController.getString(R.string.Cancel), null);
         builder.show();
+    }
+
+    /** 本人主页 ID 行点击后弹出的菜单 */
+    public static void showIdMenu(org.telegram.ui.ActionBar.BaseFragment fragment, android.view.View anchor, Runnable onChanged) {
+        if (fragment == null || fragment.getParentActivity() == null || anchor == null) {
+            return;
+        }
+        ItemOptions options = ItemOptions.makeOptions(fragment, anchor);
+        options.add(R.drawable.msg_edit, LocaleController.getString(R.string.AQY_Menu_CustomId),
+                () -> show(fragment, TYPE_USER_ID, onChanged));
+        options.add(R.drawable.msg_reset, LocaleController.getString(R.string.AQY_Menu_CustomIdClear), () -> {
+            AiqiyiLocalProfileHelper.setUserId("");
+            if (onChanged != null) onChanged.run();
+        });
+        options.show();
     }
 }

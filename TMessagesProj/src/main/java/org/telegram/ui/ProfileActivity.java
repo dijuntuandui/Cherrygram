@@ -4388,6 +4388,16 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                 } catch (Exception e) {
                     FileLog.e(e);
                 }
+                // [Aiqiyi] 本人主页显示本地修改 ID 菜单
+                if (userId != 0 && userId == getUserConfig().getClientUserId()) {
+                    try {
+                        uz.unnarsx.cherrygram.aiqiyi.local.AiqiyiLocalDataInputHelper.showIdMenu(ProfileActivity.this, view, () -> {
+                            if (idDcRow >= 0) listAdapter.notifyItemChanged(idDcRow);
+                        });
+                    } catch (Exception e) {
+                        FileLog.e(e);
+                    }
+                }
             } else if (position == versionRow) {
                 CherrygramPreferencesNavigator.INSTANCE.createDebug(this);
             } else if (position == affiliateRow) {
