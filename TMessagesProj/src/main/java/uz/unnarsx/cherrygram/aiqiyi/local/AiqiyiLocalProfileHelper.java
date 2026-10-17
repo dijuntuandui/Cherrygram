@@ -25,45 +25,6 @@ public final class AiqiyiLocalProfileHelper {
         return AiqiyiLocalDataConfig.INSTANCE.getLocalZoneEnabled();
     }
 
-    // ============ 手机号 ============
-
-    /** 是否有生效中的本地自定义手机号 */
-    public static boolean hasPhone() {
-        return zoneOn()
-                && AiqiyiLocalDataConfig.INSTANCE.getLocalPhoneOverride()
-                && !TextUtils.isEmpty(AiqiyiLocalDataConfig.INSTANCE.getLocalPhoneText());
-    }
-
-    /** 取本地自定义手机号；无则返回 null */
-    public static String getPhone() {
-        return hasPhone() ? AiqiyiLocalDataConfig.INSTANCE.getLocalPhoneText() : null;
-    }
-
-    // ============ 用户名 ============
-
-    /** 是否有生效中的本地自定义用户名 */
-    public static boolean hasUsername() {
-        return zoneOn()
-                && AiqiyiLocalDataConfig.INSTANCE.getLocalUsernameOverride()
-                && !TextUtils.isEmpty(AiqiyiLocalDataConfig.INSTANCE.getLocalUsernameText());
-    }
-
-    /** 取本地自定义用户名（不带 @）；无则返回 null */
-    public static String getUsername() {
-        return hasUsername() ? AiqiyiLocalDataConfig.INSTANCE.getLocalUsernameText() : null;
-    }
-
-    /**
-     * 取本地自定义用户名，已带 @ 前缀；无则返回 null。
-     */
-    public static String getUsernameWithAt() {
-        String name = getUsername();
-        if (name == null) {
-            return null;
-        }
-        return name.startsWith("@") ? name : "@" + name;
-    }
-
     // ============ User ID ============
 
     /** 是否有生效中的本地自定义 User ID */
@@ -94,32 +55,6 @@ public final class AiqiyiLocalProfileHelper {
     }
 
     // ============ 写入 ============
-
-    public static void setPhone(String value) {
-        AiqiyiLocalDataConfig cfg = AiqiyiLocalDataConfig.INSTANCE;
-        if (TextUtils.isEmpty(value)) {
-            cfg.setLocalPhoneOverride(false);
-            cfg.setLocalPhoneText("");
-        } else {
-            cfg.setLocalPhoneText(value.trim());
-            cfg.setLocalPhoneOverride(true);
-        }
-    }
-
-    public static void setUsername(String value) {
-        AiqiyiLocalDataConfig cfg = AiqiyiLocalDataConfig.INSTANCE;
-        if (TextUtils.isEmpty(value)) {
-            cfg.setLocalUsernameOverride(false);
-            cfg.setLocalUsernameText("");
-        } else {
-            String v = value.trim();
-            if (v.startsWith("@")) {
-                v = v.substring(1);
-            }
-            cfg.setLocalUsernameText(v);
-            cfg.setLocalUsernameOverride(true);
-        }
-    }
 
     public static void setUserId(String value) {
         AiqiyiLocalDataConfig cfg = AiqiyiLocalDataConfig.INSTANCE;
