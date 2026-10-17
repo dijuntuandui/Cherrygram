@@ -13929,8 +13929,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                         } else if (user != null && !TextUtils.isEmpty(getDisplayedPhone(user))) {
                             // [Aiqiyi] 显示值走统一入口，本地有覆盖用本地值
                             phoneNumber = getDisplayedPhone(user);
-                            boolean aqyHasLocal = !TextUtils.isEmpty(getLocalProfileValue("phone"));
-                            if (!aqyHasLocal && CherrygramAppearanceConfig.INSTANCE.getProfileHidePhoneNumber()) {
+                            if (CherrygramAppearanceConfig.INSTANCE.getProfileHidePhoneNumber()) {
                                 text = getChatsPasswordHelper().replaceStringToSpoilers(
                                         PhoneFormat.getInstance().format("+ " + phoneNumber),
                                         true
@@ -13942,13 +13941,8 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                             text = LocaleController.getString(R.string.PhoneHidden);
                             phoneNumber = null;
                         }
-                        // [Aiqiyi] 本地覆盖的号码不走 Fragment 匿名逻辑，始终显示「手机」
-                        boolean aqyLocalPhone = !TextUtils.isEmpty(getLocalProfileValue("phone"));
-                        isFragmentPhoneNumber = !aqyLocalPhone && phoneNumber != null && phoneNumber.matches("888\\d{8}");
+                        isFragmentPhoneNumber = phoneNumber != null && phoneNumber.matches("888\\d{8}");
                         if (isFragmentPhoneNumber && !TextUtils.isEmpty(phoneNumber)) {
-                            text = PhoneFormat.getInstance().format("+ " + phoneNumber);
-                        }
-                        if (aqyLocalPhone) {
                             text = PhoneFormat.getInstance().format("+ " + phoneNumber);
                         }
                         detailCell.setTextAndValue(text, LocaleController.getString(isFragmentPhoneNumber ? R.string.AnonymousNumber : R.string.PhoneMobile), false);
