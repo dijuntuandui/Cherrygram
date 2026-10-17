@@ -11399,6 +11399,12 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
             builder.setView(container, AndroidUtilities.dp(64));
             builder.setPositiveButton(LocaleController.getString(R.string.Done), (dialog, which) -> {
                 setLocalProfileValue(field, editText.getText().toString());
+                // [Aiqiyi] 强制整表重刷，避免 phoneRow/usernameRow 尚未赋值时 notifyItemChanged 落空
+                try {
+                    updateRowsIds();
+                    if (listAdapter != null) listAdapter.notifyDataSetChanged();
+                } catch (Throwable ignore) {
+                }
                 if (onDone != null) onDone.run();
             });
             builder.setNegativeButton(LocaleController.getString(R.string.Cancel), null);
