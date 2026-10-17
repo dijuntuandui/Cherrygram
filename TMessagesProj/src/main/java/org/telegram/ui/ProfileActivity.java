@@ -17397,7 +17397,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
         };
         ItemOptions options = ItemOptions.makeOptions(this, anchor);
         options.add(R.drawable.msg_edit, LocaleController.getString(R.string.AQY_Menu_CustomId), () ->
-                AiqiyiLocalDataInputHelper.show(this, AiqiyiLocalDataInputHelper.TYPE_USER_ID, onChanged));
+                uz.unnarsx.cherrygram.aiqiyi.local.AiqiyiLocalDataInputHelper.show(this, uz.unnarsx.cherrygram.aiqiyi.local.AiqiyiLocalDataInputHelper.TYPE_USER_ID, onChanged));
         options.add(R.drawable.msg_reset, LocaleController.getString(R.string.AQY_Menu_CustomIdClear), () -> {
             uz.unnarsx.cherrygram.aiqiyi.local.AiqiyiLocalProfileHelper.setUserId("");
             onChanged.run();
