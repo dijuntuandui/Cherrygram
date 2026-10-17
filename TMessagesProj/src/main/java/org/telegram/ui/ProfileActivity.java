@@ -4551,6 +4551,18 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
             } else if (position == addMemberRow) {
                 openAddMember();
             } else if (position == usernameRow) {
+                // [Aiqiyi] 本人主页：用户名校验行单击弹本地修改菜单
+                if (userId != 0 && userId == getUserConfig().getClientUserId()) {
+                    TLRPC.User aqyUser = getMessagesController().getUser(userId);
+                    if (aqyUser != null) {
+                        ItemOptions aqyOpt = ItemOptions.makeOptions(this, view);
+                        addLocalUsernameMenuItems(aqyOpt, aqyUser);
+                        if (aqyOpt.getItemsCount() > 0) {
+                            aqyOpt.show();
+                            return;
+                        }
+                    }
+                }
                 processOnClickOrPress(position, view, x, y);
             } else if (position == linkedCommunityRow) {
                 if (currentChat != null) {
@@ -7618,6 +7630,8 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
             if (!user.phone.isEmpty() && CherrygramAppearanceConfig.INSTANCE.getProfileHidePhoneNumber()) {
                 getProfileActivityHelper().injectPhoneNumber(this, o, user.phone);
             }
+            // [Aiqiyi] 本人主页：菜单追加「本地修改号码 / 恢复原始号码」
+            addLocalPhoneMenuItems(o, user);
             o.show();
             return true;
         } else if (position == channelInfoRow || position == userInfoRow || position == locationRow || position == bioRow) {
@@ -11261,6 +11275,140 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
         return scamDrawable;
     }
 
+    // ==================== [Aiqiyi] 本地资料覆盖（架构参照黄昏） ====================
+    // key 形式：local_profile_{field}_{account}_{userId}，按账号+用户分开存，互不干扰
+
+    private String localProfileKey(String field) {
+        return "local_profile_" + field + "_" + currentAccount + "_" + userId;
+    }
+
+    /** 取本地覆盖值，没有则返回 null */
+    private String getLocalProfileValue(String field) {
+        try {
+            return MessagesController.getGlobalMainSettings().getString(localProfileKey(field), null);
+        } catch (Throwable e) {
+            return null;
+        }
+    }
+
+    /** 写本地覆盖值，value 为空则移除（恢复原始） */
+    private void setLocalProfileValue(String field, String value) {
+        try {
+            android.content.SharedPreferences.Editor ed = MessagesController.getGlobalMainSettings().edit();
+            if (TextUtils.isEmpty(value)) {
+                ed.remove(localProfileKey(field));
+            } else {
+                ed.putString(localProfileKey(field), value.trim());
+            }
+            ed.apply();
+        } catch (Throwable ignore) {
+        }
+    }
+
+    /** 显示用的手机号：本地有覆盖用本地的，否则用真实值 */
+    private String getDisplayedPhone(TLRPC.User user) {
+        if (user == null) {
+            return null;
+        }
+        String local = getLocalProfileValue("phone");
+        if (!TextUtils.isEmpty(local)) {
+            return local;
+        }
+        return user.phone;
+    }
+
+    /** 显示用的用户名：本地有覆盖用本地的，否则用真实值 */
+    private String getDisplayedUsername(TLRPC.User user) {
+        if (user == null) {
+            return null;
+        }
+        String local = getLocalProfileValue("username");
+        if (!TextUtils.isEmpty(local)) {
+            return local;
+        }
+        return UserObject.getPublicUsername(user);
+    }
+
+    /** 手机号行菜单：追加本地修改/恢复两项 */
+    private void addLocalPhoneMenuItems(ItemOptions o, TLRPC.User user) {
+        try {
+            if (userId == 0 || userId != getUserConfig().getClientUserId()) {
+                return;
+            }
+            o.add(R.drawable.msg_edit, "\u672c\u5730\u4fee\u6539\u53f7\u7801", () -> {
+                showLocalProfileInput("phone", "\u672c\u5730\u4fee\u6539\u53f7\u7801", "\u8f93\u5165\u65b0\u7684\u624b\u673a\u53f7\uff08\u4ec5\u672c\u5730\u751f\u6548\uff0c\u4e0d\u542b +\uff09", () -> {
+                    if (phoneRow >= 0) listAdapter.notifyItemChanged(phoneRow);
+                });
+            });
+            String local = getLocalProfileValue("phone");
+            if (!TextUtils.isEmpty(local)) {
+                o.add(R.drawable.msg_retry, "\u6062\u590d\u539f\u59cb\u53f7\u7801", () -> {
+                    setLocalProfileValue("phone", null);
+                    if (phoneRow >= 0) listAdapter.notifyItemChanged(phoneRow);
+                });
+            }
+        } catch (Throwable e) {
+            FileLog.e(e);
+        }
+    }
+
+    /** 用户名行菜单：追加本地修改/恢复两项 */
+    private void addLocalUsernameMenuItems(ItemOptions o, TLRPC.User user) {
+        try {
+            if (userId == 0 || userId != getUserConfig().getClientUserId()) {
+                return;
+            }
+            o.add(R.drawable.msg_edit, "\u672c\u5730\u4fee\u6539\u7528\u6237\u540d", () -> {
+                showLocalProfileInput("username", "\u672c\u5730\u4fee\u6539\u7528\u6237\u540d", "\u8f93\u5165\u65b0\u7684\u7528\u6237\u540d\uff08\u4ec5\u672c\u5730\u751f\u6548\uff0c\u4e0d\u5e26 @\uff09", () -> {
+                    if (usernameRow >= 0) listAdapter.notifyItemChanged(usernameRow);
+                });
+            });
+            String local = getLocalProfileValue("username");
+            if (!TextUtils.isEmpty(local)) {
+                o.add(R.drawable.msg_retry, "\u6062\u590d\u539f\u59cb\u7528\u6237\u540d", () -> {
+                    setLocalProfileValue("username", null);
+                    if (usernameRow >= 0) listAdapter.notifyItemChanged(usernameRow);
+                });
+            }
+        } catch (Throwable e) {
+            FileLog.e(e);
+        }
+    }
+
+    /** 通用输入弹窗 */
+    private void showLocalProfileInput(String field, String title, String hint, Runnable onDone) {
+        if (getParentActivity() == null) {
+            return;
+        }
+        try {
+            android.widget.EditText editText = new android.widget.EditText(getParentActivity());
+            editText.setTextSize(16);
+            editText.setSingleLine(true);
+            editText.setHint(hint);
+            editText.setTextColor(Theme.getColor(Theme.key_dialogTextBlack));
+            editText.setHintTextColor(Theme.getColor(Theme.key_dialogTextHint));
+            String cur = getLocalProfileValue(field);
+            if (!TextUtils.isEmpty(cur)) {
+                editText.setText(cur);
+                editText.setSelection(editText.getText().length());
+            }
+            FrameLayout container = new FrameLayout(getParentActivity());
+            container.addView(editText, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, 48, Gravity.CENTER_VERTICAL | Gravity.LEFT, 24, 0, 24, 0));
+            AlertDialog.Builder builder = new AlertDialog.Builder(getParentActivity());
+            builder.setTitle(title);
+            builder.setView(container, AndroidUtilities.dp(64));
+            builder.setPositiveButton(LocaleController.getString(R.string.Done), (dialog, which) -> {
+                setLocalProfileValue(field, editText.getText().toString());
+                if (onDone != null) onDone.run();
+            });
+            builder.setNegativeButton(LocaleController.getString(R.string.Cancel), null);
+            showDialog(builder.create());
+        } catch (Throwable e) {
+            FileLog.e(e);
+        }
+    }
+    // ==================== [Aiqiyi] 本地资料覆盖 END ====================
+
     private Drawable getLockIconDrawable() {
         if (lockIconDrawable == null) {
             lockIconDrawable = Theme.chat_lockIconDrawable.getConstantState().newDrawable().mutate();
@@ -13772,8 +13920,9 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                         if (user != null && !TextUtils.isEmpty(vcardPhone)) {
                             text = PhoneFormat.getInstance().format("+" + vcardPhone);
                             phoneNumber = vcardPhone;
-                        } else if (user != null && !TextUtils.isEmpty(user.phone)) {
-                            phoneNumber = user.phone;
+                        } else if (user != null && !TextUtils.isEmpty(getDisplayedPhone(user))) {
+                            // [Aiqiyi] 显示值走统一入口，本地有覆盖用本地值
+                            phoneNumber = getDisplayedPhone(user);
                             if (CherrygramAppearanceConfig.INSTANCE.getProfileHidePhoneNumber()) {
                                 text = getChatsPasswordHelper().replaceStringToSpoilers(
                                         PhoneFormat.getInstance().format("+ " + phoneNumber),
@@ -13838,6 +13987,14 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                                 }
                             }
                             value = LocaleController.getString(R.string.Username);
+                            // [Aiqiyi] 本地覆盖用户名（仅自己可见，走统一入口）
+                            if (user != null && userId == getUserConfig().getClientUserId()) {
+                                String aqyName = getLocalProfileValue("username");
+                                if (!TextUtils.isEmpty(aqyName)) {
+                                    username = aqyName;
+                                    usernameObj = null;
+                                }
+                            }
                             if (username != null) {
                                 text = "@" + username;
                                 if (usernameObj != null && !usernameObj.editable) {
