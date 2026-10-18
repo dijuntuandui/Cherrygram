@@ -204,6 +204,19 @@ public class ProfileGiftsView extends View implements NotificationCenter.Notific
             slug = status.slug;
             initParticles();
         }
+        /**
+         * Aiqiyi: 带 Document 的构造器。
+         * 本地虚拟礼物的 document_id 经常为 0，直接走上面那个构造器会让
+         * emojiDrawable 拿不到图案、整格画成空白，视觉上等于「没显示」。
+         */
+        public Gift(TLRPC.TL_emojiStatusCollectible status, TLRPC.Document doc) {
+            id = status.collectible_id;
+            document = doc;
+            documentId = doc != null ? doc.id : status.document_id;
+            color = status.center_color | 0xFF000000;
+            slug = status.slug;
+            initParticles();
+        }
 
         private void initParticles() {
             particles = new StarsReactionsSheet.Particles(StarsReactionsSheet.Particles.TYPE_RADIAL, 6);
@@ -311,6 +324,11 @@ public class ProfileGiftsView extends View implements NotificationCenter.Notific
 
         // Aiqiyi: 注入本地虚拟礼物
         injectLocalGifts();
+        // Aiqiyi: 本地礼物也要占画布槽位，否则 positions 分配不到、永远不绘制
+        if (gifts.size() > maxCount) {
+            maxCount = gifts.size();
+        }
+        android.util.Log.d("AQY_LOCAL_GIFT", "after inject: gifts=" + gifts.size() + " maxCount=" + maxCount);
 
         boolean changed = false;
         if (gifts.size() != oldGifts.size()) {
@@ -433,10 +451,21 @@ public class ProfileGiftsView extends View implements NotificationCenter.Notific
                 }
                 final TLRPC.EmojiStatus status = LocalGiftConverter.toStatus(data);
                 if (!(status instanceof TLRPC.TL_emojiStatusCollectible)) {
+                    android.util.Log.d("AQY_LOCAL_GIFT", "skip: not collectible");
                     continue;
                 }
-                final Gift gift = new Gift((TLRPC.TL_emojiStatusCollectible) status);
-                android.util.Log.d("AQY_LOCAL_GIFT", "ADDED gift.id=" + gift.id + " doc=" + data.getDocumentId());
+                // Aiqiyi: 先把可渲染的 Document 找出来，找不到才退回空
+                TLRPC.Document doc = null;
+                try {
+                    final TL_stars.StarGift sg = LocalGiftConverter.resolveStarGift(data);
+                    if (sg != null) doc = sg.getDocument();
+                } catch (Throwable ignore) {}
+                if (doc == null) {
+                    doc = LocalGiftConverter.findDocument(data.getDocumentId());
+                }
+                final Gift gift = new Gift((TLRPC.TL_emojiStatusCollectible) status, doc);
+                android.util.Log.d("AQY_LOCAL_GIFT", "ADDED gift.id=" + gift.id
+                        + " docId=" + gift.documentId + " hasDoc=" + (gift.document != null));
                 gifts.add(gift);
                 giftIds.add(gift.id);
             }
