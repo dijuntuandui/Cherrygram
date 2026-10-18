@@ -397,11 +397,17 @@ public class ProfileGiftsView extends View implements NotificationCenter.Notific
      */
     private void injectLocalGifts() {
         try {
+            android.util.Log.d("AQY_LOCAL_GIFT", "injectLocalGifts enter dialogId=" + dialogId
+                    + " enabled=" + AiqiyiLocalDataConfig.INSTANCE.getLocalGiftEnabled()
+                    + " showOnProfile=" + AiqiyiLocalDataConfig.INSTANCE.getLocalGiftShowOnProfile());
             if (!AiqiyiLocalDataConfig.INSTANCE.getLocalGiftEnabled()
                     || !AiqiyiLocalDataConfig.INSTANCE.getLocalGiftShowOnProfile()) {
+                android.util.Log.d("AQY_LOCAL_GIFT", "injectLocalGifts skip: switch off");
                 return;
             }
             final ArrayList<LocalGiftData> localList = LocalGiftStore.getDataForUser(dialogId);
+            android.util.Log.d("AQY_LOCAL_GIFT", "injectLocalGifts localList.size=" + localList.size()
+                    + " giftIdsBefore=" + giftIds.size());
             if (localList.isEmpty()) {
                 // Aiqiyi: 兜底 - 迁移 userId=0 的脏数据（静默迁移，不触发通知避免重入）
                 if (dialogId != 0) {
@@ -422,6 +428,7 @@ public class ProfileGiftsView extends View implements NotificationCenter.Notific
                 final LocalGiftData data = localList.get(i);
                 // 已存在同 id 则跳过，避免重复
                 if (giftIds.contains(data.getCollectibleId())) {
+                    android.util.Log.d("AQY_LOCAL_GIFT", "dup skip collectibleId=" + data.getCollectibleId());
                     continue;
                 }
                 final TLRPC.EmojiStatus status = LocalGiftConverter.toStatus(data);
@@ -429,10 +436,13 @@ public class ProfileGiftsView extends View implements NotificationCenter.Notific
                     continue;
                 }
                 final Gift gift = new Gift((TLRPC.TL_emojiStatusCollectible) status);
+                android.util.Log.d("AQY_LOCAL_GIFT", "ADDED gift.id=" + gift.id + " doc=" + data.getDocumentId());
                 gifts.add(gift);
                 giftIds.add(gift.id);
             }
+            android.util.Log.d("AQY_LOCAL_GIFT", "injectLocalGifts done gifts.size=" + gifts.size());
         } catch (Throwable ignore) {
+            android.util.Log.d("AQY_LOCAL_GIFT", "injectLocalGifts EXCEPTION " + ignore);
             // 本地礼物异常绝不影响真实礼物展示
         }
     }
