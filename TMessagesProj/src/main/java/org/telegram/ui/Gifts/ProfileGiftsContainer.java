@@ -612,11 +612,11 @@ public class ProfileGiftsContainer extends FrameLayout implements NotificationCe
          */
         private ArrayList<TL_stars.SavedStarGift> aiqiyiBuildLocalGifts(StarsController.GiftsList targetList) {
             try {
-                if (!AiqiyiLocalDataConfig.localGiftEnabled) return null;
-                if (!AiqiyiLocalDataConfig.localGiftShowInList) return null;
+                if (!AiqiyiLocalDataConfig.INSTANCE.getLocalGiftEnabled()) return null;
+                if (!AiqiyiLocalDataConfig.INSTANCE.getLocalGiftShowInList()) return null;
                 if (targetList == null || isCollection) return null;
                 if (parent == null || targetList != parent.list) return null;
-                final int selfId = UserConfig.getInstance(currentAccount).getClientUserId();
+                final long selfId = UserConfig.getInstance(currentAccount).getClientUserId();
                 if (parent.dialogId != selfId) return null;
                 if (!LocalGiftStore.hasLocalGifts(selfId)) return null;
                 final ArrayList<LocalGiftData> data = LocalGiftStore.getDataForUser(selfId);
@@ -635,7 +635,7 @@ public class ProfileGiftsContainer extends FrameLayout implements NotificationCe
         private boolean aiqiyiShowLocalGiftMenu(TL_stars.SavedStarGift savedStarGift, View view) {
             try {
                 if (!LocalGiftConverter.isLocalSavedGift(savedStarGift)) return false;
-                final int selfId = UserConfig.getInstance(currentAccount).getClientUserId();
+                final long selfId = UserConfig.getInstance(currentAccount).getClientUserId();
                 if (parent == null || parent.dialogId != selfId) return false;
                 final long collectibleId = savedStarGift.saved_id;
                 final ItemOptions o = ItemOptions.makeOptions(parent.fragment, view, true);
