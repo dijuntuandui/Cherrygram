@@ -403,7 +403,20 @@ public class ProfileGiftsView extends View implements NotificationCenter.Notific
             }
             final ArrayList<LocalGiftData> localList = LocalGiftStore.getDataForUser(dialogId);
             if (localList.isEmpty()) {
-                return;
+                // Aiqiyi: 兜底 - 迁移 userId=0 的脏数据（静默迁移，不触发通知避免重入）
+                if (dialogId != 0) {
+                    final ArrayList<LocalGiftData> dirty = LocalGiftStore.getDataForUser(0L);
+                    if (!dirty.isEmpty()) {
+                        for (int i = 0; i < dirty.size(); i++) {
+                            LocalGiftStore.addLocalGiftSilent(dialogId, dirty.get(i));
+                        }
+                        LocalGiftStore.clearSilent(0L);
+                        localList.addAll(LocalGiftStore.getDataForUser(dialogId));
+                    }
+                }
+                if (localList.isEmpty()) {
+                    return;
+                }
             }
             for (int i = 0; i < localList.size(); i++) {
                 final LocalGiftData data = localList.get(i);

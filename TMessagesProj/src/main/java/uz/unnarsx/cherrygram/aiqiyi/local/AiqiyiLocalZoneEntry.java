@@ -16,6 +16,9 @@ import android.view.View;
 
 import org.telegram.messenger.R;
 import org.telegram.messenger.UserConfig;
+import org.telegram.messenger.NotificationCenter;
+import org.telegram.tgnet.tl.TL_stars;
+import org.telegram.ui.Stars.StarsController;
 import org.telegram.ui.ActionBar.AlertDialog;
 import org.telegram.ui.ActionBar.Theme;
 import org.telegram.ui.Components.EditTextBoldCursor;
@@ -276,45 +279,98 @@ public class AiqiyiLocalZoneEntry extends BaseCGPreferencesEntry {
     }
 
     /**
-     * Aiqiyi: 添加一条本地礼物到当前账号
+     * Aiqiyi: 打开礼物目录，选一个作为本地礼物的外观模板
      */
     private void showAddLocalGiftDialog() {
         final long userId = UserConfig.getInstance(UserConfig.selectedAccount).getClientUserId();
+        if (userId == 0) {
+            return;
+        }
 
-        final EditTextBoldCursor editText = new EditTextBoldCursor(getContext());
-        editText.setTextSize(17);
-        editText.setTextColor(Theme.getColor(Theme.key_dialogTextBlack));
-        editText.setHintText(getString(R.string.AQY_LocalGift_Add_Hint));
-        editText.setInputType(InputType.TYPE_CLASS_TEXT);
-        editText.setFocusable(true);
-        editText.setFocusableInTouchMode(true);
+        final StarsController controller = StarsController.getInstance(UserConfig.selectedAccount);
+        controller.loadStarGifts();
+
+        final ArrayList<TL_stars.StarGift> catalog = controller.gifts;
+        if (catalog == null || catalog.isEmpty()) {
+            // 目录还没加载好，注册一次性回调
+            final NotificationCenter.NotificationCenterDelegate[] observer = new NotificationCenter.NotificationCenterDelegate[1];
+            final int account = UserConfig.selectedAccount;
+            observer[0] = (id, acc, args) -> {
+                if (id == NotificationCenter.starGiftsLoaded) {
+                    NotificationCenter.getInstance(account).removeObserver(observer[0], NotificationCenter.starGiftsLoaded);
+                    showGiftCatalogPicker(userId);
+                }
+            };
+            NotificationCenter.getInstance(account).addObserver(observer[0], NotificationCenter.starGiftsLoaded);
+            return;
+        }
+        showGiftCatalogPicker(userId);
+    }
+
+    /**
+     * Aiqiyi: 礼物目录选择器
+     */
+    private void showGiftCatalogPicker(long userId) {
+        final StarsController controller = StarsController.getInstance(UserConfig.selectedAccount);
+        final ArrayList<TL_stars.StarGift> catalog = controller.gifts;
+        if (catalog == null || catalog.isEmpty()) {
+            return;
+        }
+
+        final java.util.List<String> names = new java.util.ArrayList<>();
+        final java.util.List<TL_stars.StarGift> refs = new java.util.ArrayList<>();
+        // 只收限量款（unique 礼物有图案可展示），最多 40 个
+        for (int i = 0; i < catalog.size() && refs.size() < 40; i++) {
+            final TL_stars.StarGift g = catalog.get(i);
+            if (g.sticker == null) {
+                continue;
+            }
+            final String label = (g.title == null || g.title.isEmpty()) ? ("#" + g.id) : g.title;
+            names.add(label);
+            refs.add(g);
+        }
+        if (refs.isEmpty()) {
+            return;
+        }
 
         final AlertDialog.Builder builder = new AlertDialog.Builder(getContext());
-        builder.setTitle(getString(R.string.AQY_LocalGift_Add));
-        builder.setView(editText);
-        builder.setNegativeButton(getString(R.string.Cancel), null);
-        builder.setPositiveButton(getString(R.string.OK), (dialog, which) -> {
-            final String input = editText.getText().toString().trim();
-            if (input.isEmpty()) {
-                return;
-            }
+        builder.setTitle(getString(R.string.AQY_LocalGift_PickTemplate));
+        builder.setItems(names.toArray(new CharSequence[0]), (dialog, which) -> {
+            final TL_stars.StarGift g = refs.get(which);
             try {
                 final LocalGiftData data = new LocalGiftData();
-                data.setTitle(input);
-                data.setSlug("local_" + System.currentTimeMillis());
-                data.setSenderName(input);
+                data.setTitle(g.title);
+                data.setSlug(g.slug);
+                data.setCatalogGiftId(g.id);
+                data.setDocumentId(g.sticker == null ? 0 : g.sticker.id);
+                data.setSenderName(getString(R.string.AQY_LocalGift_SenderSelf));
                 data.setGiftNum(1);
+                data.setValueAmount(g.stars);
+                data.setValueCurrency("XTR");
+                data.setAvailabilityIssued(g.availability_issued);
+                data.setAvailabilityTotal(g.availability_total);
                 data.setOriginalDate((int) (System.currentTimeMillis() / 1000));
                 data.setOriginalSenderId(userId);
                 data.setOriginalRecipientId(userId);
-                data.setModelName(input);
-                // 颜色用默认值，localStyle 关掉，避免颜色三件套覆盖
-                data.setLocalStyle(false);
+                // 从 attributes 里取背景色
+                final TL_stars.starGiftAttributeBackdrop backdrop = StarsController.findAttribute(g.attributes, TL_stars.starGiftAttributeBackdrop.class);
+                if (backdrop != null) {
+                    data.setCenterColor(backdrop.center_color);
+                    data.setEdgeColor(backdrop.edge_color);
+                    data.setPatternColor(backdrop.pattern_color);
+                    data.setTextColor(backdrop.text_color);
+                    data.setBackdropName(backdrop.name);
+                    data.setLocalStyle(true);
+                } else {
+                    data.setLocalStyle(false);
+                }
+                data.setPatternDocumentId(0);
                 LocalGiftStore.addLocalGift(userId, data);
                 listView.adapter.update(true);
             } catch (Exception ignored) {
             }
         });
+        builder.setNegativeButton(getString(R.string.Cancel), null);
         builder.show();
     }
 

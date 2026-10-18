@@ -666,7 +666,8 @@
     <string name="AQY_LocalGift_CountFormat">%1$d 条</string>
     <string name="AQY_LocalGift_Add">添加本地礼物</string>
     <string name="AQY_LocalGift_Add_Desc">点击添加一条</string>
-    <string name="AQY_LocalGift_Add_Hint">礼物名称</string>
+    <string name="AQY_LocalGift_PickTemplate">选择一个礼物作为模板</string>
+    <string name="AQY_LocalGift_SenderSelf">我</string>
     <string name="AQY_LocalGift_Clear">清空本地虚拟礼物</string>
     <string name="AQY_LocalGift_Clear_Desc">清除全部本机礼物记录</string>
     <string name="AQY_LocalGift_Note">清除只影响本机记录，不会影响 Telegram 真实礼物或账户数据。</string>

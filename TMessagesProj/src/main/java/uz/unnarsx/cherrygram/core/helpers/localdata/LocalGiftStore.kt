@@ -147,6 +147,27 @@ object LocalGiftStore {
     }
 
     /**
+     * 新增一条本地礼物（静默版，不推通知，用于内部迁移避免重入）
+     */
+    @JvmStatic
+    fun addLocalGiftSilent(userId: Long, gift: LocalGiftData) {
+        val list = getDataForUser(userId)
+        if (gift.collectibleId == 0L) {
+            gift.collectibleId = nextLocalGiftId(list)
+        }
+        list.add(gift)
+        saveData(userId, list)
+    }
+
+    /**
+     * 清空某个用户的本地礼物（静默版，不推通知）
+     */
+    @JvmStatic
+    fun clearSilent(userId: Long) {
+        saveData(userId, ArrayList())
+    }
+
+    /**
      * 通知 UI 刷新（资料页礼物区 / 礼物列表）
      */
     @JvmStatic

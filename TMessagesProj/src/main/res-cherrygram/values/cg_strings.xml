@@ -741,7 +741,8 @@
     <string name="AQY_LocalGift_CountFormat">%1$d item(s)</string>
     <string name="AQY_LocalGift_Add">Add local gift</string>
     <string name="AQY_LocalGift_Add_Desc">Tap to add one</string>
-    <string name="AQY_LocalGift_Add_Hint">Gift name</string>
+    <string name="AQY_LocalGift_PickTemplate">Pick a gift as template</string>
+    <string name="AQY_LocalGift_SenderSelf">You</string>
     <string name="AQY_LocalGift_Clear">Clear local virtual gifts</string>
     <string name="AQY_LocalGift_Clear_Desc">Remove all local gift records</string>
     <string name="AQY_LocalGift_Note">Clearing only affects local records and never touches real Telegram gifts or account data.</string>
