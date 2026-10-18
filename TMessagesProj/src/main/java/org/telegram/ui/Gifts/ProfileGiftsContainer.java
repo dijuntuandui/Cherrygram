@@ -117,6 +117,10 @@ import java.util.HashSet;
 import java.util.Objects;
 
 import me.vkryl.android.animator.BoolAnimator;
+import uz.unnarsx.cherrygram.core.configs.AiqiyiLocalDataConfig;
+import uz.unnarsx.cherrygram.core.helpers.localdata.LocalGiftConverter;
+import uz.unnarsx.cherrygram.core.helpers.localdata.LocalGiftData;
+import uz.unnarsx.cherrygram.core.helpers.localdata.LocalGiftStore;
 
 public class ProfileGiftsContainer extends FrameLayout implements NotificationCenter.NotificationCenterDelegate {
 
@@ -600,6 +604,57 @@ public class ProfileGiftsContainer extends FrameLayout implements NotificationCe
             return reordering;
         }
 
+        // ===================== Aiqiyi: 本地礼物条目 =====================
+
+        /**
+         * 收集当前列表需要展示的本地礼物。
+         * 只在「本人礼物列表 + 非收藏夹」时生效，避免污染别人的资料页。
+         */
+        private ArrayList<TL_stars.SavedStarGift> aiqiyiBuildLocalGifts(StarsController.GiftsList targetList) {
+            try {
+                if (!AiqiyiLocalDataConfig.localGiftEnabled) return null;
+                if (!AiqiyiLocalDataConfig.localGiftShowInList) return null;
+                if (targetList == null || isCollection) return null;
+                if (parent == null || targetList != parent.list) return null;
+                final int selfId = UserConfig.getInstance(currentAccount).getClientUserId();
+                if (parent.dialogId != selfId) return null;
+                if (!LocalGiftStore.hasLocalGifts(selfId)) return null;
+                final ArrayList<LocalGiftData> data = LocalGiftStore.getDataForUser(selfId);
+                if (data == null || data.isEmpty()) return null;
+                // 本地记录直接转成 SavedStarGift，saved_id 为负作为本地标记
+                return LocalGiftConverter.toSavedGiftList(data, true);
+            } catch (Throwable t) {
+                org.telegram.messenger.FileLog.e("Aiqiyi aiqiyiBuildLocalGifts failed", t);
+                return null;
+            }
+        }
+
+        /**
+         * 本地礼物长按菜单。返回 true 表示已消费，不再走原版菜单。
+         */
+        private boolean aiqiyiShowLocalGiftMenu(TL_stars.SavedStarGift savedStarGift, View view) {
+            try {
+                if (!LocalGiftConverter.isLocalSavedGift(savedStarGift)) return false;
+                final int selfId = UserConfig.getInstance(currentAccount).getClientUserId();
+                if (parent == null || parent.dialogId != selfId) return false;
+                final long collectibleId = savedStarGift.saved_id;
+                final ItemOptions o = ItemOptions.makeOptions(parent.fragment, view, true);
+                parent.currentMenu = o;
+                o.add(R.drawable.msg_delete, getString(R.string.Delete), () -> {
+                    LocalGiftStore.removeLocalGift(selfId, collectibleId);
+                    listView.adapter.update(true);
+                    if (parent != null) {
+                        parent.fillTabs(true);
+                    }
+                });
+                o.show();
+                return true;
+            } catch (Throwable t) {
+                org.telegram.messenger.FileLog.e("Aiqiyi aiqiyiShowLocalGiftMenu failed", t);
+                return false;
+            }
+        }
+
         public void fillItems(ArrayList<UItem> items, UniversalAdapter adapter) {
             if (list == null)
                 return;
@@ -616,6 +671,15 @@ public class ProfileGiftsContainer extends FrameLayout implements NotificationCe
                     spanCountLeft--;
                     if (spanCountLeft == 0) {
                         spanCountLeft = 3;
+                    }
+                }
+                // Aiqiyi: 注入本地礼物条目（只对本人礼物列表生效）
+                final ArrayList<TL_stars.SavedStarGift> aiqiyiLocal = aiqiyiBuildLocalGifts(list);
+                if (aiqiyiLocal != null && !aiqiyiLocal.isEmpty()) {
+                    for (TL_stars.SavedStarGift localGift : aiqiyiLocal) {
+                        items.add(
+                            GiftSheet.GiftCell.Factory.asStarGift(0, localGift, true, false, isCollection)
+                        );
                     }
                 }
                 if (list.loading || !list.endReached) {
@@ -713,6 +777,10 @@ public class ProfileGiftsContainer extends FrameLayout implements NotificationCe
             if (view instanceof GiftSheet.GiftCell && item.object instanceof TL_stars.SavedStarGift) {
                 final GiftSheet.GiftCell cell = (GiftSheet.GiftCell) view;
                 final TL_stars.SavedStarGift savedStarGift = (TL_stars.SavedStarGift) item.object;
+                // Aiqiyi: 本地礼物长按 -> 只给「删除本地记录」一个选项，不进原版菜单
+                if (aiqiyiShowLocalGiftMenu(savedStarGift, view)) {
+                    return true;
+                }
                 final ItemOptions o = ItemOptions.makeOptions(parent.fragment, view, true);
                 parent.currentMenu = o;
                 if (parent.collections.isMine() && (isCollection || parent.collections.getCollections().size() > 0 || true)) {

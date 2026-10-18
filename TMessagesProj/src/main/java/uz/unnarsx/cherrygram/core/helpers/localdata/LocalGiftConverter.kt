@@ -12,7 +12,11 @@
  */
 package uz.unnarsx.cherrygram.core.helpers.localdata
 
+import org.telegram.messenger.AnimatedEmojiDrawable
+import org.telegram.messenger.FileLog
+import org.telegram.messenger.UserConfig
 import org.telegram.tgnet.TLRPC
+import org.telegram.ui.Stars.StarsController
 import uz.unnarsx.cherrygram.core.configs.AiqiyiLocalDataConfig
 
 object LocalGiftConverter {
@@ -75,5 +79,113 @@ object LocalGiftConverter {
     fun isLocalGiftId(collectibleId: Long): Boolean {
         // 本地 id 统一用负数区间
         return collectibleId < 0
+    }
+
+    // ===================== 阶段三：礼物列表条目 =====================
+
+    /** 从真实礼物目录里按 gift_id 找原始 StarGift，找不到返回 null */
+    @JvmStatic
+    fun findCatalogGift(giftId: Long): TLRPC.TL_stars.StarGift? {
+        if (giftId == 0L) return null
+        try {
+            val catalog = StarsController.getInstance(UserConfig.selectedAccount).gifts
+            if (catalog.isNullOrEmpty()) return null
+            for (g in catalog) {
+                if (g.id == giftId) return g
+            }
+        } catch (e: Throwable) {
+            FileLog.e("LocalGiftConverter findCatalogGift failed", e)
+        }
+        return null
+    }
+
+    /** 按 catalogGiftId 找回目录里的原始 StarGift，找不到就现拼一个最小可渲染的 */
+    @JvmStatic
+    fun resolveStarGift(data: LocalGiftData): TLRPC.TL_stars.StarGift {
+        val fromCatalog = findCatalogGift(data.catalogGiftId)
+        if (fromCatalog != null) {
+            if (fromCatalog.sticker == null && data.documentId != 0L) {
+                fromCatalog.sticker = findDocument(data.documentId)
+            }
+            if (fromCatalog.title.isNullOrEmpty()) {
+                fromCatalog.title = data.title
+            }
+            return fromCatalog
+        }
+        val gift = TLRPC.TL_stars.TL_starGift()
+        gift.id = if (data.catalogGiftId != 0L) data.catalogGiftId else data.collectibleId
+        gift.title = data.title
+        gift.slug = data.slug
+        gift.stars = data.valueAmount
+        gift.sticker = findDocument(data.documentId)
+        gift.availability_issued = data.availabilityIssued
+        gift.availability_total = data.availabilityTotal
+        if (data.localStyle) {
+            val backdrop = TLRPC.TL_stars.starGiftAttributeBackdrop()
+            backdrop.name = data.backdropName
+            backdrop.center_color = data.centerColor
+            backdrop.edge_color = data.edgeColor
+            backdrop.pattern_color = data.patternColor
+            backdrop.text_color = data.textColor
+            gift.attributes.add(backdrop)
+        }
+        return gift
+    }
+
+    /** 从缓存里按 id 捞 Document 对象 */
+    @JvmStatic
+    fun findDocument(documentId: Long): TLRPC.Document? {
+        if (documentId == 0L) return null
+        try {
+            return AnimatedEmojiDrawable.findDocument(UserConfig.selectedAccount, documentId)
+        } catch (e: Throwable) {
+            FileLog.e("LocalGiftConverter findDocument failed", e)
+        }
+        return null
+    }
+
+    /**
+     * LocalGiftData -> SavedStarGift，可直接喂给 GiftSheet.GiftCell.Factory.asStarGift
+     * saved_id 用负数（= collectibleId）作为本地礼物身份标记，长按删除靠它精确回收
+     */
+    @JvmStatic
+    fun toSavedGift(data: LocalGiftData, isMine: Boolean): TLRPC.TL_stars.SavedStarGift {
+        val saved = TLRPC.TL_stars.TL_savedStarGift()
+        saved.gift = resolveStarGift(data)
+        saved.saved_id = data.collectibleId
+        saved.date = if (data.originalDate != 0) data.originalDate else (System.currentTimeMillis() / 1000).toInt()
+        saved.gift_num = if (data.giftNum <= 0) 1 else data.giftNum
+        saved.pinned_to_top = false
+        saved.unsaved = false
+        saved.name_hidden = false
+        saved.refunded = false
+        saved.can_upgrade = false
+        val peerId = if (isMine && data.originalSenderId != 0L) data.originalSenderId else data.originalRecipientId
+        saved.from_id = TLRPC.TL_peerUser().also { it.user_id = peerId }
+        val msg = data.originalMessage
+        if (!msg.isNullOrEmpty()) {
+            saved.message = TLRPC.TL_textWithEntities().also { it.text = msg }
+        }
+        return saved
+    }
+
+    /** 批量转成 SavedStarGift 列表 */
+    @JvmStatic
+    fun toSavedGiftList(list: List<LocalGiftData>, isMine: Boolean): ArrayList<TLRPC.TL_stars.SavedStarGift> {
+        val result = ArrayList<TLRPC.TL_stars.SavedStarGift>(list.size)
+        for (data in list) {
+            try {
+                result.add(toSavedGift(data, isMine))
+            } catch (e: Throwable) {
+                FileLog.e("LocalGiftConverter toSavedGift failed, id=" + data.collectibleId, e)
+            }
+        }
+        return result
+    }
+
+    /** 从 SavedStarGift 反查是否为本地礼物（saved_id 为负） */
+    @JvmStatic
+    fun isLocalSavedGift(saved: TLRPC.TL_stars.SavedStarGift?): Boolean {
+        return saved != null && saved.saved_id < 0
     }
 }
