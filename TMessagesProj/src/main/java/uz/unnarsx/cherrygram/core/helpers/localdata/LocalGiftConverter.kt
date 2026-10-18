@@ -12,10 +12,11 @@
  */
 package uz.unnarsx.cherrygram.core.helpers.localdata
 
-import org.telegram.messenger.AnimatedEmojiDrawable
 import org.telegram.messenger.FileLog
 import org.telegram.messenger.UserConfig
 import org.telegram.tgnet.TLRPC
+import org.telegram.tgnet.tl.TL_stars
+import org.telegram.ui.Components.AnimatedEmojiDrawable
 import org.telegram.ui.Stars.StarsController
 import uz.unnarsx.cherrygram.core.configs.AiqiyiLocalDataConfig
 
@@ -83,15 +84,18 @@ object LocalGiftConverter {
 
     // ===================== 阶段三：礼物列表条目 =====================
 
-    /** 从真实礼物目录里按 gift_id 找原始 StarGift，找不到返回 null */
+    /** 从真实礼物目录里按 gift_id 找原始 StarGift（只读，不改动原对象），找不到返回 null */
     @JvmStatic
-    fun findCatalogGift(giftId: Long): TLRPC.TL_stars.StarGift? {
+    fun findCatalogGift(giftId: Long): TL_stars.StarGift? {
         if (giftId == 0L) return null
         try {
             val catalog = StarsController.getInstance(UserConfig.selectedAccount).gifts
-            if (catalog.isNullOrEmpty()) return null
-            for (g in catalog) {
-                if (g.id == giftId) return g
+            if (catalog == null || catalog.isEmpty()) return null
+            var i = 0
+            while (i < catalog.size) {
+                val g = catalog.get(i)
+                if (g != null && g.id == giftId) return g
+                i++
             }
         } catch (e: Throwable) {
             FileLog.e("LocalGiftConverter findCatalogGift failed", e)
@@ -99,20 +103,17 @@ object LocalGiftConverter {
         return null
     }
 
-    /** 按 catalogGiftId 找回目录里的原始 StarGift，找不到就现拼一个最小可渲染的 */
+    /**
+     * 取可渲染的 StarGift：优先用礼物目录里的原对象（文档/属性齐全）
+     * 注意：返回的对象不允许被修改，调用方只读
+     */
     @JvmStatic
-    fun resolveStarGift(data: LocalGiftData): TLRPC.TL_stars.StarGift {
+    fun resolveStarGift(data: LocalGiftData): TL_stars.StarGift {
         val fromCatalog = findCatalogGift(data.catalogGiftId)
-        if (fromCatalog != null) {
-            if (fromCatalog.sticker == null && data.documentId != 0L) {
-                fromCatalog.sticker = findDocument(data.documentId)
-            }
-            if (fromCatalog.title.isNullOrEmpty()) {
-                fromCatalog.title = data.title
-            }
+        if (fromCatalog != null && fromCatalog.getDocument() != null) {
             return fromCatalog
         }
-        val gift = TLRPC.TL_stars.TL_starGift()
+        val gift = TL_stars.TL_starGift()
         gift.id = if (data.catalogGiftId != 0L) data.catalogGiftId else data.collectibleId
         gift.title = data.title
         gift.slug = data.slug
@@ -121,7 +122,7 @@ object LocalGiftConverter {
         gift.availability_issued = data.availabilityIssued
         gift.availability_total = data.availabilityTotal
         if (data.localStyle) {
-            val backdrop = TLRPC.TL_stars.starGiftAttributeBackdrop()
+            val backdrop = TL_stars.starGiftAttributeBackdrop()
             backdrop.name = data.backdropName
             backdrop.center_color = data.centerColor
             backdrop.edge_color = data.edgeColor
@@ -149,8 +150,8 @@ object LocalGiftConverter {
      * saved_id 用负数（= collectibleId）作为本地礼物身份标记，长按删除靠它精确回收
      */
     @JvmStatic
-    fun toSavedGift(data: LocalGiftData, isMine: Boolean): TLRPC.TL_stars.SavedStarGift {
-        val saved = TLRPC.TL_stars.TL_savedStarGift()
+    fun toSavedGift(data: LocalGiftData, isMine: Boolean): TL_stars.SavedStarGift {
+        val saved = TL_stars.TL_savedStarGift()
         saved.gift = resolveStarGift(data)
         saved.saved_id = data.collectibleId
         saved.date = if (data.originalDate != 0) data.originalDate else (System.currentTimeMillis() / 1000).toInt()
@@ -171,8 +172,8 @@ object LocalGiftConverter {
 
     /** 批量转成 SavedStarGift 列表 */
     @JvmStatic
-    fun toSavedGiftList(list: List<LocalGiftData>, isMine: Boolean): ArrayList<TLRPC.TL_stars.SavedStarGift> {
-        val result = ArrayList<TLRPC.TL_stars.SavedStarGift>(list.size)
+    fun toSavedGiftList(list: List<LocalGiftData>, isMine: Boolean): ArrayList<TL_stars.SavedStarGift> {
+        val result = ArrayList<TL_stars.SavedStarGift>(list.size)
         for (data in list) {
             try {
                 result.add(toSavedGift(data, isMine))
@@ -185,7 +186,7 @@ object LocalGiftConverter {
 
     /** 从 SavedStarGift 反查是否为本地礼物（saved_id 为负） */
     @JvmStatic
-    fun isLocalSavedGift(saved: TLRPC.TL_stars.SavedStarGift?): Boolean {
+    fun isLocalSavedGift(saved: TL_stars.SavedStarGift?): Boolean {
         return saved != null && saved.saved_id < 0
     }
 }
