@@ -104,6 +104,24 @@ object AiqiyiLocalDataConfig {
     /** 本地虚拟礼物记录数量（仅用于展示） */
     var localGiftCount by sharedPreferences.int("AQY_LocalGift_Count", 0)
 
+    /** 本地虚拟礼物总开关（关闭后资料页不注入任何本地礼物） */
+    var localGiftEnabled by sharedPreferences.boolean("AQY_LocalGift_Enabled", true)
+
+    /** 本地礼物是否在资料页礼物区展示 */
+    var localGiftShowOnProfile by sharedPreferences.boolean("AQY_LocalGift_ShowOnProfile", true)
+
+    /** 本地礼物是否在礼物列表（ProfileGiftsContainer）中展示 */
+    var localGiftShowInList by sharedPreferences.boolean("AQY_LocalGift_ShowInList", true)
+
+    /** 是否允许本地假送（点送出时不发真实请求、不扣真星星） */
+    var localGiftAllowFakeSend by sharedPreferences.boolean("AQY_LocalGift_AllowFakeSend", true)
+
+    /** 本地假送确认提示（true 时送出前弹窗提示这是本地虚拟） */
+    var localGiftFakeSendConfirm by sharedPreferences.boolean("AQY_LocalGift_FakeSendConfirm", true)
+
+    /** 是否使用本地星星余额支付（关闭则走真实星星余额） */
+    var localGiftUseLocalStars by sharedPreferences.boolean("AQY_LocalGift_UseLocalStars", true)
+
     /**
      * 重置本地星星余额为默认值
      */
