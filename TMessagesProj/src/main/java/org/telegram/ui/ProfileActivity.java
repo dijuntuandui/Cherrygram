@@ -13929,7 +13929,9 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                         } else if (user != null && !TextUtils.isEmpty(getDisplayedPhone(user))) {
                             // [Aiqiyi] 显示值走统一入口，本地有覆盖用本地值
                             phoneNumber = getDisplayedPhone(user);
-                            if (CherrygramAppearanceConfig.INSTANCE.getProfileHidePhoneNumber()) {
+                            // [Aiqiyi] 本地覆盖的号码优先展示，不参与打码
+                            boolean aqyPhoneIsLocal = !TextUtils.isEmpty(getLocalProfileValue("phone"));
+                            if (!aqyPhoneIsLocal && CherrygramAppearanceConfig.INSTANCE.getProfileHidePhoneNumber()) {
                                 text = getChatsPasswordHelper().replaceStringToSpoilers(
                                         PhoneFormat.getInstance().format("+ " + phoneNumber),
                                         true
