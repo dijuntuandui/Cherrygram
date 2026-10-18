@@ -93,6 +93,7 @@ import org.telegram.messenger.ChatObject;
 import org.telegram.messenger.ChatThemeController;
 import org.telegram.messenger.DialogObject;
 import org.telegram.messenger.Emoji;
+import org.telegram.messenger.FileLog;
 import org.telegram.messenger.GiftAuctionController;
 import org.telegram.messenger.ImageReceiver;
 import org.telegram.messenger.LocaleController;
