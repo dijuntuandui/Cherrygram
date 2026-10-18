@@ -657,7 +657,16 @@
     <string name="AQY_LocalPremium_Note">以上状态仅在本机生效，其他用户看到的仍是真实状态。</string>
 
     <string name="AQY_LocalGift_Header">本地虚拟礼物</string>
+    <string name="AQY_LocalGift_Enabled">启用本地虚拟礼物</string>
+    <string name="AQY_LocalGift_Enabled_Desc">在资料页显示本地添加的虚拟礼物，仅本机可见，不影响真实礼物。</string>
+    <string name="AQY_LocalGift_ShowOnProfile">在资料页展示</string>
+    <string name="AQY_LocalGift_ShowOnProfile_Desc">在资料页礼物区显示本地礼物</string>
     <string name="AQY_LocalGift_Count">本地礼物记录</string>
+    <string name="AQY_LocalGift_CountNone">暂无</string>
+    <string name="AQY_LocalGift_CountFormat">%1$d 条</string>
+    <string name="AQY_LocalGift_Add">添加本地礼物</string>
+    <string name="AQY_LocalGift_Add_Desc">点击添加一条</string>
+    <string name="AQY_LocalGift_Add_Hint">礼物名称</string>
     <string name="AQY_LocalGift_Clear">清空本地虚拟礼物</string>
     <string name="AQY_LocalGift_Clear_Desc">清除全部本机礼物记录</string>
     <string name="AQY_LocalGift_Note">清除只影响本机记录，不会影响 Telegram 真实礼物或账户数据。</string>

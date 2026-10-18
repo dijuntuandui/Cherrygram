@@ -18,6 +18,8 @@ import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import org.telegram.messenger.ApplicationLoader
 import org.telegram.messenger.FileLog
+import org.telegram.messenger.NotificationCenter
+import org.telegram.messenger.UserConfig
 
 object LocalGiftStore {
 
@@ -118,6 +120,7 @@ object LocalGiftStore {
         }
         list.add(gift)
         saveData(userId, list)
+        notifyChanged(userId)
     }
 
     /**
@@ -129,6 +132,7 @@ object LocalGiftStore {
         val removed = list.removeAll { it.collectibleId == collectibleId }
         if (removed) {
             saveData(userId, list)
+            notifyChanged(userId)
         }
         return removed
     }
@@ -139,6 +143,21 @@ object LocalGiftStore {
     @JvmStatic
     fun clear(userId: Long) {
         saveData(userId, ArrayList())
+        notifyChanged(userId)
+    }
+
+    /**
+     * 通知 UI 刷新（资料页礼物区 / 礼物列表）
+     */
+    @JvmStatic
+    fun notifyChanged(userId: Long) {
+        try {
+            NotificationCenter.getInstance(UserConfig.selectedAccount).postNotificationName(
+                NotificationCenter.aiqiyiLocalGiftUpdated, userId
+            )
+        } catch (e: Exception) {
+            FileLog.e("LocalGiftStore notifyChanged failed", e)
+        }
     }
 
     /**

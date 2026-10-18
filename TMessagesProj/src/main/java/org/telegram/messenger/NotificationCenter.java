@@ -286,6 +286,9 @@ public class NotificationCenter {
     public static final int loadedAiComposeTones = totalEvents++;
     public static final int updatedChatbot = totalEvents++;
 
+    // Aiqiyi: 本地虚拟礼物变更通知（本地增删礼物后刷新资料页/列表）
+    public static final int aiqiyiLocalGiftUpdated = totalEvents++;
+
     //global
     public static final int activeAccountChanged = totalEvents++;
     public static final int pushMessagesUpdated = totalEvents++;

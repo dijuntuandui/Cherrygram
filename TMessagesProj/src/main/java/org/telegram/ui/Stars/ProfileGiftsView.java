@@ -40,6 +40,10 @@ import java.util.HashSet;
 import java.util.List;
 
 import uz.unnarsx.cherrygram.core.configs.CherrygramAppearanceConfig;
+import uz.unnarsx.cherrygram.core.configs.AiqiyiLocalDataConfig;
+import uz.unnarsx.cherrygram.core.helpers.localdata.LocalGiftData;
+import uz.unnarsx.cherrygram.core.helpers.localdata.LocalGiftStore;
+import uz.unnarsx.cherrygram.core.helpers.localdata.LocalGiftConverter;
 
 public class ProfileGiftsView extends View implements NotificationCenter.NotificationCenterDelegate {
 
@@ -134,6 +138,8 @@ public class ProfileGiftsView extends View implements NotificationCenter.Notific
         super.onAttachedToWindow();
 
         NotificationCenter.getInstance(currentAccount).addObserver(this, NotificationCenter.starUserGiftsLoaded);
+        // Aiqiyi: 监听本地礼物变更
+        NotificationCenter.getInstance(currentAccount).addObserver(this, NotificationCenter.aiqiyiLocalGiftUpdated);
 
         for (Gift gift : gifts) {
             gift.emojiDrawable.addView(this);
@@ -147,6 +153,8 @@ public class ProfileGiftsView extends View implements NotificationCenter.Notific
         super.onDetachedFromWindow();
 
         NotificationCenter.getInstance(currentAccount).removeObserver(this, NotificationCenter.starUserGiftsLoaded);
+        // Aiqiyi: 移除本地礼物监听
+        NotificationCenter.getInstance(currentAccount).removeObserver(this, NotificationCenter.aiqiyiLocalGiftUpdated);
 
         for (Gift gift : gifts) {
             gift.emojiDrawable.removeView(this);
@@ -157,6 +165,11 @@ public class ProfileGiftsView extends View implements NotificationCenter.Notific
     public void didReceivedNotification(int id, int account, Object... args) {
         if (id == NotificationCenter.starUserGiftsLoaded) {
             if ((long) args[0] == dialogId) {
+                update();
+            }
+        } else if (id == NotificationCenter.aiqiyiLocalGiftUpdated) {
+            // Aiqiyi: 本地礼物变更，刷新当前资料页
+            if (args.length > 0 && (long) args[0] == dialogId) {
                 update();
             }
         }
@@ -296,6 +309,9 @@ public class ProfileGiftsView extends View implements NotificationCenter.Notific
             }
         }
 
+        // Aiqiyi: 注入本地虚拟礼物
+        injectLocalGifts();
+
         boolean changed = false;
         if (gifts.size() != oldGifts.size()) {
             changed = true;
@@ -370,6 +386,42 @@ public class ProfileGiftsView extends View implements NotificationCenter.Notific
 
         if (changed)
             invalidate();
+    }
+
+    /**
+     * Aiqiyi: 把本地虚拟礼物注入到展示列表。
+     *
+     * 只在「礼物区」「总开关」「展示开关」同时开启时生效。
+     * 走 Gift(TLRPC.TL_emojiStatusCollectible) 轻量构造器，
+     * 不需要构造复杂的 TL_starGiftUnique。
+     */
+    private void injectLocalGifts() {
+        try {
+            if (!AiqiyiLocalDataConfig.INSTANCE.getLocalGiftEnabled()
+                    || !AiqiyiLocalDataConfig.INSTANCE.getLocalGiftShowOnProfile()) {
+                return;
+            }
+            final ArrayList<LocalGiftData> localList = LocalGiftStore.getDataForUser(dialogId);
+            if (localList.isEmpty()) {
+                return;
+            }
+            for (int i = 0; i < localList.size(); i++) {
+                final LocalGiftData data = localList.get(i);
+                // 已存在同 id 则跳过，避免重复
+                if (giftIds.contains(data.getCollectibleId())) {
+                    continue;
+                }
+                final TLRPC.EmojiStatus status = LocalGiftConverter.toStatus(data);
+                if (!(status instanceof TLRPC.TL_emojiStatusCollectible)) {
+                    continue;
+                }
+                final Gift gift = new Gift((TLRPC.TL_emojiStatusCollectible) status);
+                gifts.add(gift);
+                giftIds.add(gift.id);
+            }
+        } catch (Throwable ignore) {
+            // 本地礼物异常绝不影响真实礼物展示
+        }
     }
 
     private final TimeInterpolator giftCollapseXInterpolator = new DecelerateInterpolator();

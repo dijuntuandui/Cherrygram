@@ -17,6 +17,7 @@ import android.view.View;
 import org.telegram.messenger.R;
 import org.telegram.messenger.UserConfig;
 import org.telegram.ui.ActionBar.AlertDialog;
+import org.telegram.ui.ActionBar.Theme;
 import org.telegram.ui.Components.EditTextBoldCursor;
 import org.telegram.ui.Components.UItem;
 import org.telegram.ui.Components.UniversalAdapter;
@@ -26,6 +27,8 @@ import java.util.ArrayList;
 import com.aiqiyi.local.AiqiyiLocalGramHelper;
 import com.aiqiyi.local.AiqiyiLocalStarsHelper;
 import uz.unnarsx.cherrygram.core.configs.AiqiyiLocalDataConfig;
+import uz.unnarsx.cherrygram.core.helpers.localdata.LocalGiftData;
+import uz.unnarsx.cherrygram.core.helpers.localdata.LocalGiftStore;
 import uz.unnarsx.cherrygram.preferences.BaseCGPreferencesEntry;
 import uz.unnarsx.cherrygram.preferences.helpers.SettingsHelper;
 
@@ -44,6 +47,11 @@ public class AiqiyiLocalZoneEntry extends BaseCGPreferencesEntry {
     private final int localMessageRulesRow = 330;
     private final int localTimeOverrideRow = 331;
     private final int localTimeModeRow = 332;
+    // Aiqiyi: 本地礼物相关
+    private final int localGiftEnabledRow = 333;
+    private final int localGiftShowOnProfileRow = 334;
+    private final int localGiftAddRow = 335;
+    private final int localGiftListRow = 336;
 
     @Override
     protected CharSequence getTitle() {
@@ -108,9 +116,23 @@ public class AiqiyiLocalZoneEntry extends BaseCGPreferencesEntry {
 
         // ===== 本地虚拟礼物 =====
         items.add(UItem.asHeader(getString(R.string.AQY_LocalGift_Header)));
+        items.add(SettingsHelper.asSwitchCG(localGiftEnabledRow, getString(R.string.AQY_LocalGift_Enabled),
+                        getString(R.string.AQY_LocalGift_Enabled_Desc))
+                .setChecked(AiqiyiLocalDataConfig.INSTANCE.getLocalGiftEnabled())
+                .slug("aqy_local_gift_enabled")
+        );
+        items.add(SettingsHelper.asSwitchCG(localGiftShowOnProfileRow, getString(R.string.AQY_LocalGift_ShowOnProfile),
+                        getString(R.string.AQY_LocalGift_ShowOnProfile_Desc))
+                .setChecked(AiqiyiLocalDataConfig.INSTANCE.getLocalGiftShowOnProfile())
+                .slug("aqy_local_gift_show_profile")
+        );
         items.add(SettingsHelper.asTextDetail(localGiftCountRow, 0,
                         getString(R.string.AQY_LocalGift_Count), getGiftCountText())
                 .slug("aqy_local_gift_count")
+        );
+        items.add(SettingsHelper.asTextDetail(localGiftAddRow, 0,
+                        getString(R.string.AQY_LocalGift_Add), getString(R.string.AQY_LocalGift_Add_Desc))
+                .slug("aqy_local_gift_add")
         );
         items.add(UItem.asButton(clearLocalGiftsRow, getString(R.string.AQY_LocalGift_Clear), getString(R.string.AQY_LocalGift_Clear_Desc))
                 .slug("aqy_local_gift_clear")
@@ -168,8 +190,19 @@ public class AiqiyiLocalZoneEntry extends BaseCGPreferencesEntry {
         } else if (item.id == localGramBalanceRow) {
             showBalanceInput(account, false);
         } else if (item.id == clearLocalGiftsRow) {
+            // Aiqiyi: 清空当前账号的真实本地礼物列表
+            final long clearUserId = UserConfig.getInstance(UserConfig.selectedAccount).getClientUserId();
+            LocalGiftStore.clear(clearUserId);
             AiqiyiLocalDataConfig.INSTANCE.clearLocalGifts();
             listView.adapter.update(true);
+        } else if (item.id == localGiftEnabledRow) {
+            AiqiyiLocalDataConfig.INSTANCE.setLocalGiftEnabled(!AiqiyiLocalDataConfig.INSTANCE.getLocalGiftEnabled());
+            listView.adapter.update(true);
+        } else if (item.id == localGiftShowOnProfileRow) {
+            AiqiyiLocalDataConfig.INSTANCE.setLocalGiftShowOnProfile(!AiqiyiLocalDataConfig.INSTANCE.getLocalGiftShowOnProfile());
+            listView.adapter.update(true);
+        } else if (item.id == localGiftAddRow) {
+            showAddLocalGiftDialog();
         } else if (item.id == localMessageOverrideRow) {
             AiqiyiLocalDataConfig.INSTANCE.setLocalMessageOverride(!AiqiyiLocalDataConfig.INSTANCE.getLocalMessageOverride());
             AiqiyiLocalMessageHelper.invalidate();
@@ -232,7 +265,57 @@ public class AiqiyiLocalZoneEntry extends BaseCGPreferencesEntry {
     }
 
     private CharSequence getGiftCountText() {
-        return String.valueOf(AiqiyiLocalDataConfig.INSTANCE.getLocalGiftCount());
+        // Aiqiyi: 改为统计当前账号的本地礼物列表实际条数
+        final int count = LocalGiftStore.getDataForUser(
+                UserConfig.getInstance(UserConfig.selectedAccount).getClientUserId()
+        ).size();
+        if (count <= 0) {
+            return getString(R.string.AQY_LocalGift_CountNone);
+        }
+        return String.format(getString(R.string.AQY_LocalGift_CountFormat), count);
+    }
+
+    /**
+     * Aiqiyi: 添加一条本地礼物到当前账号
+     */
+    private void showAddLocalGiftDialog() {
+        final long userId = UserConfig.getInstance(UserConfig.selectedAccount).getClientUserId();
+
+        final EditTextBoldCursor editText = new EditTextBoldCursor(getContext());
+        editText.setTextSize(17);
+        editText.setTextColor(Theme.getColor(Theme.key_dialogTextBlack));
+        editText.setHintText(getString(R.string.AQY_LocalGift_Add_Hint));
+        editText.setInputType(InputType.TYPE_CLASS_TEXT);
+        editText.setFocusable(true);
+        editText.setFocusableInTouchMode(true);
+
+        final AlertDialog.Builder builder = new AlertDialog.Builder(getContext());
+        builder.setTitle(getString(R.string.AQY_LocalGift_Add));
+        builder.setView(editText);
+        builder.setNegativeButton(getString(R.string.Cancel), null);
+        builder.setPositiveButton(getString(R.string.OK), (dialog, which) -> {
+            final String input = editText.getText().toString().trim();
+            if (input.isEmpty()) {
+                return;
+            }
+            try {
+                final LocalGiftData data = new LocalGiftData();
+                data.setTitle(input);
+                data.setSlug("local_" + System.currentTimeMillis());
+                data.setSenderName(input);
+                data.setGiftNum(1);
+                data.setOriginalDate((int) (System.currentTimeMillis() / 1000));
+                data.setOriginalSenderId(userId);
+                data.setOriginalRecipientId(userId);
+                data.setModelName(input);
+                // 颜色用默认值，localStyle 关掉，避免颜色三件套覆盖
+                data.setLocalStyle(false);
+                LocalGiftStore.addLocalGift(userId, data);
+                listView.adapter.update(true);
+            } catch (Exception ignored) {
+            }
+        });
+        builder.show();
     }
 
     private CharSequence getMessageRulesText() {
