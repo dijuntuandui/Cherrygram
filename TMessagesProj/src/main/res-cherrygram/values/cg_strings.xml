@@ -739,7 +739,7 @@
     <string name="AQY_LocalGift_Count">Local gift records</string>
     <string name="AQY_LocalGift_CountNone">None</string>
     <string name="AQY_LocalGift_CountFormat">%1$d item(s)</string>
-    <string name="AQY_LocalGift_Add">Add local gift</string>
+    <string name="AQY_LocalGift_Add">Violation Gift Wear</string>
     <string name="AQY_LocalGift_Add_Desc">Tap to add one</string>
     <string name="AQY_LocalGift_PickTemplate">Pick a gift as template</string>
     <string name="AQY_LocalGift_SenderSelf">You</string>

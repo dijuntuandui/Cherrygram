@@ -664,7 +664,7 @@
     <string name="AQY_LocalGift_Count">本地礼物记录</string>
     <string name="AQY_LocalGift_CountNone">暂无</string>
     <string name="AQY_LocalGift_CountFormat">%1$d 条</string>
-    <string name="AQY_LocalGift_Add">添加本地礼物</string>
+    <string name="AQY_LocalGift_Add">违规礼物佩戴</string>
     <string name="AQY_LocalGift_Add_Desc">点击添加一条</string>
     <string name="AQY_LocalGift_PickTemplate">选择一个礼物作为模板</string>
     <string name="AQY_LocalGift_SenderSelf">我</string>
