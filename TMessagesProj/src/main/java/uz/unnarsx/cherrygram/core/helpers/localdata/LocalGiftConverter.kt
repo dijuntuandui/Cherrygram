@@ -189,4 +189,46 @@ object LocalGiftConverter {
     fun isLocalSavedGift(saved: TL_stars.SavedStarGift?): Boolean {
         return saved != null && saved.saved_id < 0
     }
+    /**
+     * Aiqiyi C4: 从礼物页选中的 StarGift 构造一条本地礼物记录。
+     * 用于「送给自己」时跳过真实付费，直接落一条本地数据。
+     * 关键：catalogGiftId 必须写入，否则主页渲染时 getStarGift(id) 拿不到对象画不出来。
+     */
+    @JvmStatic
+    fun fromStarGift(gift: TL_stars.StarGift?, userId: Long, senderName: String?): LocalGiftData? {
+        if (gift == null) return null
+        return try {
+            val data = LocalGiftData()
+            data.title = gift.title
+            data.slug = gift.slug
+            data.catalogGiftId = gift.id          // 必须写，渲染靠它找回 StarGift
+            val doc = gift.document
+            data.documentId = doc?.id ?: 0L
+            data.senderName = senderName
+            data.giftNum = 1
+            data.valueAmount = gift.stars
+            data.valueCurrency = "XTR"
+            data.availabilityIssued = gift.availability_issued
+            data.availabilityTotal = gift.availability_total
+            data.originalDate = (System.currentTimeMillis() / 1000L).toInt()
+            data.originalSenderId = userId
+            data.originalRecipientId = userId
+            val backdrop = StarsController.findAttribute(gift.attributes, TL_stars.starGiftAttributeBackdrop::class.java)
+            if (backdrop != null) {
+                data.centerColor = backdrop.center_color
+                data.edgeColor = backdrop.edge_color
+                data.patternColor = backdrop.pattern_color
+                data.textColor = backdrop.text_color
+                data.backdropName = backdrop.name
+                data.localStyle = true
+            } else {
+                data.localStyle = false
+            }
+            data.patternDocumentId = 0L
+            data
+        } catch (e: Throwable) {
+            FileLog.e("LocalGiftConverter fromStarGift failed", e)
+            null
+        }
+    }
 }

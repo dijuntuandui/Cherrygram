@@ -35,6 +35,8 @@ import com.android.billingclient.api.BillingClient;
 import com.android.billingclient.api.BillingFlowParams;
 import com.android.billingclient.api.ProductDetails;
 
+import org.telegram.messenger.FileLog;
+import org.telegram.messenger.DialogObject;
 import org.telegram.messenger.AccountInstance;
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.AnimationNotificationsLocker;
@@ -98,6 +100,9 @@ import java.util.Calendar;
 import java.util.Collections;
 import java.util.List;
 
+import uz.unnarsx.cherrygram.core.helpers.localdata.LocalGiftData;
+import uz.unnarsx.cherrygram.core.helpers.localdata.LocalGiftStore;
+import uz.unnarsx.cherrygram.core.helpers.localdata.LocalGiftConverter;
 import uz.unnarsx.cherrygram.core.configs.CherrygramDebugConfig;
 import uz.unnarsx.cherrygram.core.configs.CherrygramFirebaseConfig;
 
@@ -711,6 +716,34 @@ public class SendGiftSheet extends BottomSheetWithRecyclerListView implements No
     }
 
     private void buyStarGift() {
+        // Aiqiyi C4: 自己购买礼物时跳过真实付费，直接写一条本地记录
+        if (self) {
+            try {
+                final ArrayList<LocalGiftData> exist =
+                    LocalGiftStore.getDataForUser(dialogId);
+                final int before = exist == null ? 0 : exist.size();
+                final LocalGiftData data =
+                    LocalGiftConverter.fromStarGift(
+                        starGift, dialogId, DialogObject.getName(currentAccount, dialogId));
+                if (data != null) {
+                    LocalGiftStore.addLocalGift(dialogId, data);
+                    final ArrayList<LocalGiftData> after =
+                        LocalGiftStore.getDataForUser(dialogId);
+                    android.util.Log.d("AQY_LOCAL_GIFT", "C4 buy self: giftId=" + (starGift == null ? -1 : starGift.id)
+                        + " docId=" + (data.getDocumentId()) + " before=" + before
+                        + " after=" + (after == null ? -1 : after.size()));
+                }
+            } catch (Throwable t) {
+                FileLog.e("Aiqiyi C4 buyStarGift self failed", t);
+            }
+            if (closeParentSheet != null) {
+                closeParentSheet.run();
+            }
+            AndroidUtilities.hideKeyboard(messageEdit);
+            dismiss();
+            onGiftSuccess(false);
+            return;
+        }
         StarsController.getInstance(currentAccount).buyStarGift(
             this.starGift,
             anonymous,
