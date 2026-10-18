@@ -604,6 +604,12 @@ public class ProfileGiftsContainer extends FrameLayout implements NotificationCe
             return reordering;
         }
 
+        private void aiqiyiDbg(String msg) {
+            try {
+                android.util.Log.d("AQY_LOCAL_GIFT", msg);
+            } catch (Throwable ignored) {}
+        }
+
         // ===================== Aiqiyi: 本地礼物条目 =====================
 
         /**
@@ -612,15 +618,16 @@ public class ProfileGiftsContainer extends FrameLayout implements NotificationCe
          */
         private ArrayList<TL_stars.SavedStarGift> aiqiyiBuildLocalGifts(StarsController.GiftsList targetList) {
             try {
-                if (!AiqiyiLocalDataConfig.INSTANCE.getLocalGiftEnabled()) return null;
-                if (!AiqiyiLocalDataConfig.INSTANCE.getLocalGiftShowInList()) return null;
-                if (targetList == null || isCollection) return null;
-                if (parent == null || targetList != parent.list) return null;
+                if (!AiqiyiLocalDataConfig.INSTANCE.getLocalGiftEnabled()) { aiqiyiDbg("skip: enabled=false"); return null; }
+                if (!AiqiyiLocalDataConfig.INSTANCE.getLocalGiftShowInList()) { aiqiyiDbg("skip: showInList=false"); return null; }
+                if (targetList == null || isCollection) { aiqiyiDbg("skip: null-or-collection isCol=" + isCollection); return null; }
+                if (parent == null || targetList != parent.list) { aiqiyiDbg("skip: list mismatch"); return null; }
                 final long selfId = UserConfig.getInstance(currentAccount).getClientUserId();
-                if (parent.dialogId != selfId) return null;
-                if (!LocalGiftStore.hasLocalGifts(selfId)) return null;
+                if (parent.dialogId != selfId) { aiqiyiDbg("skip: dialogId=" + parent.dialogId + " selfId=" + selfId); return null; }
+                if (!LocalGiftStore.hasLocalGifts(selfId)) { aiqiyiDbg("skip: no local gifts, selfId=" + selfId); return null; }
                 final ArrayList<LocalGiftData> data = LocalGiftStore.getDataForUser(selfId);
-                if (data == null || data.isEmpty()) return null;
+                if (data == null || data.isEmpty()) { aiqiyiDbg("skip: data empty"); return null; }
+                aiqiyiDbg("INJECT count=" + data.size() + " first=" + (data.get(0) == null ? "null" : data.get(0).getTitle()) + " catalogId=" + (data.get(0) == null ? -1 : data.get(0).getCatalogGiftId()));
                 // 本地记录直接转成 SavedStarGift，saved_id 为负作为本地标记
                 return LocalGiftConverter.toSavedGiftList(data, true);
             } catch (Throwable t) {
