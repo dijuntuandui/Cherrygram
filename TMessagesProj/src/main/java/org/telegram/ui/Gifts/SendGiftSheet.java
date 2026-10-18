@@ -516,6 +516,11 @@ public class SendGiftSheet extends BottomSheetWithRecyclerListView implements No
             }
             if (starGift != null) {
 
+                // Aiqiyi C4: 自购时绕开 SafeStars，否则点下去会直接关面板
+                if (self) {
+                    buyStarGift();
+                    return;
+                }
                 if (CherrygramFirebaseConfig.INSTANCE.getAllowSafeStars()) {
                     if (closeParentSheet != null) {
                         closeParentSheet.run();
