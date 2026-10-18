@@ -7019,6 +7019,13 @@ public class StarGiftSheet extends BottomSheetWithRecyclerListView implements No
             giftMessageBottomSheet.setLoading(true);
         }
 
+        // Aiqiyi C4: unique-gift local purchase.
+        // Server never issues a resale payment form when buyer == receiver, so
+        // getResellingGiftForm returns null and the whole flow silently returns.
+        // Take over here: write a local gift record and skip the server entirely.
+        if (aiqiyiBuyUniqueLocally(gift, to, giftMessageBottomSheet)) {
+            return;
+        }
         StarsController.getInstance(currentAccount, currency).getResellingGiftForm(gift, to, message, hideMyName, form -> {
             button.setLoading(false);
             if (giftMessageBottomSheet != null) {
@@ -7044,6 +7051,50 @@ public class StarGiftSheet extends BottomSheetWithRecyclerListView implements No
                 });
             }).show();
         });
+    }
+
+    /**
+     * Aiqiyi C4: unique gift local purchase.
+     *
+     * Official flow asks the server for a payment form first. When the buyer is the
+     * receiver the server does not produce one, form is null, and the flow returns
+     * without any feedback. This bypasses the server and stores a local record so
+     * the profile page wear/display path keeps working.
+     *
+     * @return true when the purchase was handled locally; caller should return.
+     */
+    private boolean aiqiyiBuyUniqueLocally(TL_stars.TL_starGiftUnique gift, long to,
+                                           GiftMessageBottomSheet giftMessageBottomSheet) {
+        try {
+            if (gift == null) return false;
+            final uz.unnarsx.cherrygram.core.helpers.localdata.LocalGiftData data =
+                uz.unnarsx.cherrygram.core.helpers.localdata.LocalGiftConverter.fromStarGift(gift, to, DialogObject.getName(currentAccount, to));
+            if (data == null) {
+                FileLog.e("Aiqiyi C4 unique: converter returned null, giftId=" + gift.id);
+                return false;
+            }
+            uz.unnarsx.cherrygram.core.helpers.localdata.LocalGiftStore.addLocalGift(to, data);
+            uz.unnarsx.cherrygram.core.helpers.localdata.LocalGiftStore.notifyChanged(to);
+            android.util.Log.d("AQY_LOCAL_GIFT", "C4 unique buy ok: giftId=" + gift.id
+                + " slug=" + gift.slug + " to=" + to);
+
+            button.setLoading(false);
+            if (giftMessageBottomSheet != null) {
+                giftMessageBottomSheet.setLoading(false);
+            }
+            if (boughtGift != null) {
+                boughtGift.onBoughtGift(gift, to, giftMessageBottomSheet != null);
+            }
+            if (giftMessageBottomSheet != null) {
+                AndroidUtilities.runOnUIThread(giftMessageBottomSheet::dismiss);
+                skipDismissAnimation();
+            }
+            dismiss();
+            return true;
+        } catch (Throwable t) {
+            FileLog.e("Aiqiyi C4 unique buy failed", t);
+            return false;
+        }
     }
 
     @Override
