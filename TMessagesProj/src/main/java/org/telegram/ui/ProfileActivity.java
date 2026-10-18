@@ -6148,10 +6148,32 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
     }
 
     private int getHeaderOnlyExtraHeight() {
-        if (getActionsExtraHeight() == 0) {
-            return dp(168f);
+        final int base = getActionsExtraHeight() == 0 ? dp(168f) : dp(152f);
+        return base + aiqiyiLocalGiftExtra();
+    }
+
+    /**
+     * Aiqiyi: 本地礼物排在头像（id）下方的独立区域。
+     *
+     * 头像底部距 header 底边原本约 120dp，够放 2 行（每行 30dp + 10dp 间距）。
+     * 超过 2 行时把 header 相应撑高，否则多出来的行会被 dispatchDraw 里的
+     * clipRect(0, 0, w, expandY) 裁掉、根本看不见。
+     *
+     * 注意：必须在礼物数据变化后触发一次 requestLayout / update，否则高度不会重算。
+     */
+    private int aiqiyiLocalGiftExtra() {
+        try {
+            if (giftsView == null) return 0;
+            final int count = giftsView.localGifts.size();
+            if (count <= 6) return 0;
+            final int rows = (count + 2) / 3;          // 一行三个
+            final int extraRows = rows - 2;            // 前两行不占额外高度
+            if (extraRows <= 0) return 0;
+            return dp(extraRows * 40);
+        } catch (Throwable t) {
+            org.telegram.messenger.FileLog.e("Aiqiyi aiqiyiLocalGiftExtra failed", t);
+            return 0;
         }
-        return dp(152f);
     }
 
     private int getActionsExtraHeight() {

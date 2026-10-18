@@ -284,6 +284,20 @@ public class ProfileGiftsView extends View implements NotificationCenter.Notific
     public final HashSet<Long> giftIds = new HashSet<>();
     public int maxCount;
 
+    /**
+     * Aiqiyi: 本地礼物独立列表。
+     *
+     * 与 gifts（服务端真实佩戴礼物）完全分开：
+     *  - gifts 走官方 0-5 六个位置，一格不多，保持原版表现
+     *  - localGifts 走自己的坐标段，不占佩戴区槽位，互不影响
+     * 这样服务端礼物排满时本地礼物依然能画出来，两套逻辑不打架。
+     */
+    public final ArrayList<Gift> localGifts = new ArrayList<>();
+    /** Aiqiyi: 上一次本地礼物数量，用于判断是否需要重绘 */
+    private int lastLocalGiftCount = -1;
+    /** Aiqiyi: 本地礼物行数变化标记，用于触发 header 重新测量 */
+    private boolean aiqiyiLocalRowsChanged = false;
+
     public void update() {
         if (CherrygramAppearanceConfig.INSTANCE.getDisablePremiumStatuses()) return;
 
@@ -322,15 +336,19 @@ public class ProfileGiftsView extends View implements NotificationCenter.Notific
             }
         }
 
-        // Aiqiyi: 注入本地虚拟礼物
+        // Aiqiyi: 注入本地虚拟礼物（独立列表，不碰 gifts / maxCount）
         injectLocalGifts();
-        // Aiqiyi: 本地礼物也要占画布槽位，否则 positions 分配不到、永远不绘制
-        if (gifts.size() > maxCount) {
-            maxCount = gifts.size();
-        }
-        android.util.Log.d("AQY_LOCAL_GIFT", "after inject: gifts=" + gifts.size() + " maxCount=" + maxCount);
+        android.util.Log.d("AQY_LOCAL_GIFT", "after inject: real=" + gifts.size()
+                + " local=" + localGifts.size() + " maxCount=" + maxCount);
 
         boolean changed = false;
+        // Aiqiyi: 本地礼物数量变化也要触发重绘
+        if (localGifts.size() != lastLocalGiftCount) {
+            changed = true;
+            lastLocalGiftCount = localGifts.size();
+            aiqiyiLocalRowsChanged = true;
+            android.util.Log.d("AQY_LOCAL_GIFT", "changed by local count = " + localGifts.size());
+        }
         if (gifts.size() != oldGifts.size()) {
             changed = true;
         } else for (int i = 0; i < gifts.size(); i++) {
@@ -404,6 +422,23 @@ public class ProfileGiftsView extends View implements NotificationCenter.Notific
 
         if (changed)
             invalidate();
+        // Aiqiyi: 本地礼物行数变化会影响 ProfileActivity.getHeaderOnlyExtraHeight() 的计算，
+        // 必须让 header 重新测量，否则多出来的行会被 clipRect 裁掉。
+        if (aiqiyiLocalRowsChanged) {
+            aiqiyiLocalRowsChanged = false;
+            post(() -> {
+                try {
+                    final android.view.ViewParent vp = getParent();
+                    if (vp instanceof android.view.View) {
+                        ((android.view.View) vp).requestLayout();
+                    }
+                    requestLayout();
+                    android.util.Log.d("AQY_LOCAL_GIFT", "requestLayout for local rows");
+                } catch (Throwable t) {
+                    org.telegram.messenger.FileLog.e("Aiqiyi requestLayout failed", t);
+                }
+            });
+        }
     }
 
     /**
@@ -415,46 +450,29 @@ public class ProfileGiftsView extends View implements NotificationCenter.Notific
      */
     private void injectLocalGifts() {
         try {
-            android.util.Log.d("AQY_LOCAL_GIFT", "injectLocalGifts enter dialogId=" + dialogId
-                    + " enabled=" + AiqiyiLocalDataConfig.INSTANCE.getLocalGiftEnabled()
-                    + " showOnProfile=" + AiqiyiLocalDataConfig.INSTANCE.getLocalGiftShowOnProfile());
+            localGifts.clear();
             if (!AiqiyiLocalDataConfig.INSTANCE.getLocalGiftEnabled()
                     || !AiqiyiLocalDataConfig.INSTANCE.getLocalGiftShowOnProfile()) {
                 android.util.Log.d("AQY_LOCAL_GIFT", "injectLocalGifts skip: switch off");
+                lastLocalGiftCount = 0;
                 return;
             }
             final ArrayList<LocalGiftData> localList = LocalGiftStore.getDataForUser(dialogId);
-            android.util.Log.d("AQY_LOCAL_GIFT", "injectLocalGifts localList.size=" + localList.size()
-                    + " giftIdsBefore=" + giftIds.size());
+            android.util.Log.d("AQY_LOCAL_GIFT", "injectLocalGifts enter dialogId=" + dialogId
+                    + " localList.size=" + localList.size() + " real=" + gifts.size());
             if (localList.isEmpty()) {
-                // Aiqiyi: 兜底 - 迁移 userId=0 的脏数据（静默迁移，不触发通知避免重入）
-                if (dialogId != 0) {
-                    final ArrayList<LocalGiftData> dirty = LocalGiftStore.getDataForUser(0L);
-                    if (!dirty.isEmpty()) {
-                        for (int i = 0; i < dirty.size(); i++) {
-                            LocalGiftStore.addLocalGiftSilent(dialogId, dirty.get(i));
-                        }
-                        LocalGiftStore.clearSilent(0L);
-                        localList.addAll(LocalGiftStore.getDataForUser(dialogId));
-                    }
-                }
-                if (localList.isEmpty()) {
-                    return;
-                }
+                lastLocalGiftCount = 0;
+                return;
             }
+            // Aiqiyi: 本地礼物独立分支，不受佩戴区 maxCount 限制。
+            // 佩戴区排满时照样画，互不影响。
             for (int i = 0; i < localList.size(); i++) {
                 final LocalGiftData data = localList.get(i);
-                // 已存在同 id 则跳过，避免重复
-                if (giftIds.contains(data.getCollectibleId())) {
-                    android.util.Log.d("AQY_LOCAL_GIFT", "dup skip collectibleId=" + data.getCollectibleId());
-                    continue;
-                }
                 final TLRPC.EmojiStatus status = LocalGiftConverter.toStatus(data);
                 if (!(status instanceof TLRPC.TL_emojiStatusCollectible)) {
                     android.util.Log.d("AQY_LOCAL_GIFT", "skip: not collectible");
                     continue;
                 }
-                // Aiqiyi: 先把可渲染的 Document 找出来，找不到才退回空
                 TLRPC.Document doc = null;
                 try {
                     final TL_stars.StarGift sg = LocalGiftConverter.resolveStarGift(data);
@@ -464,24 +482,33 @@ public class ProfileGiftsView extends View implements NotificationCenter.Notific
                     doc = LocalGiftConverter.findDocument(data.getDocumentId());
                 }
                 final Gift gift = new Gift((TLRPC.TL_emojiStatusCollectible) status, doc);
-                android.util.Log.d("AQY_LOCAL_GIFT", "ADDED gift.id=" + gift.id
-                        + " docId=" + gift.documentId + " hasDoc=" + (gift.document != null));
-                gifts.add(gift);
-                giftIds.add(gift.id);
+                // 本地礼物坐标从 LOCAL_POS_BASE 起，避开真实礼物的 0-5
+                gift.position = LOCAL_POS_BASE + i;
+                localGifts.add(gift);
+                android.util.Log.d("AQY_LOCAL_GIFT", "ADDED local idx=" + i + " gift.id=" + gift.id
+                        + " pos=" + gift.position + " hasDoc=" + (gift.document != null));
             }
-            android.util.Log.d("AQY_LOCAL_GIFT", "injectLocalGifts done gifts.size=" + gifts.size());
-        } catch (Throwable ignore) {
-            android.util.Log.d("AQY_LOCAL_GIFT", "injectLocalGifts EXCEPTION " + ignore);
-            // 本地礼物异常绝不影响真实礼物展示
+            lastLocalGiftCount = localGifts.size();
+        } catch (Throwable t) {
+            org.telegram.messenger.FileLog.e("Aiqiyi injectLocalGifts failed", t);
+            lastLocalGiftCount = 0;
         }
     }
+
+    /**
+     * Aiqiyi: 本地礼物坐标基准值，避开官方 0-5 六个位置。
+     */
+    private static final int LOCAL_POS_BASE = 100;
+    /** Aiqiyi: 本地礼物每行个数（对齐官方九宫格风格，一行三个） */
+    private static final int LOCAL_PER_ROW = 3;
+
 
     private final TimeInterpolator giftCollapseXInterpolator = new DecelerateInterpolator();
     private final TimeInterpolator giftCollapseYInterpolator = new LinearInterpolator();
 
     @Override
     protected void dispatchDraw(@NonNull Canvas canvas) {
-        if (gifts.isEmpty() || expandProgress >= 1.0f || collapseProgress <= 0f) return;
+        if ((gifts.isEmpty() && localGifts.isEmpty()) || expandProgress >= 1.0f || collapseProgress <= 0f) return;
 
         final float realX = avatarContainer.getX();
         final float realY = avatarContainer.getY();
@@ -507,8 +534,12 @@ public class ProfileGiftsView extends View implements NotificationCenter.Notific
         float expandScale = expandY / maxExpandY;
         float closedAlpha = Utilities.clamp01((expandY - (AndroidUtilities.statusBarHeight + ActionBar.getCurrentActionBarHeight())) / dp(50));
 
-        for (int i = 0; i < gifts.size(); ++i) {
-            final Gift gift = gifts.get(i);
+        // Aiqiyi: 统一遍历「真实佩戴礼物 + 本地礼物」两套列表
+        final ArrayList<Gift> aiqiyiAllDraw = new ArrayList<>(gifts.size() + localGifts.size());
+        aiqiyiAllDraw.addAll(gifts);
+        aiqiyiAllDraw.addAll(localGifts);
+        for (int i = 0; i < aiqiyiAllDraw.size(); ++i) {
+            final Gift gift = aiqiyiAllDraw.get(i);
             final float enter = gift.animatedFloat.set(1.0f);
             float scale = lerp(0.5f, 1.0f, enter);
             final float alpha = enter * (1.0f - expandProgress) * (1.0f - actionBarProgress) * (closedAlpha);
@@ -548,6 +579,24 @@ public class ProfileGiftsView extends View implements NotificationCenter.Notific
                     delayValue = 0;
                     break;
             }
+            // Aiqiyi: 本地礼物独立坐标段（position >= LOCAL_POS_BASE）
+            // 样式对齐黄昏：横排在头像正下方（id 下方），一行 LOCAL_PER_ROW 个，满了换行往下
+            if (gift.position >= LOCAL_POS_BASE) {
+                final int li = gift.position - LOCAL_POS_BASE;
+                final int col = li % LOCAL_PER_ROW;
+                final int row = li / LOCAL_PER_ROW;
+                // 本行实际个数（最后一行可能不满），用于真正居中
+                final int remain = localGifts.size() - row * LOCAL_PER_ROW;
+                final int rowCount = Math.min(LOCAL_PER_ROW, Math.max(remain, 1));
+                final float cell = dp(30);
+                final float gap = dp(10);
+                final float rowWidth = rowCount * cell + (rowCount - 1) * gap;
+                final float startX = acx - rowWidth / 2f + cell / 2f;
+                gx = startX + col * (cell + gap);
+                // 从头像底部往下排，避开佩戴区 0-5
+                gy = ay + ah + dp(14) + row * (cell + gap);
+                delayValue = 0.6f + li * 0.12f;
+            }
 
             final float collapseProgressWithEnter;
             if (isOpening || enter >= 1f) {
@@ -579,6 +628,11 @@ public class ProfileGiftsView extends View implements NotificationCenter.Notific
         for (int i = 0; i < gifts.size(); ++i) {
             if (gifts.get(i).bounds.contains(x, y))
                 return gifts.get(i);
+        }
+        // Aiqiyi: 本地礼物也要能点
+        for (int i = 0; i < localGifts.size(); ++i) {
+            if (localGifts.get(i).bounds.contains(x, y))
+                return localGifts.get(i);
         }
         return null;
     }
