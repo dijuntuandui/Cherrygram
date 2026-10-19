@@ -162,12 +162,12 @@ object LocalGiftStore {
      * 爱琦艺：取某个用户所有已佩戴的本地礼物（按添加顺序）
      */
     @JvmStatic
-    fun getPinnedForUser(userId: Long): MutableList<LocalGiftData> {
+    fun getPinnedForUser(userId: Long): ArrayList<LocalGiftData> {
         return try {
-            getDataForUser(userId).filter { it.pinned }.toMutableList()
+            ArrayList(getDataForUser(userId).filter { it.pinned })
         } catch (e: Exception) {
             FileLog.e("LocalGiftStore getPinnedForUser failed", e)
-            mutableListOf()
+            ArrayList()
         }
     }
 
