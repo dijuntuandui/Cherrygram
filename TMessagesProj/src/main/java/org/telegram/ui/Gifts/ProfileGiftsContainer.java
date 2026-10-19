@@ -37,6 +37,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.view.WindowManager;
 import android.view.inputmethod.EditorInfo;
+import android.widget.EditText;
 import android.widget.FrameLayout;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
@@ -966,6 +967,13 @@ public class ProfileGiftsContainer extends FrameLayout implements NotificationCe
                             }
                                 .set(savedStarGift, null)
                                 .toggleWear(false);
+                        });
+                    }
+                    // Aiqiyi: 本地礼物支持自定义典藏编号
+                    if (StarGiftSheet.aiqiyiIsLocalGiftId(gift.id)) {
+                        o.add(R.drawable.msg_edit, "修改编号", () -> {
+                            o.dismiss();
+                            openEditGiftNumberAlert(gift);
                         });
                     }
                     o.addIf(link != null, R.drawable.msg_link2, getString(R.string.CopyLink), () -> {
@@ -2012,6 +2020,80 @@ public class ProfileGiftsContainer extends FrameLayout implements NotificationCe
 
             setCustomView(layout);
         }
+    }
+
+    /**
+     * Aiqiyi: 修改本地礼物的典藏编号。
+     * 输入留空 / 0 = 恢复原编号；输入正整数 = 覆盖显示。
+     * 只影响本机渲染，不落库到服务器。
+     */
+    private void openEditGiftNumberAlert(TL_stars.TL_starGiftUnique gift) {
+        final Context context = getContext();
+        final long uid = UserConfig.getInstance(currentAccount).getClientUserId();
+        final LocalGiftData data = LocalGiftStore.findLocalGift(uid, gift.id);
+        final int oldCustom = data != null ? data.customNum : 0;
+        final int oldOriginal = gift.num;
+
+        final AlertDialog.Builder builder = new AlertDialog.Builder(context, resourcesProvider);
+        builder.setTitle("修改典藏编号");
+        builder.setMessage("当前编号：#" + LocaleController.formatNumber(oldOriginal, ',')
+            + (oldCustom > 0 ? "（已自定义为 #" + LocaleController.formatNumber(oldCustom, ',') + "）" : "")
+            + "\n留空或填 0 可恢复原编号。仅本机生效。");
+
+        final EditText editText = new EditText(context);
+        editText.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 18);
+        editText.setTextColor(Theme.getColor(Theme.key_dialogTextBlack, resourcesProvider));
+        editText.setHintColor(Theme.getColor(Theme.key_groupcreate_hintText, resourcesProvider));
+        editText.setHintText("输入编号，如 888888");
+        editText.setFocusable(true);
+        editText.setInputType(InputType.TYPE_CLASS_NUMBER);
+        editText.setImeOptions(EditorInfo.IME_ACTION_DONE);
+        editText.setBackgroundDrawable(null);
+        editText.setPadding(0, dp(6), 0, dp(6));
+        if (oldCustom > 0) {
+            editText.setText(String.valueOf(oldCustom));
+            editText.setSelection(editText.getText().length());
+        }
+
+        final LinearLayout container = new LinearLayout(context);
+        container.setOrientation(LinearLayout.VERTICAL);
+        container.addView(editText, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, 24, 0, 24, 10));
+        builder.setView(container);
+        builder.setWidth(dp(292));
+
+        final Runnable apply = () -> {
+            final String text = editText.getText().toString().trim();
+            int value = 0;
+            if (!TextUtils.isEmpty(text)) {
+                try {
+                    value = Integer.parseInt(text);
+                } catch (Exception ignore) {
+                    value = -1;
+                }
+            }
+            if (value < 0) {
+                AndroidUtilities.shakeView(editText);
+                return;
+            }
+            LocalGiftStore.setCustomNum(uid, gift.id, value);
+            BulletinFactory.of(fragment)
+                .createSimpleBulletin(R.raw.done,
+                    value > 0
+                        ? "编号已改为 #" + LocaleController.formatNumber(value, ',')
+                        : "已恢复原编号 #" + LocaleController.formatNumber(oldOriginal, ','))
+                .show();
+            notifyGiftChanged(uid);
+        };
+
+        builder.setPositiveButton(getString(R.string.OK), (d, w) -> apply.run());
+        builder.setNegativeButton(getString(R.string.Cancel), null);
+        builder.show();
+    }
+
+    private void notifyGiftChanged(long uid) {
+        try {
+            LocalGiftStore.notifyChanged(uid);
+        } catch (Exception ignore) {}
     }
 
     private void openEnterNameAlert(String editing, Utilities.Callback<String> whenDone) {

@@ -125,7 +125,18 @@ data class LocalGiftData(
      * 典藏购买/送礼写入时为 false，等用户在图一/图二点佩戴。
      */
     @SerializedName("pinned")
-    var pinned: Boolean = false
+    var pinned: Boolean = false,
+
+    /**
+     * 爱琦艺：自定义典藏编号。
+     *
+     * 0  = 未修改，显示礼物原本的编号（沿用 giftNum）
+     * >0 = 用户手动指定的编号，覆盖 giftNum 参与所有 #N / 典藏 N 的渲染
+     *
+     * 只影响本机显示，不上传服务器，不影响别人看到的样子。
+     */
+    @SerializedName("customNum")
+    var customNum: Int = 0
 
 ) {
     companion object {

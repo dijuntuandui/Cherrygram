@@ -161,6 +161,32 @@ object LocalGiftStore {
     /**
      * 爱琦艺：取某个用户所有已佩戴的本地礼物（按添加顺序）
      */
+    /**
+     * 爱琦艺：设置自定义典藏编号。
+     *
+     * @param customNum 0 = 恢复原编号；>0 = 指定编号
+     * @return 是否找到并修改成功
+     */
+    @JvmStatic
+    fun setCustomNum(userId: Long, collectibleId: Long, customNum: Int): Boolean {
+        return try {
+            val list = getDataForUser(userId)
+            val target = list.firstOrNull { it.collectibleId == collectibleId } ?: return false
+            val v = if (customNum < 0) 0 else customNum
+            if (target.customNum == v) return true
+            target.customNum = v
+            saveData(userId, list)
+            notifyChanged(userId)
+            true
+        } catch (e: Exception) {
+            FileLog.e("LocalGiftStore setCustomNum failed", e)
+            false
+        }
+    }
+
+    /**
+     * 爱琦艺：取某个用户所有已佩戴的本地礼物（按添加顺序）
+     */
     @JvmStatic
     fun getPinnedForUser(userId: Long): ArrayList<LocalGiftData> {
         return try {

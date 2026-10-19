@@ -137,7 +137,13 @@ object LocalGiftConverter {
         }
         unique.title = data.title
         unique.slug = data.slug
-        unique.num = if (data.giftNum <= 0) 1 else data.giftNum
+        // --- Aiqiyi: 编号，用户自定义优先 ---
+        // customNum > 0 表示用户手动改过，覆盖原编号；为 0 时沿用 giftNum
+        unique.num = when {
+            data.customNum > 0 -> data.customNum
+            data.giftNum <= 0 -> 1
+            else -> data.giftNum
+        }
 
         // --- 贴纸（图案本体）：本地 documentId 优先，退回目录 ---
         var doc = findDocument(data.documentId)
