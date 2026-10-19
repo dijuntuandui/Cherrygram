@@ -419,6 +419,34 @@ public class ProfileGiftsView extends View implements NotificationCenter.Notific
                 }
             }
         }
+        // Aiqiyi: 官方礼物位置分配完成后，再给本地礼物挑空槽 —— 此时 gifts 的 position 已确定。
+        // 本地礼物与官方佩戴礼物共用 0..maxCount-1 的环绕坐标，显示在头像周围，
+        // 样式、动画、点击判定全部复用官方逻辑。
+        try {
+            if (!localGifts.isEmpty() && maxCount > 0) {
+                final java.util.ArrayList<Integer> aiqiyiFree = new java.util.ArrayList<>();
+                for (int p = 0; p < maxCount; p++) aiqiyiFree.add(p);
+                for (int i = 0; i < gifts.size(); i++) {
+                    final int up = gifts.get(i).position;
+                    if (up >= 0) aiqiyiFree.remove((Object) up);
+                }
+                for (int i = 0; i < localGifts.size(); i++) {
+                    final Gift lg = localGifts.get(i);
+                    if (lg.position >= 0) continue;
+                    if (!aiqiyiFree.isEmpty()) {
+                        lg.position = aiqiyiFree.remove(0);
+                    } else {
+                        // 官方礼物占满了全部槽位：复用 0..maxCount-1，保证本地礼物仍可见
+                        lg.position = i % maxCount;
+                    }
+                }
+                final StringBuilder sb = new StringBuilder();
+                for (int i = 0; i < localGifts.size(); i++) sb.append(localGifts.get(i).position).append(',');
+                android.util.Log.d("AQY_LOCAL_GIFT", "local positions=" + sb + " maxCount=" + maxCount);
+            }
+        } catch (Throwable t) {
+            FileLog.e("Aiqiyi assign local positions failed", t);
+        }
 
         if (changed)
             invalidate();
@@ -485,8 +513,10 @@ public class ProfileGiftsView extends View implements NotificationCenter.Notific
                     doc = LocalGiftConverter.findDocument(data.getDocumentId());
                 }
                 final Gift gift = new Gift((TLRPC.TL_emojiStatusCollectible) status, doc);
-                // 本地礼物坐标从 LOCAL_POS_BASE 起，避开真实礼物的 0-5
-                gift.position = LOCAL_POS_BASE + i;
+                // Aiqiyi: 本地礼物与官方佩戴礼物共用同一套 0..maxCount-1 环绕坐标。
+                // 分配顺序：先让官方礼物吃满自己的槽位，本地礼物再取剩下的空位，
+                // 这样本地礼物出现在头像周围那六个点上，样式/动画/点击全部复用官方逻辑。
+                gift.position = -1;   // 先标记未分配，循环结束后统一分配
                 // Aiqiyi: 本地礼物不走 update() 的初始化分支，这里补齐绘制所需字段
                 if (gift.gradient == null) {
                     gift.gradient = new RadialGradient(0, 0, dp(22.5f), new int[]{gift.color, Theme.multAlpha(gift.color, 0.0f)}, new float[]{0, 1}, Shader.TileMode.CLAMP);
@@ -575,7 +605,14 @@ public class ProfileGiftsView extends View implements NotificationCenter.Notific
             float gx, gy;
             float delayValue;
 
-            switch (gift.position) {
+            // Aiqiyi: 兜底 —— 若本地礼物还没拿到槽位（update 提前 return 等极端情况），
+            // 按它在 localGifts 里的顺序取模，保证仍然落在官方那六个环绕点上。
+            int aiqiyiPos = gift.position;
+            if (aiqiyiPos < 0) {
+                final int li = localGifts.indexOf(gift);
+                aiqiyiPos = li >= 0 ? (li % Math.max(maxCount, 6)) : 0;
+            }
+            switch (aiqiyiPos) {
                 case 0: // left
                     gx = acx / 2f - (dp(20) * expandScale);
                     gy = acy - dp(13);
@@ -607,24 +644,8 @@ public class ProfileGiftsView extends View implements NotificationCenter.Notific
                     delayValue = 0;
                     break;
             }
-            // Aiqiyi: 本地礼物独立坐标段（position >= LOCAL_POS_BASE）
-            // 样式对齐黄昏：横排在头像正下方（id 下方），一行 LOCAL_PER_ROW 个，满了换行往下
-            if (gift.position >= LOCAL_POS_BASE) {
-                final int li = gift.position - LOCAL_POS_BASE;
-                final int col = li % LOCAL_PER_ROW;
-                final int row = li / LOCAL_PER_ROW;
-                // 本行实际个数（最后一行可能不满），用于真正居中
-                final int remain = localGifts.size() - row * LOCAL_PER_ROW;
-                final int rowCount = Math.min(LOCAL_PER_ROW, Math.max(remain, 1));
-                final float cell = dp(30);
-                final float gap = dp(10);
-                final float rowWidth = rowCount * cell + (rowCount - 1) * gap;
-                final float startX = acx - rowWidth / 2f + cell / 2f;
-                gx = startX + col * (cell + gap);
-                // 从头像底部往下排，避开佩戴区 0-5
-                gy = ay + ah + dp(14) + row * (cell + gap);
-                delayValue = 0.6f + li * 0.12f;
-            }
+            // Aiqiyi: 本地礼物已在上方 switch(gift.position) 中获得 0..maxCount-1 的环绕坐标，
+            // 与官方佩戴礼物走完全相同的定位逻辑，此处不再单独计算。
 
             final float collapseProgressWithEnter;
             if (isOpening || enter >= 1f) {

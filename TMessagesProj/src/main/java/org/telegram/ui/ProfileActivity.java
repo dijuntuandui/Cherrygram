@@ -6162,18 +6162,9 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
      * 注意：必须在礼物数据变化后触发一次 requestLayout / update，否则高度不会重算。
      */
     private int aiqiyiLocalGiftExtra() {
-        try {
-            if (giftsView == null) return 0;
-            final int count = giftsView.localGifts.size();
-            if (count <= 6) return 0;
-            final int rows = (count + 2) / 3;          // 一行三个
-            final int extraRows = rows - 2;            // 前两行不占额外高度
-            if (extraRows <= 0) return 0;
-            return dp(extraRows * 40);
-        } catch (Throwable t) {
-            org.telegram.messenger.FileLog.e("Aiqiyi aiqiyiLocalGiftExtra failed", t);
-            return 0;
-        }
+        // Aiqiyi: 本地礼物现在跟官方佩戴礼物一样环绕在头像四周，
+        // 不再在名字下方横向排列，因此不需要额外的 header 高度。
+        return 0;
     }
 
     private int getActionsExtraHeight() {
