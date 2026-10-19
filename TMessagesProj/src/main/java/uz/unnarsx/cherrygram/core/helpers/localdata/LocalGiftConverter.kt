@@ -127,6 +127,14 @@ object LocalGiftConverter {
         // --- 基础标识 ---
         unique.id = if (data.collectibleId != 0L) data.collectibleId else -kotlin.math.abs(data.catalogGiftId)
         unique.gift_id = data.catalogGiftId
+        // --- Aiqiyi: 所有者必须是当前登录用户 ---
+        // 黄昏的礼物来自服务端回传（owner_id 自带），爱琦艺是纯本地构造，不补这一项
+        // 详情页会走购买者视角（显示 Gram 购买按钮），而不是「转让 / 佩戴 / 出售」。
+        runCatching {
+            val owner = TLRPC.TL_peerUser()
+            owner.user_id = UserConfig.getInstance(UserConfig.selectedAccount).getClientUserId()
+            unique.owner_id = owner
+        }
         unique.title = data.title
         unique.slug = data.slug
         unique.num = if (data.giftNum <= 0) 1 else data.giftNum
