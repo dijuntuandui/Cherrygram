@@ -484,6 +484,26 @@ public class ProfileGiftsView extends View implements NotificationCenter.Notific
                 final Gift gift = new Gift((TLRPC.TL_emojiStatusCollectible) status, doc);
                 // 本地礼物坐标从 LOCAL_POS_BASE 起，避开真实礼物的 0-5
                 gift.position = LOCAL_POS_BASE + i;
+                // Aiqiyi: 本地礼物不走 update() 的初始化分支，这里补齐绘制所需字段
+                if (gift.gradient == null) {
+                    gift.gradient = new RadialGradient(0, 0, dp(22.5f), new int[]{gift.color, Theme.multAlpha(gift.color, 0.0f)}, new float[]{0, 1}, Shader.TileMode.CLAMP);
+                    gift.gradientPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+                    gift.gradientPaint.setShader(gift.gradient);
+                }
+                if (gift.emojiDrawable == null) {
+                    if (gift.document != null) {
+                        gift.emojiDrawable = AnimatedEmojiDrawable.make(currentAccount, AnimatedEmojiDrawable.CACHE_TYPE_MESSAGES, gift.document);
+                    } else {
+                        gift.emojiDrawable = AnimatedEmojiDrawable.make(currentAccount, AnimatedEmojiDrawable.CACHE_TYPE_MESSAGES, gift.documentId);
+                    }
+                    if (gift.emojiDrawable != null && isAttachedToWindow()) {
+                        gift.emojiDrawable.addView(this);
+                    }
+                }
+                if (gift.animatedFloat == null) {
+                    gift.animatedFloat = new AnimatedFloat(this, 0, 320, null);
+                    gift.animatedFloat.force(0.0f);
+                }
                 localGifts.add(gift);
                 android.util.Log.d("AQY_LOCAL_GIFT", "ADDED local idx=" + i + " gift.id=" + gift.id
                         + " pos=" + gift.position + " hasDoc=" + (gift.document != null));
@@ -540,6 +560,11 @@ public class ProfileGiftsView extends View implements NotificationCenter.Notific
         aiqiyiAllDraw.addAll(localGifts);
         for (int i = 0; i < aiqiyiAllDraw.size(); ++i) {
             final Gift gift = aiqiyiAllDraw.get(i);
+            // Aiqiyi: 兜底，避免任何路径漏初始化导致 NPE 崩掉主页
+            if (gift.animatedFloat == null) {
+                gift.animatedFloat = new AnimatedFloat(this, 0, 320, null);
+                gift.animatedFloat.force(0.0f);
+            }
             final float enter = gift.animatedFloat.set(1.0f);
             float scale = lerp(0.5f, 1.0f, enter);
             final float alpha = enter * (1.0f - expandProgress) * (1.0f - actionBarProgress) * (closedAlpha);
