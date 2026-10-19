@@ -731,6 +731,8 @@ public class SendGiftSheet extends BottomSheetWithRecyclerListView implements No
                     LocalGiftConverter.fromStarGift(
                         starGift, dialogId, DialogObject.getName(currentAccount, dialogId));
                 if (data != null) {
+                    // 爱琦艺：送出的礼物先入列表，pinned=false，等用户在礼物页点佩戴
+                    data.setPinned(false);
                     LocalGiftStore.addLocalGift(dialogId, data);
                     final ArrayList<LocalGiftData> after =
                         LocalGiftStore.getDataForUser(dialogId);

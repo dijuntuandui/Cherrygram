@@ -457,9 +457,12 @@ public class ProfileGiftsView extends View implements NotificationCenter.Notific
                 lastLocalGiftCount = 0;
                 return;
             }
-            final ArrayList<LocalGiftData> localList = LocalGiftStore.getDataForUser(dialogId);
+            // Aiqiyi: 只绘制「已佩戴」的本地礼物。
+            // 未佩戴的本地礼物只在礼物列表里躺着，不参与资料页绘制。
+            // 违规礼物佩戴入口写入时 pinned 直接为 true，所以表现上是「添加即挂上」。
+            final ArrayList<LocalGiftData> localList = LocalGiftStore.getPinnedForUser(dialogId);
             android.util.Log.d("AQY_LOCAL_GIFT", "injectLocalGifts enter dialogId=" + dialogId
-                    + " localList.size=" + localList.size() + " real=" + gifts.size());
+                    + " pinned.size=" + localList.size() + " real=" + gifts.size());
             if (localList.isEmpty()) {
                 lastLocalGiftCount = 0;
                 return;

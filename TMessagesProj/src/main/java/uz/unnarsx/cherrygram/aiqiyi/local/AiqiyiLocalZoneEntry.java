@@ -365,6 +365,8 @@ public class AiqiyiLocalZoneEntry extends BaseCGPreferencesEntry {
                     data.setLocalStyle(false);
                 }
                 data.setPatternDocumentId(0);
+                // 爱琦艺：违规礼物佩戴入口 —— 写入即佩戴，直接挂到资料页名字下方
+                data.setPinned(true);
                 LocalGiftStore.addLocalGift(userId, data);
                 listView.adapter.update(true);
             } catch (Exception ignored) {

@@ -1190,8 +1190,117 @@ public class StarGiftSheet extends BottomSheetWithRecyclerListView implements No
         return this;
     }
 
+    /**
+     * Aiqiyi：判断某个 collectibleId 是否为本地虚拟礼物。
+     *
+     * LocalGiftStore.nextLocalGiftId() 从 -1 开始往下递减分配（-1, -2, -3...），
+     * 服务端真实礼物的 id 恒为正数，所以 id < 0 即为本地礼物。
+     */
+    public static boolean aiqiyiIsLocalGiftId(long collectibleId) {
+        return collectibleId < 0L;
+    }
+
+    /**
+     * Aiqiyi：本地礼物是否处于「已佩戴」状态（显示在名字下方）。
+     */
+    public static boolean aiqiyiIsLocalGiftPinned(long collectibleId, long dialogId) {
+        try {
+            if (!aiqiyiIsLocalGiftId(collectibleId)) return false;
+            final uz.unnarsx.cherrygram.core.helpers.localdata.LocalGiftData d =
+                uz.unnarsx.cherrygram.core.helpers.localdata.LocalGiftStore.findLocalGift(dialogId, collectibleId);
+            return d != null && d.getPinned();
+        } catch (Throwable t) {
+            FileLog.e("Aiqiyi local gift pinned check failed", t);
+            return false;
+        }
+    }
+
+    /**
+     * Aiqiyi：切换本地礼物的佩戴状态。
+     *
+     * @return true 表示这是本地礼物且已处理，调用方应直接 return，不再走官方 updateEmojiStatus。
+     */
+    private boolean aiqiyiToggleLocalGiftWear(TL_stars.TL_starGiftUnique gift) {
+        try {
+            if (gift == null || !aiqiyiIsLocalGiftId(gift.id)) return false;
+            long did = 0;
+            try { did = getDialogId(); } catch (Throwable ignore) {}
+            if (did == 0) did = dialogId;
+            if (did == 0 && savedStarGift != null && savedStarGift.gift != null
+                    && savedStarGift.gift.owner_id != null) {
+                try { did = DialogObject.getPeerDialogId(savedStarGift.gift.owner_id); } catch (Throwable ignore) {}
+            }
+            if (did == 0) did = UserConfig.getInstance(currentAccount).getClientUserId();
+            // 先按解析出的 did 找；找不到再全量扫一遍（本地礼物数量很少，开销可忽略）
+            uz.unnarsx.cherrygram.core.helpers.localdata.LocalGiftData d =
+                uz.unnarsx.cherrygram.core.helpers.localdata.LocalGiftStore.findLocalGift(did, gift.id);
+            if (d == null && did != UserConfig.getInstance(currentAccount).getClientUserId()) {
+                final long me = UserConfig.getInstance(currentAccount).getClientUserId();
+                d = uz.unnarsx.cherrygram.core.helpers.localdata.LocalGiftStore.findLocalGift(me, gift.id);
+                if (d != null) did = me;
+            }
+            if (d == null) {
+                FileLog.e("Aiqiyi local gift wear: data not found, id=" + gift.id + " did=" + did);
+                return false;
+            }
+            final boolean nowPinned = !d.getPinned();
+            uz.unnarsx.cherrygram.core.helpers.localdata.LocalGiftStore.setPinned(did, gift.id, nowPinned);
+            android.util.Log.d("AQY_LOCAL_GIFT", "toggleLocalWear id=" + gift.id
+                + " did=" + did + " pinned=" + nowPinned);
+
+            try {
+                if (topView != null && topView.buttons != null && topView.buttons.length > 1) {
+                    topView.buttons[1].set(
+                        nowPinned ? R.drawable.filled_crown_off : R.drawable.filled_crown_on,
+                        getString(nowPinned ? R.string.Gift2ActionWearOff : R.string.Gift2ActionWear),
+                        true);
+                }
+            } catch (Throwable ignore) {}
+
+            final Runnable showHint = () -> showHint(
+                AndroidUtilities.replaceTags(formatString(
+                    nowPinned ? R.string.Gift2ActionWearDone : R.string.Gift2ActionWearOffDone,
+                    getGiftName())),
+                ownerTextView, true);
+            if (currentPage.is(PAGE_INFO)) {
+                showHint.run();
+            } else {
+                switchPage(PAGE_INFO, true, showHint);
+            }
+            button.setText(getString(R.string.OK), !firstSet);
+            button.setSubText(null, !firstSet);
+            button.setOnClickListener(v -> onBackPressed());
+            return true;
+        } catch (Throwable t) {
+            FileLog.e("Aiqiyi toggleLocalWear failed", t);
+            return false;
+        }
+    }
+
     public static boolean isWorn(int currentAccount, TL_stars.TL_starGiftUnique gift) {
         if (gift == null) return false;
+        // Aiqiyi: 本地礼物不看服务端 emoji_status，看本地 pinned 标记。
+        // 注意：本地礼物的 owner_id 可能为空，先判空再用，避免 getPeerDialogId(null) 崩。
+        if (aiqiyiIsLocalGiftId(gift.id)) {
+            long did = 0;
+            try {
+                if (gift.owner_id != null) {
+                    did = DialogObject.getPeerDialogId(gift.owner_id);
+                } else if (gift.host_id != null) {
+                    did = DialogObject.getPeerDialogId(gift.host_id);
+                }
+            } catch (Throwable ignore) {}
+            if (did == 0) {
+                try { did = UserConfig.getInstance(currentAccount).getClientUserId(); } catch (Throwable ignore) {}
+            }
+            if (did != 0 && aiqiyiIsLocalGiftPinned(gift.id, did)) return true;
+            // 兜底：自己那份里再找一次（本地礼物通常挂在自己名下）
+            try {
+                final long me = UserConfig.getInstance(currentAccount).getClientUserId();
+                if (me != 0 && me != did && aiqiyiIsLocalGiftPinned(gift.id, me)) return true;
+            } catch (Throwable ignore) {}
+            return false;
+        }
         final long dialogId = gift.owner_id != null ? DialogObject.getPeerDialogId(gift.owner_id) : DialogObject.getPeerDialogId(gift.host_id);
         if (dialogId == 0) return false;
         if (dialogId > 0) {
@@ -1216,6 +1325,11 @@ public class StarGiftSheet extends BottomSheetWithRecyclerListView implements No
     public void toggleWear(boolean checkedLevel) {
         final TL_stars.TL_starGiftUnique gift = getUniqueGift();
         if (gift == null) return;
+        // Aiqiyi: 本地礼物独立分支 —— 只切 pinned，不碰服务端 updateEmojiStatus，
+        // 也不要求 Premium（本地礼物就是给非会员挂的）
+        if (aiqiyiToggleLocalGiftWear(gift)) {
+            return;
+        }
         MessagesController.getGlobalMainSettings().edit().putInt("statusgiftpage", 3).apply();
         final boolean worn = !isWorn(currentAccount, getUniqueGift());
         if (isWorn(currentAccount, getUniqueGift())) {
@@ -7074,6 +7188,8 @@ public class StarGiftSheet extends BottomSheetWithRecyclerListView implements No
                 FileLog.e("Aiqiyi C4 unique: converter returned null, giftId=" + gift.id);
                 return false;
             }
+            // 爱琦艺：购买入列表，pinned=false —— 由用户在礼物页点「佩戴」后才显示在名字下方
+            data.setPinned(false);
             uz.unnarsx.cherrygram.core.helpers.localdata.LocalGiftStore.addLocalGift(to, data);
             uz.unnarsx.cherrygram.core.helpers.localdata.LocalGiftStore.notifyChanged(to);
             android.util.Log.d("AQY_LOCAL_GIFT", "C4 unique buy ok: giftId=" + gift.id

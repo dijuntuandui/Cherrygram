@@ -114,7 +114,18 @@ data class LocalGiftData(
 
     /** 图案 Document 的序列化数据（base64，用于本地还原图案） */
     @SerializedName("patternDocumentData")
-    var patternDocumentData: String? = null
+    var patternDocumentData: String? = null,
+    /**
+     * 爱琦艺：是否已佩戴。
+     *
+     * true  = 显示在资料页名字下方（用户点佩戴后置为 true）
+     * false = 只在礼物列表里躺着，不参与资料页绘制
+     *
+     * 违规礼物佩戴入口写入时为 true（直接挂上，不需手动点）。
+     * 典藏购买/送礼写入时为 false，等用户在图一/图二点佩戴。
+     */
+    @SerializedName("pinned")
+    var pinned: Boolean = false
 
 ) {
     companion object {

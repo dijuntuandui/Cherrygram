@@ -124,6 +124,54 @@ object LocalGiftStore {
     }
 
     /**
+     * 爱琦艺：按 collectibleId 查一条本地礼物数据
+     */
+    @JvmStatic
+    fun findLocalGift(userId: Long, collectibleId: Long): LocalGiftData? {
+        if (collectibleId == 0L) return null
+        return try {
+            getDataForUser(userId).firstOrNull { it.collectibleId == collectibleId }
+        } catch (e: Exception) {
+            FileLog.e("LocalGiftStore findLocalGift failed", e)
+            null
+        }
+    }
+
+    /**
+     * 爱琦艺：设置某条本地礼物是否佩戴（显示在资料页名字下方）
+     *
+     * @return 是否找到并修改成功
+     */
+    @JvmStatic
+    fun setPinned(userId: Long, collectibleId: Long, pinned: Boolean): Boolean {
+        return try {
+            val list = getDataForUser(userId)
+            val target = list.firstOrNull { it.collectibleId == collectibleId } ?: return false
+            if (target.pinned == pinned) return true
+            target.pinned = pinned
+            saveData(userId, list)
+            notifyChanged(userId)
+            true
+        } catch (e: Exception) {
+            FileLog.e("LocalGiftStore setPinned failed", e)
+            false
+        }
+    }
+
+    /**
+     * 爱琦艺：取某个用户所有已佩戴的本地礼物（按添加顺序）
+     */
+    @JvmStatic
+    fun getPinnedForUser(userId: Long): MutableList<LocalGiftData> {
+        return try {
+            getDataForUser(userId).filter { it.pinned }.toMutableList()
+        } catch (e: Exception) {
+            FileLog.e("LocalGiftStore getPinnedForUser failed", e)
+            mutableListOf()
+        }
+    }
+
+    /**
      * 按 collectibleId 移除
      */
     @JvmStatic
