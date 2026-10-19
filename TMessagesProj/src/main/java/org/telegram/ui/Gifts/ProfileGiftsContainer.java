@@ -665,8 +665,21 @@ public class ProfileGiftsContainer extends FrameLayout implements NotificationCe
         public void fillItems(ArrayList<UItem> items, UniversalAdapter adapter) {
             if (list == null)
                 return;
-            if (list.hasFilters() && list.gifts.size() <= 0 && list.endReached && !list.loading)
-                return;
+            if (list.hasFilters() && list.gifts.size() <= 0 && list.endReached && !list.loading) {
+                // Aiqiyi: 服务器没有礼物但本地有，仍然要渲染本地礼物，不能提前返回
+                boolean aiqiyiHasLocal = false;
+                try {
+                    final long aiqiyiSelfId = UserConfig.getInstance(currentAccount).getClientUserId();
+                    aiqiyiHasLocal = parent != null && parent.dialogId == aiqiyiSelfId
+                            && !isCollection && list == parent.list
+                            && AiqiyiLocalDataConfig.INSTANCE.getLocalGiftEnabled()
+                            && AiqiyiLocalDataConfig.INSTANCE.getLocalGiftShowInList()
+                            && LocalGiftStore.hasLocalGifts(aiqiyiSelfId);
+                } catch (Throwable ignore) {}
+                if (!aiqiyiHasLocal) {
+                    return;
+                }
+            }
             final int spanCount = Math.max(1, list == null || list.totalCount == 0 ? 3 : Math.min(3, list.totalCount));
             if (list != null) {
                 int spanCountLeft = 3;
@@ -784,10 +797,6 @@ public class ProfileGiftsContainer extends FrameLayout implements NotificationCe
             if (view instanceof GiftSheet.GiftCell && item.object instanceof TL_stars.SavedStarGift) {
                 final GiftSheet.GiftCell cell = (GiftSheet.GiftCell) view;
                 final TL_stars.SavedStarGift savedStarGift = (TL_stars.SavedStarGift) item.object;
-                // Aiqiyi: 本地礼物长按 -> 只给「删除本地记录」一个选项，不进原版菜单
-                if (aiqiyiShowLocalGiftMenu(savedStarGift, view)) {
-                    return true;
-                }
                 final ItemOptions o = ItemOptions.makeOptions(parent.fragment, view, true);
                 parent.currentMenu = o;
                 if (parent.collections.isMine() && (isCollection || parent.collections.getCollections().size() > 0 || true)) {
@@ -894,7 +903,9 @@ public class ProfileGiftsContainer extends FrameLayout implements NotificationCe
                     o.addGap();
                 }
                 if (savedStarGift.gift instanceof TL_stars.TL_starGiftUnique) {
-                    if (parent.canReorder() && !isCollection && (!savedStarGift.unsaved || !savedStarGift.pinned_to_top)) {
+                    // Aiqiyi: 本地礼物不显示「置顶」——togglePinned 会走服务器，找不到记录必失败
+                    final boolean aiqiyiLocalGift = StarGiftSheet.aiqiyiIsLocalGiftId(((TL_stars.TL_starGiftUnique) savedStarGift.gift).id);
+                    if (!aiqiyiLocalGift && parent.canReorder() && !isCollection && (!savedStarGift.unsaved || !savedStarGift.pinned_to_top)) {
                         o.add(savedStarGift.pinned_to_top ? R.drawable.msg_unpin : R.drawable.msg_pin, savedStarGift.pinned_to_top ? getString(R.string.Gift2Unpin) : getString(R.string.Gift2Pin), () -> {
                             if (savedStarGift.unsaved) {
                                 savedStarGift.unsaved = false;
@@ -942,7 +953,9 @@ public class ProfileGiftsContainer extends FrameLayout implements NotificationCe
                     } else {
                         link = null;
                     }
-                    if (isMineWithActions(currentAccount, DialogObject.getPeerDialogId(gift.owner_id))) {
+                    // Aiqiyi: 本地礼物 owner_id 缺失也要出「佩戴」入口
+                    final boolean aiqiyiWearLocal = StarGiftSheet.aiqiyiIsLocalGiftId(gift.id);
+                    if (aiqiyiWearLocal || isMineWithActions(currentAccount, DialogObject.getPeerDialogId(gift.owner_id))) {
                         final boolean worn = StarGiftSheet.isWorn(currentAccount, gift);
                         o.add(worn ? R.drawable.menu_takeoff : R.drawable.menu_wear, getString(worn ? R.string.Gift2Unwear : R.string.Gift2Wear), () -> {
                             new StarGiftSheet(getContext(), currentAccount, parent.dialogId, resourcesProvider) {

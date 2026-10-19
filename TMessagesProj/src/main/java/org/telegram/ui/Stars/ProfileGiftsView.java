@@ -430,15 +430,21 @@ public class ProfileGiftsView extends View implements NotificationCenter.Notific
                     final int up = gifts.get(i).position;
                     if (up >= 0) aiqiyiFree.remove((Object) up);
                 }
+                int aiqiyiDup = 0;
                 for (int i = 0; i < localGifts.size(); i++) {
                     final Gift lg = localGifts.get(i);
                     if (lg.position >= 0) continue;
                     if (!aiqiyiFree.isEmpty()) {
                         lg.position = aiqiyiFree.remove(0);
                     } else {
-                        // 官方礼物占满了全部槽位：复用 0..maxCount-1，保证本地礼物仍可见
-                        lg.position = i % maxCount;
+                        // 槽位已满：不再覆盖官方礼物，本地礼物不显示（在列表里保持已佩戴状态）
+                        lg.position = -2;
+                        aiqiyiDup++;
                     }
+                }
+                if (aiqiyiDup > 0) {
+                    android.util.Log.d("AQY_LOCAL_GIFT", "slots full, hidden local=" + aiqiyiDup
+                            + " real=" + gifts.size() + " max=" + maxCount);
                 }
                 final StringBuilder sb = new StringBuilder();
                 for (int i = 0; i < localGifts.size(); i++) sb.append(localGifts.get(i).position).append(',');
@@ -495,9 +501,19 @@ public class ProfileGiftsView extends View implements NotificationCenter.Notific
                 lastLocalGiftCount = 0;
                 return;
             }
-            // Aiqiyi: 本地礼物独立分支，不受佩戴区 maxCount 限制。
-            // 佩戴区排满时照样画，互不影响。
-            for (int i = 0; i < localList.size(); i++) {
+            // Aiqiyi: 与官方佩戴区共用同一批槽位，上限 maxCount（官方默认 6）。
+            // 官方礼物优先占位，本地礼物只能补剩余空槽；槽位满了多出来的本地礼物不画。
+            final int aiqiyiRealCount = gifts.size();
+            final int aiqiyiRoom = Math.max(0, maxCount - aiqiyiRealCount);
+            if (aiqiyiRoom <= 0) {
+                android.util.Log.d("AQY_LOCAL_GIFT", "injectLocalGifts: no free slot, real=" + aiqiyiRealCount + " max=" + maxCount);
+                lastLocalGiftCount = 0;
+                return;
+            }
+            final int aiqiyiLimit = Math.min(localList.size(), aiqiyiRoom);
+            android.util.Log.d("AQY_LOCAL_GIFT", "injectLocalGifts slots: real=" + aiqiyiRealCount
+                    + " room=" + aiqiyiRoom + " willDraw=" + aiqiyiLimit + " of " + localList.size());
+            for (int i = 0; i < aiqiyiLimit; i++) {
                 final LocalGiftData data = localList.get(i);
                 final TLRPC.EmojiStatus status = LocalGiftConverter.toStatus(data);
                 if (!(status instanceof TLRPC.TL_emojiStatusCollectible)) {
@@ -593,6 +609,10 @@ public class ProfileGiftsView extends View implements NotificationCenter.Notific
         aiqiyiAllDraw.addAll(localGifts);
         for (int i = 0; i < aiqiyiAllDraw.size(); ++i) {
             final Gift gift = aiqiyiAllDraw.get(i);
+            // Aiqiyi: position == -2 表示槽位已被官方礼物占满，按容量规则不绘制。
+            if (gift.position == -2) {
+                continue;
+            }
             // Aiqiyi: 兜底，避免任何路径漏初始化导致 NPE 崩掉主页
             if (gift.animatedFloat == null) {
                 gift.animatedFloat = new AnimatedFloat(this, 0, 320, null);
@@ -609,6 +629,7 @@ public class ProfileGiftsView extends View implements NotificationCenter.Notific
             // 按它在 localGifts 里的顺序取模，保证仍然落在官方那六个环绕点上。
             int aiqiyiPos = gift.position;
             if (aiqiyiPos < 0) {
+                // 只有「未分配」(-1) 才走兜底；-2 已在上面 continue 掉
                 final int li = localGifts.indexOf(gift);
                 aiqiyiPos = li >= 0 ? (li % Math.max(maxCount, 6)) : 0;
             }
