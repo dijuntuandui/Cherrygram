@@ -445,7 +445,7 @@ public class ProfileGiftsView extends View implements NotificationCenter.Notific
                 android.util.Log.d("AQY_LOCAL_GIFT", "local positions=" + sb + " maxCount=" + maxCount);
             }
         } catch (Throwable t) {
-            FileLog.e("Aiqiyi assign local positions failed", t);
+            org.telegram.messenger.FileLog.e("Aiqiyi assign local positions failed", t);
         }
 
         if (changed)
