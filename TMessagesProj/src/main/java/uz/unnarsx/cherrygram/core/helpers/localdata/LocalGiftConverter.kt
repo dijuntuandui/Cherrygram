@@ -125,7 +125,7 @@ object LocalGiftConverter {
         val catalog = findCatalogGift(data.catalogGiftId)
 
         // --- 基础标识 ---
-        unique.id = if (data.collectibleId != 0L) data.collectibleId else -abs(data.catalogGiftId)
+        unique.id = if (data.collectibleId != 0L) data.collectibleId else -kotlin.math.abs(data.catalogGiftId)
         unique.gift_id = data.catalogGiftId
         unique.title = data.title
         unique.slug = data.slug
