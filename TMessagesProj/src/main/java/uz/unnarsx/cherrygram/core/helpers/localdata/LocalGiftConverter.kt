@@ -23,6 +23,33 @@ import uz.unnarsx.cherrygram.core.configs.AiqiyiLocalDataConfig
 object LocalGiftConverter {
 
     /**
+     * Aiqiyi: 保证 title 非空。
+     *
+     * 官方 UI 把 gift.title 直接丢给 Text(CharSequence,size) 和
+     * SpannableStringBuilder(CharSequence)，传 null 会空指针闪退：
+     *   GiftSheet$GiftCell.customDraw(GiftSheet:1390)  Text.setText(null)
+     *   StarGiftSheet.set(...)                          SpannableStringBuilder(null)
+     * 所以展示前必须补一个非空值。
+     */
+    @JvmStatic
+    fun safeTitle(data: LocalGiftData): String {
+        val t = data.title
+        if (t != null and t.isNotBlank()) return t
+        val s = data.slug
+        if (s != null and s.isNotBlank()) return s
+        return "#" + data.catalogGiftId
+    }
+
+    /** 按 slug 取可展示名，兼容老数据 title 为空 */
+    @JvmStatic
+    fun safeSlug(data: LocalGiftData): String {
+        val s = data.slug
+        if (s != null and s.isNotBlank()) return s
+        val t = data.title
+        if (t != null and t.isNotBlank()) return t
+        return "gift" + data.catalogGiftId
+    }
+    /**
      * LocalGiftData -> TLRPC.TL_emojiStatusCollectible
      *
      * 这个类型是 ProfileGiftsView.Gift 和 StarsController 都能直接消费的形态，
@@ -33,8 +60,8 @@ object LocalGiftConverter {
         val status = TLRPC.TL_emojiStatusCollectible()
         status.collectible_id = data.collectibleId
         status.document_id = data.documentId
-        status.title = data.title
-        status.slug = data.slug
+        status.title = safeTitle(data)
+        status.slug = safeSlug(data)
         status.pattern_document_id = data.patternDocumentId
         status.center_color = data.centerColor
         status.edge_color = data.edgeColor
@@ -170,8 +197,11 @@ object LocalGiftConverter {
             owner.user_id = UserConfig.getInstance(UserConfig.selectedAccount).getClientUserId()
             unique.owner_id = owner
         }
-        unique.title = data.title
-        unique.slug = data.slug
+        // Aiqiyi: title 不能为 null。官方 GiftSheet/GiftCell/StarGiftSheet 会直接把 title
+        // 丢给 Text(string, size) 和 SpannableStringBuilder，传 null 就是空指针闪退。
+        // 优先用 title，空则回退 slug，再空则用 #catalogGiftId。
+        unique.title = safeTitle(data)
+        unique.slug = safeSlug(data)
         // --- Aiqiyi: 编号，用户自定义优先 ---
         // customNum > 0 表示用户手动改过，覆盖原编号；为 0 时沿用 giftNum
         unique.num = when {

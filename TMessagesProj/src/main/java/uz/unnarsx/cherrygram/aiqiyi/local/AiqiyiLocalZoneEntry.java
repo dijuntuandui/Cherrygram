@@ -339,8 +339,9 @@ public class AiqiyiLocalZoneEntry extends BaseCGPreferencesEntry {
             final TL_stars.StarGift g = refs.get(which);
             try {
                 final LocalGiftData data = new LocalGiftData();
-                data.setTitle(g.title);
-                data.setSlug(g.slug);
+                // Aiqiyi: title 强保证非空。官方 GiftCell.customDraw 会 new Text(gift.title)，传 null 就是空指针闪退。
+                data.setTitle(android.text.TextUtils.isEmpty(g.title) ? label : g.title);
+                data.setSlug(android.text.TextUtils.isEmpty(g.slug) ? ("gift" + g.id) : g.slug);
                 data.setCatalogGiftId(g.id);
                 data.setDocumentId(g.sticker == null ? 0 : g.sticker.id);
                 data.setSenderName(getString(R.string.AQY_LocalGift_SenderSelf));
