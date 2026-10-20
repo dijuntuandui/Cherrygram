@@ -4487,7 +4487,11 @@ public class StarGiftSheet extends BottomSheetWithRecyclerListView implements No
         }
 
         if (!(roller != null && roller.isRolling())) {
-            if (!isMine(currentAccount, DialogObject.getPeerDialogId(gift.owner_id)) && gift.resell_amount != null) {
+            // Aiqiyi: 本地礼物不得走转售购买分支。
+            // 旧数据的 owner_id / resell_amount 是从商店目录直接拷来的原值，
+            // 导致被误判成「他人在售」，底部出现「25,000 Gram 购买」。
+            final boolean aiqiyiLocal = aiqiyiIsLocalGiftId(gift.id);
+            if (!aiqiyiLocal && !isMine(currentAccount, DialogObject.getPeerDialogId(gift.owner_id)) && gift.resell_amount != null) {
                 button.setFilled(true);
                 setButtonTextResale(gift);
                 button.setOnClickListener(v -> onBuyPressed());
