@@ -123,7 +123,7 @@ object LocalGiftStore {
     ) {
         try {
             val f = org.telegram.messenger.FileLoader.getInstance(UserConfig.selectedAccount)
-                .getPathToAttachedFile(doc.dc_id, docId, null, true)
+                .getPathToAttach(doc, true)
             if (f == null || !f.exists() || f.length() <= 0L) {
                 scheduleDecodeAfterDownload(doc, docId)
                 return
@@ -141,7 +141,7 @@ object LocalGiftStore {
             org.telegram.messenger.AndroidUtilities.runOnUIThread({
                 try {
                     val f = org.telegram.messenger.FileLoader.getInstance(account)
-                        .getPathToAttachedFile(doc.dc_id, docId, null, true)
+                        .getPathToAttach(doc, true)
                     if (f != null && f.exists() && f.length() > 0L) {
                         decodeFileIntoCache(
                             org.telegram.messenger.ImageLoader.getInstance(),
@@ -165,8 +165,8 @@ object LocalGiftStore {
             val opts = android.graphics.BitmapFactory.Options()
             opts.inPreferredConfig = android.graphics.Bitmap.Config.ARGB_8888
             val bmp = android.graphics.BitmapFactory.decodeFile(absPath, opts) ?: return
-            val key = "" + docId + "@" + doc.dc_id
-            imageLoader.putImageToCache(bmp, key)
+            val key = "" + doc.dc_id + "_" + docId
+            imageLoader.putImageToCache(android.graphics.drawable.BitmapDrawable(org.telegram.messenger.ApplicationLoader.applicationContext.getResources(), bmp), key, false)
             if (org.telegram.messenger.BuildVars.LOGS_ENABLED) {
                 org.telegram.messenger.FileLog.d("AQY prefetch cached doc=" + docId + " key=" + key)
             }
