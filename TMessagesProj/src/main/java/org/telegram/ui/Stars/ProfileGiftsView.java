@@ -142,10 +142,14 @@ public class ProfileGiftsView extends View implements NotificationCenter.Notific
         NotificationCenter.getInstance(currentAccount).addObserver(this, NotificationCenter.aiqiyiLocalGiftUpdated);
 
         for (Gift gift : gifts) {
-            gift.emojiDrawable.addView(this);
+            if (gift.emojiDrawable != null) gift.emojiDrawable.addView(this);
         }
 
         update();
+        // Aiqiyi: update() 里才生成 localGifts，必须在此之后补挂图片，否则只剩色块。
+        for (Gift gift : localGifts) {
+            if (gift.emojiDrawable != null) gift.emojiDrawable.addView(this);
+        }
     }
 
     @Override
@@ -156,8 +160,12 @@ public class ProfileGiftsView extends View implements NotificationCenter.Notific
         // Aiqiyi: 移除本地礼物监听
         NotificationCenter.getInstance(currentAccount).removeObserver(this, NotificationCenter.aiqiyiLocalGiftUpdated);
 
+        // Aiqiyi: 同步解绑本地礼物 emojiDrawable
+        for (Gift gift : localGifts) {
+            if (gift.emojiDrawable != null) gift.emojiDrawable.removeView(this);
+        }
         for (Gift gift : gifts) {
-            gift.emojiDrawable.removeView(this);
+            if (gift.emojiDrawable != null) gift.emojiDrawable.removeView(this);
         }
     }
 
@@ -473,6 +481,19 @@ public class ProfileGiftsView extends View implements NotificationCenter.Notific
                 }
             });
         }
+        // Aiqiyi: update() 所有出口统一补挂 drawable。
+        // 原先只在 isAttachedToWindow() 为真时 addView，但 update() 常发生在视图 attach 之前，
+        // 导致本地礼物图案永远画不出来（只剩色块）。addView 幂等，重复调用无副作用。
+        if (isAttachedToWindow()) {
+            for (int i = 0; i < gifts.size(); i++) {
+                final Gift g = gifts.get(i);
+                if (g.emojiDrawable != null) g.emojiDrawable.addView(this);
+            }
+            for (int i = 0; i < localGifts.size(); i++) {
+                final Gift g = localGifts.get(i);
+                if (g.emojiDrawable != null) g.emojiDrawable.addView(this);
+            }
+        }
     }
 
     /**
@@ -741,4 +762,4 @@ public class ProfileGiftsView extends View implements NotificationCenter.Notific
     public void onGiftClick(Gift gift) {
         Browser.openUrl(getContext(), "https://t.me/nft/" + gift.slug);
     }
-}
+            }

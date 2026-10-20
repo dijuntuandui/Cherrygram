@@ -174,18 +174,8 @@ object LocalGiftConverter {
         }
 
         // --- 贴纸（图案本体）：本地 documentId 优先，退回目录 ---
-        // Aiqiyi: documentId 可能脏掉（老数据迁移 / 修复过程里被写成同一个），
-        // 导致头像周围六个位置颜色各异但图案全是同一只。
-        // 策略：目录里能按 title 找到对应礼物时，以目录图案为准；
-        // 目录找不到再退回本地 documentId。
-        val catalogDoc = catalog?.getDocument()
-        var doc = if (catalogDoc != null && catalog != null && !data.title.isNullOrEmpty()
-                && !catalog.title.isNullOrEmpty()
-                && data.title.equals(catalog.title, ignoreCase = true)) {
-            catalogDoc
-        } else {
-            findDocument(data.documentId)
-        }
+        // Aiqiyi: sticker 取图优先级：本地 documentId -> 目录（catalogGiftId 命中 / title 兜底）
+        var doc = findDocument(data.documentId)
         if (doc == null && catalog != null) {
             doc = catalog.getDocument()
         }
