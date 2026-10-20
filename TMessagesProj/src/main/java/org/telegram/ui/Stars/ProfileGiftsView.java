@@ -99,7 +99,6 @@ public class ProfileGiftsView extends View implements NotificationCenter.Notific
         invalidate();
     }
 
-
     private float left, right, cy;
     private float expandY, maxExpandY;
     private final AnimatedFloat rightAnimated = new AnimatedFloat(this, 0, 350, CubicBezierInterpolator.EASE_OUT_QUINT);
@@ -592,7 +591,6 @@ public class ProfileGiftsView extends View implements NotificationCenter.Notific
     /** Aiqiyi: 本地礼物每行个数（对齐官方九宫格风格，一行三个） */
     private static final int LOCAL_PER_ROW = 3;
 
-
     private final TimeInterpolator giftCollapseXInterpolator = new DecelerateInterpolator();
     private final TimeInterpolator giftCollapseYInterpolator = new LinearInterpolator();
 
@@ -610,7 +608,6 @@ public class ProfileGiftsView extends View implements NotificationCenter.Notific
         final float ay = Math.max(realY, (maxExpandY - sz) / 2f);
         final float aw = Math.max(realW, sz);
         final float ah = Math.max(realH, sz);
-
 
         canvas.save();
         canvas.clipRect(0, 0, getWidth(), expandY);
@@ -760,6 +757,61 @@ public class ProfileGiftsView extends View implements NotificationCenter.Notific
     }
 
     public void onGiftClick(Gift gift) {
+        // Aiqiyi: 本地虚拟礼物没有真实 NFT，直接跳 t.me/nft/<slug> 会打开别人的官方礼物页
+        // （如图中 Amirhosein 的 Resistance Dog #4,692）。这里先按 collectibleId 反查本地数据，
+        // 命中就走本地详情卡 StarGiftSheet，未命中才是真正的官方礼物，才跳浏览器。
+        if (aiqiyiOpenLocalGift(gift)) {
+            return;
+        }
         Browser.openUrl(getContext(), "https://t.me/nft/" + gift.slug);
     }
+
+    /** Aiqiyi: 本地礼物详情。命中返回 true，未命中返回 false。 */
+    private boolean aiqiyiOpenLocalGift(Gift gift) {
+        try {
+            final long selfId = UserConfig.getInstance(currentAccount).getClientUserId();
+            if (!uz.unnarsx.cherrygram.core.helpers.localdata.LocalGiftStore.INSTANCE.hasLocalGifts(selfId)) {
+                return false;
             }
+            final java.util.ArrayList<uz.unnarsx.cherrygram.core.helpers.localdata.LocalGiftData> data =
+                    uz.unnarsx.cherrygram.core.helpers.localdata.LocalGiftStore.INSTANCE.getDataForUser(selfId);
+            if (data == null || data.isEmpty()) {
+                return false;
+            }
+            uz.unnarsx.cherrygram.core.helpers.localdata.LocalGiftData hit = null;
+            for (int i = 0; i < data.size(); i++) {
+                final uz.unnarsx.cherrygram.core.helpers.localdata.LocalGiftData d = data.get(i);
+                if (d.getCollectibleId() == gift.id) {
+                    hit = d;
+                    break;
+                }
+            }
+            if (hit == null && gift.slug != null) {
+                for (int i = 0; i < data.size(); i++) {
+                    final uz.unnarsx.cherrygram.core.helpers.localdata.LocalGiftData d = data.get(i);
+                    if (gift.slug.equals(d.getSlug())) {
+                        hit = d;
+                        break;
+                    }
+                }
+            }
+            if (hit == null) {
+                return false;
+            }
+            final android.content.Context ctx = getContext();
+            if (ctx == null) {
+                return false;
+            }
+            final TL_stars.SavedStarGift saved =
+                    uz.unnarsx.cherrygram.core.helpers.localdata.LocalGiftConverter.toSavedGift(hit, true);
+            new org.telegram.ui.Stars.StarGiftSheet(ctx, currentAccount, selfId, resourcesProvider)
+                    .set(saved, null)
+                    .show();
+            return true;
+        } catch (Throwable t) {
+            org.telegram.messenger.FileLog.e("Aiqiyi aiqiyiOpenLocalGift failed", t);
+            return false;
+        }
+    }
+
+}
