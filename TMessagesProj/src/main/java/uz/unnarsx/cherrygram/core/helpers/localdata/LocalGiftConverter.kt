@@ -224,6 +224,14 @@ object LocalGiftConverter {
         if (doc == null) {
             doc = borrowDocumentBySlug(data.slug)
         }
+        // Aiqiyi: 第 4 层兜底 —— 按哈希到父目录找图。
+        // 上面三层都在「找 Document 对象」，找不到就完全没图。
+        // 但只要当初买的时候 preloadGiftFiles 下载过，文件就躺在
+        // MEDIA_DIR_CACHE 里（文件名 dc_id_id，id 就是哈希），
+        // 这时用 documentId 造一个最小的 Document 顶上即可。
+        if (doc == null && data.documentId != 0L) {
+            doc = findDocumentByCachedFile(data.documentId)
+        }
         unique.sticker = doc
 
         // --- 价格：目录优先，本地兜底 ---
@@ -293,6 +301,138 @@ object LocalGiftConverter {
     }
 
     /**
+     * Aiqiyi: 买礼物时，把贴纸和 pattern 文档「真的下到磁盘」。
+     *
+     * 为什么不能只靠 findDocument：它只查内存里的 emoji 文档缓存，
+     * 重启就没了，而且很多目录礼物的文档压根没被 pull 过。
+     * 这里直接走 FileLoader.loadFile，文件落进 MEDIA_DIR_CACHE，
+     * 文件名天然是 "dc_id_id"（document.id 就是哈希），
+     * 于是「按哈希到父目录找图」这件事，系统自己就替我们做了。
+     *
+     * 调用点在购买落库那一刻，属于用户主动操作，不额外偷跑流量。
+     */
+    @JvmStatic
+    fun preloadGiftFiles(data: LocalGiftData) {
+        try {
+            val account = UserConfig.selectedAccount
+            val loader = org.telegram.messenger.FileLoader.getInstance(account)
+            // 贴纸
+            val sticker = findDocument(data.documentId)
+                ?: runCatching {
+                    findCatalogGift(data.catalogGiftId)?.let {
+                        StarsController.findAttribute(it.attributes, TL_stars.starGiftAttributeModel::class.java)?.document
+                    }
+                }.getOrNull()
+            if (sticker != null) {
+                data.documentId = sticker.id
+                val f = loader.getPathToAttach(sticker, true)
+                if (f == null || !f.exists() || f.length() <= 0) {
+                    loader.loadFile(sticker, null, org.telegram.messenger.FileLoader.PRIORITY_NORMAL, 0)
+                }
+            }
+            // 底图 pattern
+            val patDoc = resolvePatternDocument(data)
+            if (patDoc != null && patDoc.id != 0L) {
+                persistPatternDocument(data, patDoc)
+                val pf = loader.getPathToAttach(patDoc, true)
+                if (pf == null || !pf.exists() || pf.length() <= 0) {
+                    loader.loadFile(patDoc, null, org.telegram.messenger.FileLoader.PRIORITY_LOW, 0)
+                }
+            }
+        } catch (e: Throwable) {
+            FileLog.e("LocalGiftConverter preloadGiftFiles failed", e)
+        }
+    }
+
+    /**
+     * Aiqiyi: 按哈希到父目录找图。找到就返回本地文件，找不到返回 null。
+     *
+     * 这条路径完全绕开 findDocument / 内存缓存：
+     * 只要当初下载过，文件就一直在 MEDIA_DIR_CACHE 里，
+     * 文件名是 dc_id_id，document.id 一查即得。
+     */
+    @JvmStatic
+    fun findLocalCachedFile(doc: TLRPC.Document?): java.io.File? {
+        if (doc == null || doc.id == 0L) return null
+        return try {
+            val f = org.telegram.messenger.FileLoader.getInstance(UserConfig.selectedAccount)
+                .getPathToAttach(doc, true)
+            if (f != null && f.exists() && f.length() > 0) f else null
+        } catch (e: Throwable) {
+            null
+        }
+    }
+
+    /**
+     * Aiqiyi: 按哈希（documentId）到父目录捞文件，捞到就造一个最小 Document。
+     *
+     * 这是「找不到 Document 对象但文件还在」时的最后一层。
+     * FileLoader 的缓存目录按 dc_id_id 命名，只要知道 id 就能拼出路径；
+     * 这里不猜 dc_id，而是让 FilePathDatabase / getAttachFileName 自己拼。
+     *
+     * 造出来的 Document 只带 id / dc_id / mime_type / 一个空 sizes，
+     * 足够让 ImageReceiver 走「本地文件直读」分支把图画出来。
+     */
+    @JvmStatic
+    fun findDocumentByCachedFile(documentId: Long): TLRPC.Document? {
+        if (documentId == 0L) return null
+        return try {
+            val account = UserConfig.selectedAccount
+            // 先看数据库里有没有记录过这个 id 的落盘路径
+            val db = org.telegram.messenger.FileLoader.getInstance(account).getFileDatabase()
+            val cachedPath = db.getPath(documentId, 0, org.telegram.messenger.FileLoader.MEDIA_DIR_CACHE, false)
+            if (cachedPath != null) {
+                val f = java.io.File(cachedPath)
+                if (f.exists() && f.length() > 0) {
+                    return buildDocFromFile(documentId, f)
+                }
+            }
+            // 数据库没记录，扫一遍缓存目录，按 "任意dc_ + id" 前缀后缀匹配
+            val dir = org.telegram.messenger.FileLoader.getDirectory(
+                org.telegram.messenger.FileLoader.MEDIA_DIR_CACHE
+            )
+            if (dir != null && dir.isDirectory) {
+                val suffix = "_" + documentId
+                val hit = dir.listFiles { f -> f.isFile && f.name.endsWith(suffix) && f.length() > 0 }
+                if (hit != null && hit.isNotEmpty()) {
+                    return buildDocFromFile(documentId, hit[0])
+                }
+            }
+            null
+        } catch (e: Throwable) {
+            FileLog.e("LocalGiftConverter findDocumentByCachedFile failed", e)
+            null
+        }
+    }
+
+    /** 用一个已存在的本地文件拼出最小可用的 Document */
+    @JvmStatic
+    fun buildDocFromFile(documentId: Long, file: java.io.File): TLRPC.Document {
+        val d = TLRPC.TL_document()
+        d.id = documentId
+        // dc_id 从文件名前缀取，取不到就用 2（默认主 DC）
+        try {
+            val idx = file.name.lastIndexOf('_')
+            if (idx > 0) {
+                d.dc_id = file.name.substring(0, idx).toInt()
+            }
+        } catch (e: Throwable) {
+        }
+        d.mime_type = when {
+            file.name.endsWith(".tgs") -> "application/x-tgsticker"
+            file.name.endsWith(".webp") -> "image/webp"
+            file.name.endsWith(".json") -> "application/x-tgsticker"
+            file.name.endsWith(".png") -> "image/png"
+            else -> "image/webp"
+        }
+        d.size = file.length().toInt()
+        d.sizes = ArrayList()
+        // 交给 ImageReceiver 直接读本地文件
+        d.localPath = file.absolutePath
+        return d
+    }
+
+    /**
      * Aiqiyi: 把 pattern 文档序列化成 base64 存进 LocalGiftData。
      *
      * 为什么需要：pattern 的 Document 只存在于服务端下发的那一刻。之后
@@ -333,6 +473,11 @@ object LocalGiftConverter {
         // 2. 本地 base64 还原
         val persisted = getPersistedPatternDocument(data)
         if (persisted != null) return persisted
+        // 2.5 按哈希到父目录找文件（买的时候下过就一定有）
+        if (data.patternDocumentId != 0L) {
+            val fromDisk = findDocumentByCachedFile(data.patternDocumentId)
+            if (fromDisk != null) return fromDisk
+        }
         // 3. 目录里同款礼物的 pattern
         try {
             val catalog = findCatalogGift(data.catalogGiftId) ?: findCatalogGiftByTitle(data.title)

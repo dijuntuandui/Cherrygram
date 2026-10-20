@@ -7263,6 +7263,10 @@ public void toggleWear() {
             }
             // 爱琦艺：购买入列表，pinned=false —— 由用户在礼物页点「佩戴」后才显示在名字下方
             data.setPinned(false);
+            // Aiqiyi: 购买这一秒就把贴纸和底图「真的下到磁盘」。
+            // FileLoader 的缓存文件名天然是 dc_id_id，document.id 就是哈希，
+            // 之后渲染直接按哈希到父目录取文件，不再依赖内存里的文档缓存。
+            uz.unnarsx.cherrygram.core.helpers.localdata.LocalGiftConverter.preloadGiftFiles(data);
             uz.unnarsx.cherrygram.core.helpers.localdata.LocalGiftStore.addLocalGift(to, data);
             uz.unnarsx.cherrygram.core.helpers.localdata.LocalGiftStore.notifyChanged(to);
             android.util.Log.d("AQY_LOCAL_GIFT", "C4 unique buy ok: giftId=" + gift.id
