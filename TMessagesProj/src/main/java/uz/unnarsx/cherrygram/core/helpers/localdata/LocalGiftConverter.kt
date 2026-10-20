@@ -404,10 +404,20 @@ object LocalGiftConverter {
             data.title = gift.title
             data.slug = gift.slug
             data.catalogGiftId = gift.id          // 必须写，渲染靠它找回 StarGift
-            val doc = gift.document
+            val doc = StarsController.findAttribute(gift.attributes, TL_stars.starGiftAttributeModel::class.java)?.document
+                ?: gift.document
             data.documentId = doc?.id ?: 0L
             data.senderName = senderName
-            data.giftNum = 1
+            // Aiqiyi: 编号。调用方手里其实是 TL_starGiftUnique（多态传参），num 字段一直都在，
+            // 之前硬编码成 1 把真编号（如 #51,488）丢了，导致详情卡显示 1 或借来目录的编号。
+            data.giftNum = runCatching {
+                if (gift is TL_stars.TL_starGiftUnique) gift.num else 0
+            }.getOrDefault(0).let { if (it <= 0) 1 else it }
+            // Aiqiyi: 图案文档 id，从 attributes 的 pattern 里取，别写死 0
+            data.patternDocumentId = runCatching {
+                StarsController.findAttribute(gift.attributes, TL_stars.starGiftAttributePattern::class.java)
+                    ?.document?.id ?: 0L
+            }.getOrDefault(0L)
             data.valueAmount = gift.stars
             data.valueCurrency = "XTR"
             data.availabilityIssued = gift.availability_issued
@@ -426,7 +436,6 @@ object LocalGiftConverter {
             } else {
                 data.localStyle = false
             }
-            data.patternDocumentId = 0L
             data
         } catch (e: Throwable) {
             FileLog.e("LocalGiftConverter fromStarGift failed", e)

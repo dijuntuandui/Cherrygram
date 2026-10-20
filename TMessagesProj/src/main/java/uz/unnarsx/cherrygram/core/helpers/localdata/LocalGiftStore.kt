@@ -361,6 +361,56 @@ object LocalGiftStore {
     }
 
     /**
+     * Aiqiyi: 修复旧数据——把 giftNum 从写死的 1 回填成真实编号。
+     *
+     * 为什么：早期 fromStarGift 里 data.giftNum = 1 是硬编码，
+     * 导致所有购买后的礼物都显示 #1。真实编号其实一直都在 slug 后缀里
+     * （形如 ResistanceDog-283 -> 283），无需联网即可还原。
+     *
+     * 只在 giftNum <= 1 且 slug 带数字后缀时才改，自定义编号(customNum)不受影响。
+     *
+     * @return 修复条数；0 表示无需修复
+     */
+    @JvmStatic
+    fun repairGiftNumsFromSlug(): Int {
+        var fixed = 0
+        return try {
+            val all = prefs.all
+            val userIds = ArrayList<Long>()
+            for (key in all.keys) {
+                if (!key.startsWith(KEY_PREFIX)) continue
+                val id = key.removePrefix(KEY_PREFIX).toLongOrNull() ?: continue
+                userIds.add(id)
+            }
+            if (userIds.isEmpty()) return 0
+            for (uid in userIds) {
+                val list = getDataForUser(uid)
+                if (list.isEmpty()) continue
+                var changed = false
+                for (item in list) {
+                    if (item.giftNum > 1) continue
+                    val slug = item.slug ?: continue
+                    val idx = slug.lastIndexOf('-')
+                    if (idx <= 0 || idx >= slug.length - 1) continue
+                    val num = slug.substring(idx + 1).toIntOrNull() ?: continue
+                    if (num <= 1) continue
+                    item.giftNum = num
+                    FileLog.d("Aiqiyi giftNum backfill: uid=" + uid + " slug=" + slug + " -> " + num)
+                    fixed++
+                    changed = true
+                }
+                if (changed) {
+                    saveData(uid, list)
+                    notifyChanged(uid)
+                }
+            }
+            fixed
+        } catch (e: Exception) {
+            FileLog.e("Aiqiyi giftNum backfill failed", e)
+            0
+        }
+    }
+    /**
      * Aiqiyi: 某个 collectibleId 是否存在于任意用户名下。
      * 用于旧数据兜底：早期版本可能把正数 id 存成 collectibleId，
      * 且归属的 userId 与当前登录账号不一致。

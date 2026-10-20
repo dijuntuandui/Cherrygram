@@ -512,6 +512,12 @@ public class ProfileGiftsView extends View implements NotificationCenter.Notific
                 lastLocalGiftCount = 0;
                 return;
             }
+            // Aiqiyi: 旧数据回填。早期 fromStarGift 里 giftNum 写死为 1，
+            // 真实编号其实在 slug 后缀里（ResistanceDog-283 -> 283）。
+            // 这里在读取 pinned 列表之前先刷一遍，保证画出来的就是真编号。
+            try {
+                LocalGiftStore.INSTANCE.repairGiftNumsFromSlug();
+            } catch (Throwable ignore) {}
             // Aiqiyi: 只绘制「已佩戴」的本地礼物。
             // 未佩戴的本地礼物只在礼物列表里躺着，不参与资料页绘制。
             // 违规礼物佩戴入口写入时 pinned 直接为 true，所以表现上是「添加即挂上」。
