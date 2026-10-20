@@ -976,6 +976,18 @@ public class ProfileGiftsContainer extends FrameLayout implements NotificationCe
                             openEditGiftNumberAlert(parent, resourcesProvider, gift);
                         });
                     }
+                    // Aiqiyi: 修复旧数据（正数 id 重分配为负数）
+                    o.add(R.drawable.msg_settings, "修复旧礼物数据", () -> {
+                        o.dismiss();
+                        final int n = uz.unnarsx.cherrygram.core.helpers.localdata.LocalGiftStore
+                                .repairPositiveCollectibleIds();
+                        final String msg = n > 0
+                                ? "已修复 " + n + " 条礼物数据，请重进个人资料页查看"
+                                : "没有需要修复的数据";
+                        BulletinFactory.of(parent.fragment)
+                                .createSimpleBulletin(R.raw.contact_check, msg)
+                                .show();
+                    });
                     o.addIf(link != null, R.drawable.msg_link2, getString(R.string.CopyLink), () -> {
                         AndroidUtilities.addToClipboard(link);
                         BulletinFactory.of(parent.fragment)

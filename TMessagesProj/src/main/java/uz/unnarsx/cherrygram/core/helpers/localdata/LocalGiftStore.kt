@@ -256,6 +256,76 @@ object LocalGiftStore {
     }
 
     /**
+     * Aiqiyi: 修复旧数据——把 collectibleId 为正数的本地礼物重新分配为负数 id。
+     *
+     * 为什么要改：早期版本直接拿服务端正数 id 当 collectibleId，
+     * 导致 aiqiyiIsLocalGiftId() 的 id<0 快路径失效，点开落到商店购买页。
+     *
+     * 安全措施：修改前先把原始 JSON 全量写盘备份，写在 app 外部文件目录下。
+     *
+     * @return 修复条数；0 表示无需修复
+     */
+    @JvmStatic
+    fun repairPositiveCollectibleIds(): Int {
+        var fixed = 0
+        return try {
+            val all = prefs.all
+            val userIds = ArrayList<Long>()
+            for (key in all.keys) {
+                if (!key.startsWith(KEY_PREFIX)) continue
+                val id = key.removePrefix(KEY_PREFIX).toLongOrNull() ?: continue
+                userIds.add(id)
+            }
+            if (userIds.isEmpty()) return 0
+
+            // --- 备份原始数据 ---
+            try {
+                val dir = ApplicationLoader.applicationContext.getExternalFilesDir("aiqiyi_gift_backup")
+                if (dir != null && !dir.exists()) dir.mkdirs()
+                if (dir != null) {
+                    val sb = StringBuilder()
+                    for (uid in userIds) {
+                        val raw = prefs.getString(KEY_PREFIX + uid, null) ?: continue
+                        sb.append("/// user ").append(uid).append("\n").append(raw).append("\n")
+                    }
+                    val f = java.io.File(dir, "local_gifts_backup_" + System.currentTimeMillis() + ".json")
+                    f.writeText(sb.toString())
+                    FileLog.d("Aiqiyi gift repair backup -> " + f.absolutePath)
+                }
+            } catch (e: Exception) {
+                FileLog.e("Aiqiyi gift repair backup failed", e)
+            }
+
+            // --- 逐个用户修正 ---
+            for (uid in userIds) {
+                val list = getDataForUser(uid)
+                if (list.isEmpty()) continue
+                var changed = false
+                var nextId = nextLocalGiftId(list)
+                for (item in list) {
+                    if (item.collectibleId > 0L) {
+                        val old = item.collectibleId
+                        item.collectibleId = nextId
+                        nextId -= 1L
+                        FileLog.d("Aiqiyi gift repair: uid=" + uid + " " + old + " -> " + item.collectibleId)
+                        fixed++
+                        changed = true
+                    }
+                }
+                if (changed) {
+                    // 直接落盘（saveData 可能会被其他路径拦截，这里显式写）
+                    saveData(uid, list)
+                    notifyChanged(uid)
+                }
+            }
+            fixed
+        } catch (e: Exception) {
+            FileLog.e("Aiqiyi gift repair failed", e)
+            0
+        }
+    }
+
+    /**
      * Aiqiyi: 某个 collectibleId 是否存在于任意用户名下。
      * 用于旧数据兜底：早期版本可能把正数 id 存成 collectibleId，
      * 且归属的 userId 与当前登录账号不一致。
