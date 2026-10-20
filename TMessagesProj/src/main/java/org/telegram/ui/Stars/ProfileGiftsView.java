@@ -521,6 +521,12 @@ public class ProfileGiftsView extends View implements NotificationCenter.Notific
                 lastLocalGiftCount = 0;
                 return;
             }
+            // Aiqiyi: 贴纸文档多半没在本地缓存，首次进页会现下载，肉眼可见空白。
+            // 这里先丢给 FileLoader 低优先级后台预取，绘制时能直接命中。
+            try {
+                LocalGiftStore.INSTANCE.prefetchStickers(dialogId);
+            } catch (Throwable ignore) {}
+
             // Aiqiyi: 与官方佩戴区共用同一批槽位，上限 maxCount（官方默认 6）。
             // 官方礼物优先占位，本地礼物只能补剩余空槽；槽位满了多出来的本地礼物不画。
             final int aiqiyiRealCount = gifts.size();

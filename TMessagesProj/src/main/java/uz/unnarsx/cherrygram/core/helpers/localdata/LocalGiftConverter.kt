@@ -181,10 +181,18 @@ object LocalGiftConverter {
         }
 
         // --- 贴纸（图案本体）：本地 documentId 优先，退回目录 ---
-        // Aiqiyi: sticker 取图优先级：本地 documentId -> 目录（catalogGiftId 命中 / title 兜底）
+        // Aiqiyi: sticker 取图优先级
+        //   1. 本地 documentId（表情文档缓存命中）
+        //   2. 礼物目录 catalog.getDocument()（按 catalogGiftId / title 查到的那条）
+        //   3. 兜底：按 slug 前缀同族礼物借一张能用的文档（老数据 documentId 失效时）
+        // 注意 findDocument() 只查 emojiDocumentsCache，文档没被拉取过就返回 null，
+        // 所以 2/3 两层兜底必须有，否则卡片只剩 backdrop 渐变。
         var doc = findDocument(data.documentId)
         if (doc == null && catalog != null) {
-            doc = catalog.getDocument()
+            doc = runCatching { catalog.getDocument() }.getOrNull()
+        }
+        if (doc == null) {
+            doc = borrowDocumentBySlug(data.slug)
         }
         unique.sticker = doc
 
@@ -278,6 +286,44 @@ object LocalGiftConverter {
             FileLog.e("LocalGiftConverter findDocument failed", e)
         }
         return null
+    }
+
+    /**
+     * Aiqiyi: 同族借图兜底。
+     *
+     * 老数据的 documentId 可能指向一个从没被拉取过的文档，findDocument 返回 null；
+     * 而 catalogGiftId 也可能因为目录刷新对不上。这时按 slug 前缀（例如
+     * "ResistanceDog-283" -> "ResistanceDog"）在目录里找任意一条同族礼物，
+     * 只要能取到 document 就用它 —— 至少图案是对的，不会再是一片空白。
+     */
+    @JvmStatic
+    fun borrowDocumentBySlug(slug: String?): TLRPC.Document? {
+        if (slug.isNullOrEmpty()) return null
+        val family = slug.substringBefore('-', slug)
+        if (family.isEmpty()) return null
+        return try {
+            val catalog = StarsController.getInstance(UserConfig.selectedAccount).gifts
+            if (catalog == null || catalog.isEmpty()) return null
+            var i = 0
+            while (i < catalog.size) {
+                val g = catalog.get(i)
+                if (g != null) {
+                    val t = g.title
+                    val s = runCatching { (g as? TL_stars.TL_starGiftUnique)?.slug }.getOrNull()
+                    val match = (!t.isNullOrEmpty() && t.equals(family, ignoreCase = true))
+                            || (!s.isNullOrEmpty() && s.startsWith(family))
+                    if (match) {
+                        val d = runCatching { g.getDocument() }.getOrNull()
+                        if (d != null && d.id != 0L) return d
+                    }
+                }
+                i++
+            }
+            null
+        } catch (e: Throwable) {
+            FileLog.e("LocalGiftConverter borrowDocumentBySlug failed", e)
+            null
+        }
     }
 
     /**

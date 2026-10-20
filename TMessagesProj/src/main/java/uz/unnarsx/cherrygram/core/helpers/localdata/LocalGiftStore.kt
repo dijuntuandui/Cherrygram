@@ -63,6 +63,41 @@ object LocalGiftStore {
     }
 
     /**
+     * Aiqiyi: 预热本地礼物贴纸。
+     *
+     * 本地礼物的 documentId 是从礼物数据里抓来的，未必走过表情文档拉取流程，
+     * 所以第一次进资料页时 AnimatedEmojiDrawable 要现下载，肉眼可见的空白。
+     * 这里在拿到数据后立刻把文档丢给 FileLoader 后台下载，优先低优先级，
+     * 不抢正常消息的带宽。
+     */
+    @JvmStatic
+    fun prefetchStickers(userId: Long) {
+        try {
+            val list = getDataForUser(userId)
+            if (list.isEmpty()) return
+            val account = UserConfig.selectedAccount
+            org.telegram.messenger.AndroidUtilities.runOnUIThread {
+                try {
+                    val loader = org.telegram.messenger.FileLoader.getInstance(account)
+                    for (d in list) {
+                        val doc = LocalGiftConverter.findDocument(d.documentId)
+                            ?: LocalGiftConverter.borrowDocumentBySlug(d.slug)
+                            ?: continue
+                        try {
+                            loader.loadFile(doc, null, org.telegram.messenger.FileLoader.PRIORITY_LOW, 0)
+                        } catch (ignore: Throwable) {
+                        }
+                    }
+                } catch (e: Throwable) {
+                    org.telegram.messenger.FileLog.e("LocalGiftStore prefetchStickers failed", e)
+                }
+            }
+        } catch (e: Throwable) {
+            org.telegram.messenger.FileLog.e("LocalGiftStore prefetchStickers outer failed", e)
+        }
+    }
+
+    /**
      * 从磁盘加载
      */
     private fun loadForUser(userId: Long) {
