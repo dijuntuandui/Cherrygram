@@ -1064,6 +1064,7 @@ public class StarGiftSheet extends BottomSheetWithRecyclerListView implements No
             })
             .addIf(giftUnique != null && giftUnique.offer_min_stars > 0, R.drawable.input_suggest_paid_24, getString(R.string.GiftOfferToBuyMenu), this::showGiftOfferSheet)
             .addIf(canSetAsTheme(), R.drawable.msg_colors, getString(R.string.GiftThemesSetIn), this::openSetAsTheme)
+            .addIf(aiqiyiIsLocalGiftId(giftUnique != null ? giftUnique.id : (savedStarGift != null && savedStarGift.gift != null ? savedStarGift.gift.id : 0L)), R.drawable.msg_delete, "删除本地礼物", this::aiqiyiDeleteLocalGift)
             .addIf(canTransfer(), R.drawable.menu_feature_transfer, getString(R.string.Gift2TransferOption), this::openTransfer)
             .addIf(savedStarGift == null && getDialogId() != 0, R.drawable.msg_view_file, getString(R.string.Gift2ViewInProfile), this::openInProfile)
             .setDrawScrim(false)
@@ -1336,7 +1337,60 @@ public class StarGiftSheet extends BottomSheetWithRecyclerListView implements No
         return false;
     }
 
-    public void toggleWear() {
+        /**
+     * Aiqiyi：长按菜单——删除本地礼物。
+     *
+     * 只会删除 LocalGiftStore 里的虚拟礼物，真实礼物走不到这里
+     * （addIf 的判定条件是 aiqiyiIsLocalGiftId）。
+     */
+    private void aiqiyiDeleteLocalGift() {
+        long cid = 0;
+        final TL_stars.TL_starGiftUnique ug = getUniqueGift();
+        if (ug != null) {
+            cid = ug.id;
+        } else if (savedStarGift != null && savedStarGift.gift != null) {
+            cid = savedStarGift.gift.id;
+        }
+        if (cid == 0L) return;
+        final long collectibleId = cid;
+        long did = 0;
+        try { did = getDialogId(); } catch (Throwable ignore) {}
+        if (did == 0) did = dialogId;
+        if (did == 0 && ug != null && ug.owner_id != null) {
+            try { did = DialogObject.getPeerDialogId(ug.owner_id); } catch (Throwable ignore) {}
+        }
+        final long me = UserConfig.getInstance(currentAccount).getClientUserId();
+        if (did == 0) did = me;
+        final long targetDid = (uz.unnarsx.cherrygram.core.helpers.localdata.LocalGiftStore.findLocalGift(did, collectibleId) != null)
+                ? did : me;
+        final String name = getGiftName();
+        final android.content.Context ctx = getContext();
+        final android.app.AlertDialog.Builder b = new android.app.AlertDialog.Builder(ctx);
+        b.setTitle('删除本地礼物');
+        b.setMessage('确定删除「' + (name == null ? '该礼物' : name) + '」吗？
+
+只删除本机显示，不影响账号里任何真实礼物。');
+        b.setPositiveButton('删除', (dlg, w) -> {
+            try {
+                uz.unnarsx.cherrygram.core.helpers.localdata.LocalGiftStore
+                        .removeLocalGift(targetDid, collectibleId);
+                uz.unnarsx.cherrygram.core.helpers.localdata.LocalGiftStore.resetPrefetchMarks();
+                android.util.Log.d('AQY_LOCAL_GIFT', 'deleted id=' + collectibleId + ' did=' + targetDid);
+            } catch (Throwable t) {
+                FileLog.e('Aiqiyi delete local gift failed', t);
+            }
+            try {
+                getBulletinFactory()
+                        .createSimpleBulletin(R.raw.ic_delete, '已删除本地礼物')
+                        .show();
+            } catch (Throwable ignore) {}
+            try { dismiss(); } catch (Throwable ignore) {}
+        });
+        b.setNegativeButton(R.string.Cancel, null);
+        b.show();
+    }
+
+public void toggleWear() {
         toggleWear(false);
     }
     public void toggleWear(boolean checkedLevel) {

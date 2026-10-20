@@ -71,6 +71,9 @@ object LocalGiftStore {
      * 不抢正常消息的带宽。
      */
     @JvmStatic
+    /** 已预取过的 documentId，避免每次进页面重复入队 */
+    private val prefetchedDocs: MutableSet<Long> = java.util.Collections.synchronizedSet(HashSet())
+
     fun prefetchStickers(userId: Long) {
         try {
             val list = getDataForUser(userId)
@@ -79,13 +82,25 @@ object LocalGiftStore {
             org.telegram.messenger.AndroidUtilities.runOnUIThread {
                 try {
                     val loader = org.telegram.messenger.FileLoader.getInstance(account)
+                    val imageLoader = org.telegram.messenger.ImageLoader.getInstance()
                     for (d in list) {
                         val doc = LocalGiftConverter.findDocument(d.documentId)
                             ?: LocalGiftConverter.borrowDocumentBySlug(d.slug)
                             ?: continue
+                        val docId = doc.id
+                        if (!prefetchedDocs.add(docId)) continue
                         try {
-                            loader.loadFile(doc, null, org.telegram.messenger.FileLoader.PRIORITY_LOW, 0)
+                            // Aiqiyi: 优先级 LOW -> NORMAL。
+                            // LOW 会被任何前台下载压到队尾，是「进页面半天不出图」的主因
+                            loader.loadFile(doc, null, org.telegram.messenger.FileLoader.PRIORITY_NORMAL, 0)
                         } catch (ignore: Throwable) {
+                        }
+                        // Aiqiyi: 关键一步——入队后立刻解码进 ImageLoader 内存缓存。
+                        // 只下载不解码的话绘制时会现解码，首帧空白即「闪一下」
+                        try {
+                            preloadIntoLruCache(imageLoader, doc, docId)
+                        } catch (e: Throwable) {
+                            org.telegram.messenger.FileLog.e("LocalGiftStore prefetch decode failed", e)
                         }
                     }
                 } catch (e: Throwable) {
@@ -95,6 +110,75 @@ object LocalGiftStore {
         } catch (e: Throwable) {
             org.telegram.messenger.FileLog.e("LocalGiftStore prefetchStickers outer failed", e)
         }
+    }
+
+    /**
+     * 把贴纸位图解码进 ImageLoader 的 LRU 缓存，
+     * 与贴纸体系共用同一份内存缓存，绘制时直接命中，不二次解码。
+     */
+    private fun preloadIntoLruCache(
+        imageLoader: org.telegram.messenger.ImageLoader?,
+        doc: org.telegram.tgnet.TLRPC.Document,
+        docId: Long
+    ) {
+        try {
+            val f = org.telegram.messenger.FileLoader.getInstance(UserConfig.selectedAccount)
+                .getPathToAttachedFile(doc.dc_id, docId, null, true)
+            if (f == null || !f.exists() || f.length() <= 0L) {
+                scheduleDecodeAfterDownload(doc, docId)
+                return
+            }
+            decodeFileIntoCache(imageLoader, doc, docId, f.absolutePath)
+        } catch (e: Throwable) {
+            org.telegram.messenger.FileLog.e("LocalGiftStore preloadIntoLruCache failed", e)
+        }
+    }
+
+    /** 文件未落盘时，轮询几次等就绪再解码（不阻塞 UI） */
+    private fun scheduleDecodeAfterDownload(doc: org.telegram.tgnet.TLRPC.Document, docId: Long) {
+        val account = UserConfig.selectedAccount
+        repeat(6) { attempt ->
+            org.telegram.messenger.AndroidUtilities.runOnUIThread({
+                try {
+                    val f = org.telegram.messenger.FileLoader.getInstance(account)
+                        .getPathToAttachedFile(doc.dc_id, docId, null, true)
+                    if (f != null && f.exists() && f.length() > 0L) {
+                        decodeFileIntoCache(
+                            org.telegram.messenger.ImageLoader.getInstance(),
+                            doc, docId, f.absolutePath
+                        )
+                    }
+                } catch (ignore: Throwable) {
+                }
+            }, ((attempt + 1) * 400).toLong())
+        }
+    }
+
+    private fun decodeFileIntoCache(
+        imageLoader: org.telegram.messenger.ImageLoader?,
+        doc: org.telegram.tgnet.TLRPC.Document,
+        docId: Long,
+        absPath: String
+    ) {
+        if (imageLoader == null) return
+        try {
+            val opts = android.graphics.BitmapFactory.Options()
+            opts.inPreferredConfig = android.graphics.Bitmap.Config.ARGB_8888
+            val bmp = android.graphics.BitmapFactory.decodeFile(absPath, opts) ?: return
+            val key = "" + docId + "@" + doc.dc_id
+            imageLoader.putImageToCache(bmp, key)
+            if (org.telegram.messenger.BuildVars.LOGS_ENABLED) {
+                org.telegram.messenger.FileLog.d("AQY prefetch cached doc=" + docId + " key=" + key)
+            }
+        } catch (e: Throwable) {
+            org.telegram.messenger.FileLog.e("LocalGiftStore decodeFileIntoCache failed", e)
+        }
+    }
+
+    /** 用户增删礼物后清空预取标记，确保下次重新预取 */
+    @JvmStatic
+    fun resetPrefetchMarks() {
+        prefetchedDocs.clear()
     }
 
     /**
