@@ -340,7 +340,7 @@ public class AiqiyiLocalZoneEntry extends BaseCGPreferencesEntry {
             try {
                 final LocalGiftData data = new LocalGiftData();
                 // Aiqiyi: title 强保证非空。官方 GiftCell.customDraw 会 new Text(gift.title)，传 null 就是空指针闪退。
-                data.setTitle(android.text.TextUtils.isEmpty(g.title) ? label : g.title);
+                data.setTitle(android.text.TextUtils.isEmpty(g.title) ? names.get(which) : g.title);
                 data.setSlug(android.text.TextUtils.isEmpty(g.slug) ? ("gift" + g.id) : g.slug);
                 data.setCatalogGiftId(g.id);
                 data.setDocumentId(g.sticker == null ? 0 : g.sticker.id);
