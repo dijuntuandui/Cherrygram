@@ -565,6 +565,14 @@ public class ProfileGiftsView extends View implements NotificationCenter.Notific
                     } else {
                         gift.emojiDrawable = AnimatedEmojiDrawable.make(currentAccount, AnimatedEmojiDrawable.CACHE_TYPE_MESSAGES, gift.documentId);
                     }
+                    // Aiqiyi: 本地礼物的贴纸文档首次显示时不在缓存里，要靠 ImageReceiver
+                    // 走 FileLoader 异步下载。不 preload 的话要等到真正绘制那一刻才发起请求，
+                    // 网络慢就是好几秒空白。这里建完壳立刻 preload，把下载和后续布局/绘制并行。
+                    if (gift.emojiDrawable != null) {
+                        try {
+                            gift.emojiDrawable.preload();
+                        } catch (Throwable ignore) {}
+                    }
                     if (gift.emojiDrawable != null && isAttachedToWindow()) {
                         gift.emojiDrawable.addView(this);
                     }
