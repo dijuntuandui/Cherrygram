@@ -266,17 +266,18 @@ object LocalGiftConverter {
             unique.attributes.add(model)
         }
 
-        if (data.patternDocumentId != 0L) {
-            var patDoc = findDocument(data.patternDocumentId)
-            if (patDoc == null) {
-                patDoc = getPersistedPatternDocument(data)
-            }
-            if (patDoc != null) {
-                val pattern = TL_stars.starGiftAttributePattern()
-                pattern.name = if (!data.patternName.isNullOrEmpty()) data.patternName else data.title
-                pattern.document = patDoc
-                pattern.rarity = TL_stars.TL_starGiftAttributeRarity()
-                unique.attributes.add(pattern)
+        // Aiqiyi: 底图（pattern）。三层兜底，全失败就拿贴纸自己顶上，
+        // 保证详情页背景永远有平铺图案，不会只剩一片渐变色。
+        val patDoc = resolvePatternDocument(data) ?: unique.sticker
+        if (patDoc != null) {
+            val pattern = TL_stars.starGiftAttributePattern()
+            pattern.name = if (!data.patternName.isNullOrEmpty()) data.patternName else safeTitle(data)
+            pattern.document = patDoc
+            pattern.rarity = TL_stars.TL_starGiftAttributeRarity()
+            unique.attributes.add(pattern)
+            // 有真 pattern 就顺手钉进本地，下次不用再找
+            if (data.patternDocumentId == 0L && patDoc !== unique.sticker) {
+                persistPatternDocument(data, patDoc)
             }
         }
 
@@ -289,6 +290,63 @@ object LocalGiftConverter {
         }
 
         return unique
+    }
+
+    /**
+     * Aiqiyi: 把 pattern 文档序列化成 base64 存进 LocalGiftData。
+     *
+     * 为什么需要：pattern 的 Document 只存在于服务端下发的那一刻。之后
+     * AnimatedEmojiDrawable.findDocument() 只查内存缓存，重启就没了，
+     * 于是详情页背景只剩渐变、没有平铺的小图案（"光秃秃"）。
+     * 存一份 base64，等于把底图钉死在本机，永不丢失。
+     */
+    @JvmStatic
+    fun persistPatternDocument(data: LocalGiftData, doc: TLRPC.Document?) {
+        if (doc == null) return
+        try {
+            val sd = org.telegram.tgnet.SerializedData()
+            doc.serializeToStream(sd)
+            val bytes = sd.toByteArray()
+            data.patternDocumentData = android.util.Base64.encodeToString(bytes, android.util.Base64.NO_WRAP)
+            data.patternDocumentId = doc.id
+        } catch (e: Throwable) {
+            FileLog.e("LocalGiftConverter persistPatternDocument failed", e)
+        }
+    }
+
+    /**
+     * Aiqiyi: 三层兜底取 pattern 文档（底图）。
+     *
+     *   1. patternDocumentId -> 内存缓存
+     *   2. patternDocumentData -> 本地 base64 反序列化
+     *   3. 礼物目录里同款礼物的 pattern 文档
+     *
+     * 全部失败返回 null，调用方可以再退一步拿贴纸顶上。
+     */
+    @JvmStatic
+    fun resolvePatternDocument(data: LocalGiftData): TLRPC.Document? {
+        // 1. id 命中内存缓存
+        if (data.patternDocumentId != 0L) {
+            val d = findDocument(data.patternDocumentId)
+            if (d != null) return d
+        }
+        // 2. 本地 base64 还原
+        val persisted = getPersistedPatternDocument(data)
+        if (persisted != null) return persisted
+        // 3. 目录里同款礼物的 pattern
+        try {
+            val catalog = findCatalogGift(data.catalogGiftId) ?: findCatalogGiftByTitle(data.title)
+            if (catalog != null) {
+                val pd = StarsController.findAttribute(
+                    catalog.attributes,
+                    TL_stars.starGiftAttributePattern::class.java
+                )?.document
+                if (pd != null && pd.id != 0L) return pd
+            }
+        } catch (e: Throwable) {
+            FileLog.e("LocalGiftConverter resolvePatternDocument catalog failed", e)
+        }
+        return null
     }
 
     /** 从持久化的 base64 里还原 pattern 文档 */
@@ -444,10 +502,15 @@ object LocalGiftConverter {
                 if (gift is TL_stars.TL_starGiftUnique) gift.num else 0
             }.getOrDefault(0).let { if (it <= 0) 1 else it }
             // Aiqiyi: 图案文档 id，从 attributes 的 pattern 里取，别写死 0
-            data.patternDocumentId = runCatching {
-                StarsController.findAttribute(gift.attributes, TL_stars.starGiftAttributePattern::class.java)
-                    ?.document?.id ?: 0L
-            }.getOrDefault(0L)
+            runCatching {
+                val patDoc = StarsController.findAttribute(gift.attributes, TL_stars.starGiftAttributePattern::class.java)?.document
+                if (patDoc != null && patDoc.id != 0L) {
+                    // 连同完整文档一起序列化存下，重启后也能还原底图
+                    persistPatternDocument(data, patDoc)
+                } else {
+                    data.patternDocumentId = 0L
+                }
+            }
             data.valueAmount = gift.stars
             data.valueCurrency = "XTR"
             data.availabilityIssued = gift.availability_issued

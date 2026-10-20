@@ -495,6 +495,57 @@ object LocalGiftStore {
         }
     }
     /**
+     * Aiqiyi: 回填底图（pattern 文档）。
+     *
+     * 老数据的 patternDocumentId 是 0、patternDocumentData 也是空，
+     * 详情页背景就只剩一片渐变（"光秃秃"）。这里遍历全库，
+     * 凡是缺底图的，都让 LocalGiftConverter.resolvePatternDocument()
+     * 去目录里捞一次，捞到就序列化成 base64 钉进本地。
+     *
+     * 只补 pattern，不碰编号 / 颜色 / 佩戴状态。
+     *
+     * @return 修复条数；0 表示无需修复
+     */
+    @JvmStatic
+    fun repairPatternDocuments(): Int {
+        var fixed = 0
+        return try {
+            val userIds = ArrayList<Long>()
+            for (key in prefs.all.keys) {
+                if (!key.startsWith(KEY_PREFIX)) continue
+                val id = key.removePrefix(KEY_PREFIX).toLongOrNull() ?: continue
+                userIds.add(id)
+            }
+            if (userIds.isEmpty()) return 0
+            for (uid in userIds) {
+                val list = getDataForUser(uid)
+                if (list.isEmpty()) continue
+                var changed = false
+                for (item in list) {
+                    // 已经有底图就跳过
+                    if (item.patternDocumentId != 0L) continue
+                    if (!item.patternDocumentData.isNullOrEmpty()) continue
+                    val doc = LocalGiftConverter.resolvePatternDocument(item)
+                    if (doc != null && doc.id != 0L) {
+                        LocalGiftConverter.persistPatternDocument(item, doc)
+                        FileLog.d("Aiqiyi pattern backfill: uid=" + uid
+                                + " id=" + item.collectibleId + " doc=" + doc.id)
+                        fixed++
+                        changed = true
+                    }
+                }
+                if (changed) {
+                    saveData(uid, list)
+                    notifyChanged(uid)
+                }
+            }
+            fixed
+        } catch (e: Exception) {
+            FileLog.e("Aiqiyi pattern backfill failed", e)
+            0
+        }
+    }
+    /**
      * Aiqiyi: 某个 collectibleId 是否存在于任意用户名下。
      * 用于旧数据兜底：早期版本可能把正数 id 存成 collectibleId，
      * 且归属的 userId 与当前登录账号不一致。

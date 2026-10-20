@@ -518,6 +518,12 @@ public class ProfileGiftsView extends View implements NotificationCenter.Notific
             try {
                 LocalGiftStore.INSTANCE.repairGiftNumsFromSlug();
             } catch (Throwable ignore) {}
+            // Aiqiyi: 底图回填。老数据 patternDocumentId 是 0，详情页背景
+            // 只剩一片渐变、没有平铺小图案。这里去目录捞一次并序列化存本地，
+            // 之后重启也不会再丢。只补 pattern，不动编号和佩戴状态。
+            try {
+                LocalGiftStore.INSTANCE.repairPatternDocuments();
+            } catch (Throwable ignore) {}
             // Aiqiyi: 只绘制「已佩戴」的本地礼物。
             // 未佩戴的本地礼物只在礼物列表里躺着，不参与资料页绘制。
             // 违规礼物佩戴入口写入时 pinned 直接为 true，所以表现上是「添加即挂上」。
