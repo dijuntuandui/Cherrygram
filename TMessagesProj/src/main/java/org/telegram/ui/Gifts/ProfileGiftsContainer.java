@@ -975,6 +975,37 @@ public class ProfileGiftsContainer extends FrameLayout implements NotificationCe
                             o.dismiss();
                             openEditGiftNumberAlert(parent, resourcesProvider, gift);
                         });
+                        // Aiqiyi: 列表里也要能删。之前只有详情页有删除，
+                        // 用户在列表长按找不到，只能进详情页绕一圈。
+                        o.add(R.drawable.msg_delete, "删除本地礼物", () -> {
+                            o.dismiss();
+                            final long selfUid = UserConfig.getInstance(currentAccount).getClientUserId();
+                            final long ownerDid = DialogObject.getPeerDialogId(gift.owner_id);
+                            final long targetDid = (ownerDid != 0
+                                    ? ownerDid
+                                    : (parent != null ? parent.dialogId : selfUid));
+                            uz.unnarsx.cherrygram.core.helpers.localdata.LocalGiftStore.showDeleteLocalGiftDialog(
+                                    getContext(),
+                                    targetDid,
+                                    gift.id,
+                                    gift.title,
+                                    () -> {
+                                        try {
+                                            if (parent != null && parent.fragment != null) {
+                                                BulletinFactory.of(parent.fragment)
+                                                        .createSimpleBulletin(R.raw.ic_delete, "已删除本地礼物")
+                                                        .show();
+                                            }
+                                        } catch (Throwable ignore) {}
+                                        // 本地礼物是「注入」进列表的，服务端 load() 有 loaded 守卫刷不出来，
+                                        // 走 notifyChanged 让 ProfileGiftsView 重新拼一次本地数据即可。
+                                        try {
+                                            uz.unnarsx.cherrygram.core.helpers.localdata.LocalGiftStore
+                                                    .notifyChanged(targetDid);
+                                        } catch (Throwable ignore) {}
+                                    }
+                            );
+                        });
                     }
                     // Aiqiyi: 修复旧数据（正数 id 重分配为负数）
                     o.add(R.drawable.msg_settings, "修复旧礼物数据", () -> {
