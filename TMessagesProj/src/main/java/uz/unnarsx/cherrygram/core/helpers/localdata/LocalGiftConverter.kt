@@ -425,7 +425,7 @@ object LocalGiftConverter {
             file.name.endsWith(".png") -> "image/png"
             else -> "image/webp"
         }
-        d.size = file.length().toInt()
+        d.size = file.length()
         // 不填 sizes：ImageReceiver 有 localPath 就直接读本地文件，
         // 空 sizes 反而避免它去走网络拉缩略图。
         // 交给 ImageReceiver 直接读本地文件
