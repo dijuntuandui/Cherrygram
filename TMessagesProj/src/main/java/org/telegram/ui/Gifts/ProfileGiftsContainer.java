@@ -973,7 +973,7 @@ public class ProfileGiftsContainer extends FrameLayout implements NotificationCe
                     if (StarGiftSheet.aiqiyiIsLocalGiftId(gift.id)) {
                         o.add(R.drawable.msg_edit, "修改编号", () -> {
                             o.dismiss();
-                            openEditGiftNumberAlert(gift);
+                            openEditGiftNumberAlert(parent, resourcesProvider, gift);
                         });
                     }
                     o.addIf(link != null, R.drawable.msg_link2, getString(R.string.CopyLink), () -> {
@@ -2027,11 +2027,11 @@ public class ProfileGiftsContainer extends FrameLayout implements NotificationCe
      * 输入留空 / 0 = 恢复原编号；输入正整数 = 覆盖显示。
      * 只影响本机渲染，不落库到服务器。
      */
-    private void openEditGiftNumberAlert(TL_stars.TL_starGiftUnique gift) {
-        final Context context = getContext();
-        final long uid = UserConfig.getInstance(currentAccount).getClientUserId();
+    private static void openEditGiftNumberAlert(ProfileGiftsContainer container, Theme.ResourcesProvider resourcesProvider, TL_stars.TL_starGiftUnique gift) {
+        final Context context = container.getContext();
+        final long uid = UserConfig.getInstance(container.currentAccount).getClientUserId();
         final LocalGiftData data = LocalGiftStore.findLocalGift(uid, gift.id);
-        final int oldCustom = data != null ? data.customNum : 0;
+        final int oldCustom = data != null ? data.getCustomNum() : 0;
         final int oldOriginal = gift.num;
 
         final AlertDialog.Builder builder = new AlertDialog.Builder(context, resourcesProvider);
@@ -2040,7 +2040,7 @@ public class ProfileGiftsContainer extends FrameLayout implements NotificationCe
             + (oldCustom > 0 ? "（已自定义为 #" + LocaleController.formatNumber(oldCustom, ',') + "）" : "")
             + "\n留空或填 0 可恢复原编号。仅本机生效。");
 
-        final EditText editText = new EditText(context);
+        final EditTextCaption editText = new EditTextCaption(context, resourcesProvider);
         editText.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 18);
         editText.setTextColor(Theme.getColor(Theme.key_dialogTextBlack, resourcesProvider));
         editText.setHintColor(Theme.getColor(Theme.key_groupcreate_hintText, resourcesProvider));
@@ -2055,10 +2055,10 @@ public class ProfileGiftsContainer extends FrameLayout implements NotificationCe
             editText.setSelection(editText.getText().length());
         }
 
-        final LinearLayout container = new LinearLayout(context);
-        container.setOrientation(LinearLayout.VERTICAL);
-        container.addView(editText, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, 24, 0, 24, 10));
-        builder.setView(container);
+        final LinearLayout contentView = new LinearLayout(context);
+        contentView.setOrientation(LinearLayout.VERTICAL);
+        contentView.addView(editText, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, 24, 0, 24, 10));
+        builder.setView(contentView);
         builder.setWidth(dp(292));
 
         final Runnable apply = () -> {
@@ -2078,25 +2078,25 @@ public class ProfileGiftsContainer extends FrameLayout implements NotificationCe
             LocalGiftStore.setCustomNum(uid, gift.id, value);
             // 同步内存里的副本，让当前列表立即变化（不靠通知链路）
             gift.num = (value > 0) ? value : oldOriginal;
-            BulletinFactory.of(fragment)
+            BulletinFactory.of(container.fragment)
                 .createSimpleBulletin(R.raw.done,
                     value > 0
                         ? "编号已改为 #" + LocaleController.formatNumber(value, ',')
                         : "已恢复原编号 #" + LocaleController.formatNumber(oldOriginal, ','))
                 .show();
-            notifyGiftChanged(uid);
+            notifyGiftChanged(container, uid);
             try {
                 // 强制当前容器重新渲染
-                updateTabsShown(false);
+                container.updateTabsShown(false);
             } catch (Exception ignore) {}
         };
 
-        builder.setPositiveButton(getString(R.string.OK), (d, w) -> apply.run());
-        builder.setNegativeButton(getString(R.string.Cancel), null);
+        builder.setPositiveButton(LocaleController.getString(R.string.OK), (d, w) -> apply.run());
+        builder.setNegativeButton(LocaleController.getString(R.string.Cancel), null);
         builder.show();
     }
 
-    private void notifyGiftChanged(long uid) {
+    private static void notifyGiftChanged(ProfileGiftsContainer container, long uid) {
         try {
             LocalGiftStore.notifyChanged(uid);
         } catch (Exception ignore) {}
