@@ -34,9 +34,9 @@ object LocalGiftConverter {
     @JvmStatic
     fun safeTitle(data: LocalGiftData): String {
         val t = data.title
-        if (t != null and t.isNotBlank()) return t
+        if (t != null && t.isNotBlank()) return t
         val s = data.slug
-        if (s != null and s.isNotBlank()) return s
+        if (s != null && s.isNotBlank()) return s
         return "#" + data.catalogGiftId
     }
 
@@ -44,9 +44,9 @@ object LocalGiftConverter {
     @JvmStatic
     fun safeSlug(data: LocalGiftData): String {
         val s = data.slug
-        if (s != null and s.isNotBlank()) return s
+        if (s != null && s.isNotBlank()) return s
         val t = data.title
-        if (t != null and t.isNotBlank()) return t
+        if (t != null && t.isNotBlank()) return t
         return "gift" + data.catalogGiftId
     }
     /**
