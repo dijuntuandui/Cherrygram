@@ -104,6 +104,33 @@ object LocalGiftConverter {
     }
 
     /**
+     * Aiqiyi: 按礼物标题在目录里反查（老数据缺 catalogGiftId 时的兜底）。
+     * 只匹配唯一命中，避免同名误配。
+     */
+    @JvmStatic
+    fun findCatalogGiftByTitle(title: String?): TL_stars.StarGift? {
+        if (title.isNullOrEmpty()) return null
+        return try {
+            val catalog = StarsController.getInstance(UserConfig.selectedAccount).gifts
+            if (catalog == null || catalog.isEmpty()) return null
+            var found: TL_stars.StarGift? = null
+            var i = 0
+            while (i < catalog.size) {
+                val g = catalog.get(i)
+                if (g != null && title.equals(g.title, ignoreCase = true)) {
+                    if (found != null) return null   // 多个同名，不猜
+                    found = g
+                }
+                i++
+            }
+            found
+        } catch (e: Throwable) {
+            FileLog.e("LocalGiftConverter findCatalogGiftByTitle failed", e)
+            null
+        }
+    }
+
+    /**
      * Aiqiyi: 构造 TL_starGiftUnique（不是基础款 TL_starGift）。
      *
      * 为什么必须是 unique：GiftSheet.GiftCell 全流程用
@@ -123,6 +150,7 @@ object LocalGiftConverter {
     fun buildUniqueGift(data: LocalGiftData): TL_stars.TL_starGiftUnique {
         val unique = TL_stars.TL_starGiftUnique()
         val catalog = findCatalogGift(data.catalogGiftId)
+            ?: findCatalogGiftByTitle(data.title)
 
         // --- 基础标识 ---
         unique.id = if (data.collectibleId != 0L) data.collectibleId else -kotlin.math.abs(data.catalogGiftId)

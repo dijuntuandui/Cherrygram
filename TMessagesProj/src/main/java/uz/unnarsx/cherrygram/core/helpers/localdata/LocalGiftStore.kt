@@ -256,6 +256,28 @@ object LocalGiftStore {
     }
 
     /**
+     * Aiqiyi: 某个 collectibleId 是否存在于任意用户名下。
+     * 用于旧数据兜底：早期版本可能把正数 id 存成 collectibleId，
+     * 且归属的 userId 与当前登录账号不一致。
+     */
+    @JvmStatic
+    fun existsAnyUser(collectibleId: Long): Boolean {
+        if (collectibleId == 0L) return false
+        return try {
+            val all = prefs.all
+            for ((key, value) in all) {
+                if (!key.startsWith(KEY_PREFIX)) continue
+                val raw = value as? String ?: continue
+                if (raw.contains("\"collectibleId\":" + collectibleId)) return true
+            }
+            false
+        } catch (e: Exception) {
+            FileLog.e("LocalGiftStore existsAnyUser failed", e)
+            false
+        }
+    }
+
+    /**
      * 清空全部用户的本地礼物
      */
     @JvmStatic

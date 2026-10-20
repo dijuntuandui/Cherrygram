@@ -1197,7 +1197,24 @@ public class StarGiftSheet extends BottomSheetWithRecyclerListView implements No
      * 服务端真实礼物的 id 恒为正数，所以 id < 0 即为本地礼物。
      */
     public static boolean aiqiyiIsLocalGiftId(long collectibleId) {
-        return collectibleId < 0L;
+        if (collectibleId == 0L) return false;
+        // 新分配的本地礼物 id 恒为负数，快路径
+        if (collectibleId < 0L) return true;
+        // Aiqiyi: 老数据兜底——早期版本把服务端正数 id 直接存成了 collectibleId，
+        // 导致 id 不是负数。这里反查一遍库，存在即认为是本地礼物。
+        try {
+            final long uid = UserConfig.getInstance(UserConfig.selectedAccount).getClientUserId();
+            if (uz.unnarsx.cherrygram.core.helpers.localdata.LocalGiftStore
+                    .findLocalGift(uid, collectibleId) != null) {
+                return true;
+            }
+            // 再扫一遍全部用户，防止旧数据归属账号不一致
+            return uz.unnarsx.cherrygram.core.helpers.localdata.LocalGiftStore
+                    .existsAnyUser(collectibleId);
+        } catch (Throwable t) {
+            FileLog.e("Aiqiyi local gift id fallback failed", t);
+            return false;
+        }
     }
 
     /**
