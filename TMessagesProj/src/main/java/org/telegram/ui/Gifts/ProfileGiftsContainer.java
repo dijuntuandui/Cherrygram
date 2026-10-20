@@ -2076,6 +2076,8 @@ public class ProfileGiftsContainer extends FrameLayout implements NotificationCe
                 return;
             }
             LocalGiftStore.setCustomNum(uid, gift.id, value);
+            // 同步内存里的副本，让当前列表立即变化（不靠通知链路）
+            gift.num = (value > 0) ? value : oldOriginal;
             BulletinFactory.of(fragment)
                 .createSimpleBulletin(R.raw.done,
                     value > 0
@@ -2083,6 +2085,10 @@ public class ProfileGiftsContainer extends FrameLayout implements NotificationCe
                         : "已恢复原编号 #" + LocaleController.formatNumber(oldOriginal, ','))
                 .show();
             notifyGiftChanged(uid);
+            try {
+                // 强制当前容器重新渲染
+                updateTabsShown(false);
+            } catch (Exception ignore) {}
         };
 
         builder.setPositiveButton(getString(R.string.OK), (d, w) -> apply.run());
