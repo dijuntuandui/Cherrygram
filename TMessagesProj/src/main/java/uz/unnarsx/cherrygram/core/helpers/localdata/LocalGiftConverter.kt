@@ -105,7 +105,7 @@ object LocalGiftConverter {
 
     /**
      * Aiqiyi: 按礼物标题在目录里反查（老数据缺 catalogGiftId 时的兜底）。
-     * 只匹配唯一命中，避免同名误配。
+     * 同名多条时优先取「能取到贴纸文档」的那条，避免老数据只剩色块。
      */
     @JvmStatic
     fun findCatalogGiftByTitle(title: String?): TL_stars.StarGift? {
@@ -113,17 +113,24 @@ object LocalGiftConverter {
         return try {
             val catalog = StarsController.getInstance(UserConfig.selectedAccount).gifts
             if (catalog == null || catalog.isEmpty()) return null
-            var found: TL_stars.StarGift? = null
+            var firstMatch: TL_stars.StarGift? = null
+            var firstWithDoc: TL_stars.StarGift? = null
             var i = 0
             while (i < catalog.size) {
                 val g = catalog.get(i)
                 if (g != null && title.equals(g.title, ignoreCase = true)) {
-                    if (found != null) return null   // 多个同名，不猜
-                    found = g
+                    if (firstMatch == null) firstMatch = g
+                    // Aiqiyi: 多个同名时不再直接放弃。旧逻辑「同名就 return null」会让
+                    // 没有本地 documentId 的老数据彻底拿不到图案（只剩 backdrop 色块）。
+                    // 这里改成优先挑「能取到贴纸文档」的那一条。
+                    if (firstWithDoc == null) {
+                        val d = runCatching { g.getDocument() }.getOrNull()
+                        if (d != null && d.id != 0L) firstWithDoc = g
+                    }
                 }
                 i++
             }
-            found
+            firstWithDoc ?: firstMatch
         } catch (e: Throwable) {
             FileLog.e("LocalGiftConverter findCatalogGiftByTitle failed", e)
             null
