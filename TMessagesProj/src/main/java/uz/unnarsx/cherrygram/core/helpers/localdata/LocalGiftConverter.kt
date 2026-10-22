@@ -578,12 +578,10 @@ object LocalGiftConverter {
         saved.can_upgrade = false
 
         // Aiqiyi: from_id 发送者。
-        // 详情页那句「%1$s 于 %2$s 向您赠送了此礼物」是 StarGiftSheet 用 saved.date + saved.from_id
-        // 拼出来的，跟 gift.attributes 里的 OriginalDetails 无关；列表卡片左上角头像同样取自 from_id。
-        // 旧写法在 isMine 时把 originalSenderId 顶上来，等于把一个第三方 uid 写成了赠送者，
-        // 结果详情页和列表头像都变成了陌生人，凭空捏造出一段转赠关系。
-        // 本地礼物只有「持有」这一个事实，发送者恒为当前账号。
-        var peerId = 0L
+        // 看自己主页（isMine）：送出/收到的礼物，赠送人是 originalSenderId，没有就退回 recipient。
+        // 看别人主页（!isMine）：必须走 else 分支拿到 originalRecipientId，
+        // 否则对方主页永远是「我送给自己」，礼物卡片出不来。
+        var peerId = if (isMine && data.originalSenderId != 0L) data.originalSenderId else data.originalRecipientId
         if (peerId == 0L) {
             peerId = try { UserConfig.getInstance(UserConfig.selectedAccount).clientUserId } catch (e: Throwable) { 0L }
         }
@@ -667,8 +665,15 @@ object LocalGiftConverter {
             data.availabilityIssued = gift.availability_issued
             data.availabilityTotal = gift.availability_total
             data.originalDate = (System.currentTimeMillis() / 1000L).toInt()
-            data.originalSenderId = userId
+            // Aiqiyi: 送礼人与收礼人不能都填 userId。
+            // 都填同一个会让详情页走 ...Self 分支，显示成「某某 向您赠送了此礼物」，
+            // 也就是收礼人自己送给自己，别人主页上的礼物卡片也因此出不来。
+            // 送礼人 = 当前登录账号（自己买给自己时两值相等，仍然正确）。
             data.originalRecipientId = userId
+            val aiqiyiSelfId = try {
+                UserConfig.getInstance(UserConfig.selectedAccount).clientUserId
+            } catch (t: Throwable) { 0L }
+            data.originalSenderId = if (aiqiyiSelfId != 0L) aiqiyiSelfId else userId
             val backdrop = StarsController.findAttribute(gift.attributes, TL_stars.starGiftAttributeBackdrop::class.java)
             if (backdrop != null) {
                 data.centerColor = backdrop.center_color
