@@ -288,6 +288,7 @@ public class NotificationCenter {
 
     // Aiqiyi: 本地虚拟礼物变更通知（本地增删礼物后刷新资料页/列表）
     public static final int aiqiyiLocalGiftUpdated = totalEvents++;
+    public static final int aiqiyiAppTitleChanged = totalEvents++;
 
     //global
     public static final int activeAccountChanged = totalEvents++;

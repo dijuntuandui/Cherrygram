@@ -2953,6 +2953,7 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
             if (!onlySelect) {
                 observersGroup.addGlobal(NotificationCenter.closeSearchByActiveAction);
                 observersGroup.addGlobal(NotificationCenter.proxySettingsChanged);
+                observersGroup.addGlobal(NotificationCenter.aiqiyiAppTitleChanged);
                 observersGroup.add(NotificationCenter.filterSettingsUpdated);
                 observersGroup.add(NotificationCenter.dialogFiltersUpdated);
                 observersGroup.add(NotificationCenter.dialogsUnreadCounterChanged);
@@ -10770,6 +10771,17 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
     @SuppressWarnings("unchecked")
     @Override
     public void didReceivedNotification(int id, int account, Object... args) {
+        if (id == NotificationCenter.aiqiyiAppTitleChanged) {
+            // Aiqiyi: 自定义标题变更后立即刷新主列表标题，无需重启
+            if (actionBar != null && !onlySelect && folderId == 0 && communityId == 0 && searchString == null) {
+                String t = CherrygramAppearanceConfig.INSTANCE.getCustomAppTitle();
+                if (t == null || t.trim().isEmpty()) {
+                    t = getString(R.string.CG_AppName);
+                }
+                actionBar.setTitle(actionBarDefaultTitle = t, null, true);
+            }
+            return;
+        }
         if (id == NotificationCenter.dialogsNeedReload) {
             if (viewPages == null || dialogsListFrozen) {
                 return;

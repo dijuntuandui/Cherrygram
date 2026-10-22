@@ -613,6 +613,10 @@ items.add(SettingsHelper.asTextDetail(aiqiyiAutoSignInRow, 0, getString(R.string
         builder.setPositiveButton(org.telegram.messenger.LocaleController.getString(org.telegram.messenger.R.string.Save), (dialog, which) -> {
             String value = editText.getText().toString().trim();
             CherrygramAppearanceConfig.INSTANCE.setCustomAppTitle(value);
+            try {
+                org.telegram.messenger.NotificationCenter.getInstance(org.telegram.messenger.UserConfig.selectedAccount)
+                        .postNotificationName(org.telegram.messenger.NotificationCenter.aiqiyiAppTitleChanged);
+            } catch (Throwable ignore) {}
             updateRows(true);
             org.telegram.ui.Components.BulletinFactory.of(this).createSimpleBulletin(org.telegram.messenger.R.raw.info, getString(value.isEmpty() ? R.string.AQY_CustomTitle_ResetDone : R.string.AQY_CustomTitle_Saved)).show();
             if (getParentActivity() != null) {

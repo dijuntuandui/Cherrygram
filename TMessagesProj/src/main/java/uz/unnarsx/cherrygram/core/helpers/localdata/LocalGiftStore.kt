@@ -55,6 +55,18 @@ object LocalGiftStore {
     }
 
     /**
+     * Aiqiyi 性能：只查询该 userId 是否已在内存里加载过，不触发加载。
+     *
+     * getDataForUser() 首次调用会同步 prefs.getString + gson.fromJson，
+     * 在 UI 线程上遇到大 JSON 就是整页卡死。调用方应当先用本方法判断，
+     * 未加载时把 getDataForUser() 丢到后台线程。
+     */
+    @JvmStatic
+    fun isLoadedForUser(userId: Long): Boolean {
+        return loadedUsers.contains(userId)
+    }
+
+    /**
      * 是否有本地礼物
      */
     @JvmStatic

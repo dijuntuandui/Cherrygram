@@ -313,6 +313,14 @@ public class ProfileGiftsView extends View implements NotificationCenter.Notific
      * PREF 级标记做跨进程/重启去重。
      */
     private static boolean aiqiyiRepairScheduled = false;
+    /**
+     * Aiqiyi 性能: 正在后台加载本地礼物数据的 userId 集合。
+     *
+     * 避免同一个用户反复进资料页时重复投递后台加载任务。
+     * 用同步集合：投递在 UI 线程、移除在后台线程。
+     */
+    private final java.util.Set<Long> aiqiyiLoadingUsers =
+            java.util.Collections.synchronizedSet(new java.util.HashSet<Long>());
 
     public void update() {
         if (CherrygramAppearanceConfig.INSTANCE.getDisablePremiumStatuses()) return;
@@ -520,6 +528,42 @@ public class ProfileGiftsView extends View implements NotificationCenter.Notific
                 lastLocalGiftCount = 0;
                 return;
             }
+
+            // Aiqiyi 性能: LocalGiftStore.getPinnedForUser() 走 getDataForUser()，
+            // 首次访问某 userId 时会在调用线程同步 prefs.getString + gson.fromJson。
+            // 之前直接在 UI 线程调，礼物一多进资料页就整页卡死（0 帧）。
+            //
+            // 现在分两步：
+            //   1. UI 线程只读内存缓存（LocalGiftStore.peekForUser），拿到就画，
+            //      拿不到就先什么都不画，绝不在 UI 线程等 IO。
+            //   2. 缓存缺失时丢后台线程加载，加载完发 aiqiyiLocalGiftUpdated
+            //      回 UI 线程重新 injectLocalGifts，这时内存里已有数据。
+            //
+            // 结果：进页面立刻出画面，本地礼物晚一拍补上，不再有卡死。
+            if (!LocalGiftStore.isLoadedForUser(dialogId)) {
+                if (!aiqiyiLoadingUsers.contains(dialogId)) {
+                    aiqiyiLoadingUsers.add(dialogId);
+                    org.telegram.messenger.Utilities.globalQueue.postRunnable(() -> {
+                        try {
+                            // 触发同步加载（在后台线程，安全）
+                            LocalGiftStore.getPinnedForUser(dialogId);
+                        } catch (Throwable ignore) {
+                        } finally {
+                            aiqiyiLoadingUsers.remove(dialogId);
+                        }
+                        org.telegram.messenger.AndroidUtilities.runOnUIThread(() -> {
+                            try {
+                                LocalGiftStore.INSTANCE.notifyChanged(dialogId);
+                            } catch (Throwable ignore) {
+                            }
+                        });
+                    });
+                }
+                android.util.Log.d("AQY_LOCAL_GIFT", "injectLocalGifts: data not loaded yet, deferring. did=" + dialogId);
+                lastLocalGiftCount = 0;
+                return;
+            }
+
             // Aiqiyi: 旧数据回填（giftNum + pattern 底图）。
             //
             // 这两个修复原本在主线程同步跑：遍历 PREF 里所有 userId 的所有礼物，
@@ -560,10 +604,13 @@ public class ProfileGiftsView extends View implements NotificationCenter.Notific
                 return;
             }
             // Aiqiyi: 贴纸文档多半没在本地缓存，首次进页会现下载，肉眼可见空白。
-            // 这里先丢给 FileLoader 低优先级后台预取，绘制时能直接命中。
-            try {
-                LocalGiftStore.INSTANCE.prefetchStickers(dialogId);
-            } catch (Throwable ignore) {}
+            // 丢后台线程预取，不在 UI 线程遍历文件（这条以前也在主线程跑，是卡顿来源之一）。
+            org.telegram.messenger.Utilities.globalQueue.postRunnable(() -> {
+                try {
+                    LocalGiftStore.INSTANCE.prefetchStickers(dialogId);
+                } catch (Throwable ignore) {
+                }
+            });
 
             // Aiqiyi: 与官方佩戴区共用同一批槽位，上限 maxCount（官方默认 6）。
             // 官方礼物优先占位，本地礼物只能补剩余空槽；槽位满了多出来的本地礼物不画。
