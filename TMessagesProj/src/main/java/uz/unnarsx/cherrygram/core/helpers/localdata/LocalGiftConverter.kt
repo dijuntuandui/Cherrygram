@@ -577,8 +577,13 @@ object LocalGiftConverter {
         saved.refunded = false
         saved.can_upgrade = false
 
-        // Aiqiyi: from_id 发送者。本地礼物默认填自己，避免显示「隐藏用户」
-        var peerId = if (isMine && data.originalSenderId != 0L) data.originalSenderId else data.originalRecipientId
+        // Aiqiyi: from_id 发送者。
+        // 详情页那句「%1$s 于 %2$s 向您赠送了此礼物」是 StarGiftSheet 用 saved.date + saved.from_id
+        // 拼出来的，跟 gift.attributes 里的 OriginalDetails 无关；列表卡片左上角头像同样取自 from_id。
+        // 旧写法在 isMine 时把 originalSenderId 顶上来，等于把一个第三方 uid 写成了赠送者，
+        // 结果详情页和列表头像都变成了陌生人，凭空捏造出一段转赠关系。
+        // 本地礼物只有「持有」这一个事实，发送者恒为当前账号。
+        var peerId = 0L
         if (peerId == 0L) {
             peerId = try { UserConfig.getInstance(UserConfig.selectedAccount).clientUserId } catch (e: Throwable) { 0L }
         }
