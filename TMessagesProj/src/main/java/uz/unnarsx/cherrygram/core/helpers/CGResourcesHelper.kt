@@ -34,14 +34,14 @@ object CGResourcesHelper {
     @JvmStatic
     fun getAppName(): String {
         // Aiqiyi: 自定义标题优先。CI 编的是 PlayStore 变体，
-        // 下面的 isPlayStoreBuild() 分支会直接把 "Cherrygram" 硬编码返回，
+        // 下面 isPlayStoreBuild() 分支会把 "Cherrygram" 硬编码返回，
         // 导致标题栏、关于页、会话列表等处出现上游名字。
-        val custom = try {
-            uz.unnarsx.cherrygram.core.configs.CherrygramAppearanceConfig.INSTANCE.getCustomAppTitle()
+        val custom: String = try {
+            uz.unnarsx.cherrygram.core.configs.CherrygramAppearanceConfig.customAppTitle
         } catch (t: Throwable) {
-            null
+            ""
         }
-        if (!custom.isNullOrEmpty() && custom.trim().isNotEmpty()) {
+        if (custom.trim().isNotEmpty()) {
             return custom.trim()
         }
         if (CherrygramCoreConfig.isStandaloneStableBuild() || CherrygramCoreConfig.isPlayStoreBuild()) {
