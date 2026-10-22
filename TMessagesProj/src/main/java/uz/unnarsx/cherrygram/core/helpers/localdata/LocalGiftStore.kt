@@ -445,6 +445,34 @@ object LocalGiftStore {
     }
 
     /**
+     * Aiqiyi: 修复任务的一次性完成标记。
+     *
+     * 背景：repairGiftNumsFromSlug / repairPatternDocuments 每次进资料页都在主线程
+     * 全库遍历一遍，条目越多越慢，而且数据早就修好后仍然每次都跑，纯浪费。
+     * 这里给每个修复任务加一个 PREF 标记，跑过一次就跳过，不再重复。
+     *
+     * 注意：删除/新增本地礼物时不需要重置标记——这两个修复只针对「历史遗留数据」，
+     * 新写入的数据本身字段就是完整的，不需要再补。
+     */
+    private const val KEY_REPAIR_FLAG_PREFIX = "repair_done_"
+
+    private fun isRepairDone(task: String): Boolean {
+        return try {
+            prefs.getBoolean(KEY_REPAIR_FLAG_PREFIX + task, false)
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    private fun markRepairDone(task: String) {
+        try {
+            prefs.edit { putBoolean(KEY_REPAIR_FLAG_PREFIX + task, true) }
+        } catch (e: Exception) {
+            FileLog.e("LocalGiftStore markRepairDone failed, task=$task", e)
+        }
+    }
+
+    /**
      * Aiqiyi: 修复旧数据——把 giftNum 从写死的 1 回填成真实编号。
      *
      * 为什么：早期 fromStarGift 里 data.giftNum = 1 是硬编码，
@@ -458,6 +486,7 @@ object LocalGiftStore {
     @JvmStatic
     fun repairGiftNumsFromSlug(): Int {
         var fixed = 0
+        if (isRepairDone("gift_nums")) return 0
         return try {
             val all = prefs.all
             val userIds = ArrayList<Long>()
@@ -488,6 +517,7 @@ object LocalGiftStore {
                     notifyChanged(uid)
                 }
             }
+            markRepairDone("gift_nums")
             fixed
         } catch (e: Exception) {
             FileLog.e("Aiqiyi giftNum backfill failed", e)
@@ -550,6 +580,7 @@ object LocalGiftStore {
     @JvmStatic
     fun repairPatternDocuments(): Int {
         var fixed = 0
+        if (isRepairDone("pattern_docs")) return 0
         return try {
             val userIds = ArrayList<Long>()
             for (key in prefs.all.keys) {
@@ -580,6 +611,7 @@ object LocalGiftStore {
                     notifyChanged(uid)
                 }
             }
+            markRepairDone("pattern_docs")
             fixed
         } catch (e: Exception) {
             FileLog.e("Aiqiyi pattern backfill failed", e)

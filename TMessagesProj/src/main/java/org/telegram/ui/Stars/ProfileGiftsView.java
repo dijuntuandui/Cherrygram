@@ -305,6 +305,14 @@ public class ProfileGiftsView extends View implements NotificationCenter.Notific
     private int lastLocalGiftCount = -1;
     /** Aiqiyi: 本地礼物行数变化标记，用于触发 header 重新测量 */
     private boolean aiqiyiLocalRowsChanged = false;
+    /**
+     * Aiqiyi: 旧数据修复是否已在本进程调度过。
+     *
+     * repairGiftNumsFromSlug / repairPatternDocuments 是历史数据的一次性补丁，
+     * 不需要每次进资料页都跑。这里做进程内去重，LocalGiftStore 内部另有
+     * PREF 级标记做跨进程/重启去重。
+     */
+    private static boolean aiqiyiRepairScheduled = false;
 
     public void update() {
         if (CherrygramAppearanceConfig.INSTANCE.getDisablePremiumStatuses()) return;
@@ -512,18 +520,35 @@ public class ProfileGiftsView extends View implements NotificationCenter.Notific
                 lastLocalGiftCount = 0;
                 return;
             }
-            // Aiqiyi: 旧数据回填。早期 fromStarGift 里 giftNum 写死为 1，
-            // 真实编号其实在 slug 后缀里（ResistanceDog-283 -> 283）。
-            // 这里在读取 pinned 列表之前先刷一遍，保证画出来的就是真编号。
-            try {
-                LocalGiftStore.INSTANCE.repairGiftNumsFromSlug();
-            } catch (Throwable ignore) {}
-            // Aiqiyi: 底图回填。老数据 patternDocumentId 是 0，详情页背景
-            // 只剩一片渐变、没有平铺小图案。这里去目录捞一次并序列化存本地，
-            // 之后重启也不会再丢。只补 pattern，不动编号和佩戴状态。
-            try {
-                LocalGiftStore.INSTANCE.repairPatternDocuments();
-            } catch (Throwable ignore) {}
+            // Aiqiyi: 旧数据回填（giftNum + pattern 底图）。
+            //
+            // 这两个修复原本在主线程同步跑：遍历 PREF 里所有 userId 的所有礼物，
+            // pattern 那条还要逐个去礼物目录查文档、序列化、写盘、发通知。
+            // 条目一多，进资料页就是肉眼可见的卡。而且数据修好之后仍然每次都跑。
+            //
+            // 现在改成：本进程内只调度一次，丢到后台线程跑，跑完再发一次
+            // aiqiyiLocalGiftUpdated 触发重绘。首帧可能拿到的是修正前的编号，
+            // 但那一帧本来就要等文档下载，用户感知不到这一跳。
+            // LocalGiftStore 内部另有 PREF 级完成标记，跨进程/重启也不会重跑。
+            if (!aiqiyiRepairScheduled) {
+                aiqiyiRepairScheduled = true;
+                org.telegram.messenger.Utilities.globalQueue.postRunnable(() -> {
+                    boolean changed = false;
+                    try {
+                        if (LocalGiftStore.INSTANCE.repairGiftNumsFromSlug() > 0) changed = true;
+                    } catch (Throwable ignore) {}
+                    try {
+                        if (LocalGiftStore.INSTANCE.repairPatternDocuments() > 0) changed = true;
+                    } catch (Throwable ignore) {}
+                    if (changed) {
+                        org.telegram.messenger.AndroidUtilities.runOnUIThread(() -> {
+                            try {
+                                LocalGiftStore.INSTANCE.notifyChanged(dialogId);
+                            } catch (Throwable ignore) {}
+                        });
+                    }
+                });
+            }
             // Aiqiyi: 只绘制「已佩戴」的本地礼物。
             // 未佩戴的本地礼物只在礼物列表里躺着，不参与资料页绘制。
             // 违规礼物佩戴入口写入时 pinned 直接为 true，所以表现上是「添加即挂上」。
