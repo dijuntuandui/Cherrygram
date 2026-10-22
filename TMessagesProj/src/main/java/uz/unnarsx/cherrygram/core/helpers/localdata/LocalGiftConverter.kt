@@ -313,19 +313,25 @@ object LocalGiftConverter {
         try {
             val account = UserConfig.selectedAccount
             val loader = org.telegram.messenger.FileLoader.getInstance(account)
-            // 贴纸
+            // Aiqiyi C15: 这里只负责「把图拉下来」，绝不能改写 documentId。
+            //
+            // 旧实现会在 findDocument(data.documentId) 返回 null 时回退到
+            // findCatalogGift(catalogGiftId) 拿目录图，然后 data.documentId = sticker.id
+            // 直接覆盖原值 —— 而自建服务器目录里只有基础款，于是买回来的那一刻，
+            // 那只狗就被永久替换成基础款，下次渲染读到的已经是基础款 id，再也回不去。
+            //
+            // 正确做法：按原 documentId 去拉文件，拉不到就让它空着（渲染层还有
+            // findDocumentByCachedFile / 精确借图 两道路径），不碰记录本身。
             val sticker = findDocument(data.documentId)
-                ?: runCatching {
-                    findCatalogGift(data.catalogGiftId)?.let {
-                        StarsController.findAttribute(it.attributes, TL_stars.starGiftAttributeModel::class.java)?.document
-                    }
-                }.getOrNull()
+                ?: (if (data.documentId != 0L) findDocumentByCachedFile(data.documentId) else null)
             if (sticker != null) {
-                data.documentId = sticker.id
                 val f = loader.getPathToAttach(sticker, true)
                 if (f == null || !f.exists() || f.length() <= 0) {
                     loader.loadFile(sticker, null, org.telegram.messenger.FileLoader.PRIORITY_NORMAL, 0)
                 }
+            } else if (data.documentId != 0L) {
+                FileLog.e("Aiqiyi preloadGiftFiles: documentId=" + data.documentId
+                    + " 暂不可解析，保持原值不回写（catalogGiftId=" + data.catalogGiftId + "）")
             }
             // 底图 pattern
             val patDoc = resolvePatternDocument(data)
@@ -694,26 +700,22 @@ object LocalGiftConverter {
             // Aiqiyi C11: model attribute 的 name 才是「这一只」的唯一标识。
             // 之前从头到尾没存过它，导致同族多款礼物共享同一个 slug 前缀，
             // 渲染时只能借到目录里第一条同族底图 -> 全部变成同一只。
-            var doc = StarsController.findAttribute(gift.attributes, TL_stars.starGiftAttributeModel::class.java)?.document
-            if (doc == null) doc = gift.document
+            // Aiqiyi C16: 核心原则 —— 买时啥样，买后就啥样。
+            // 购买界面画的就是 gift.getDocument()（内部优先 sticker，其次 model attribute），
+            // 保存记录时必须用同一个来源，否则界面和记录两张皮。
+            var doc = runCatching { gift.getDocument() }.getOrNull()
+            if (doc == null) {
+                doc = StarsController.findAttribute(gift.attributes, TL_stars.starGiftAttributeModel::class.java)?.document
+            }
             runCatching {
                 val modelAttr = StarsController.findAttribute(gift.attributes, TL_stars.starGiftAttributeModel::class.java)
                 if (modelAttr != null && !modelAttr.name.isNullOrEmpty()) {
                     data.modelName = modelAttr.name
                 }
             }
-            if (doc == null && gift.id != 0L) {
-                // 按 catalogGiftId 去目录里再捞一次，拿它的 model 文档
-                doc = runCatching {
-                    findCatalogGift(gift.id)?.let { c ->
-                        StarsController.findAttribute(c.attributes, TL_stars.starGiftAttributeModel::class.java)?.document
-                            ?: c.document
-                    }
-                }.getOrNull()
-            }
-            if (doc == null && !gift.slug.isNullOrEmpty()) {
-                doc = borrowDocumentBySlug(gift.slug, data.modelName)
-            }
+            // Aiqiyi C16: 不再从目录回捞、不借同族图。
+            // 目录里的图是别的款/基础款，借来就变成「买时一只，买后另一只」。
+            // 这里只认 gift 本身带来的图；实在没有就存 0，渲染层再用缓存文件兜底。
             data.documentId = doc?.id ?: 0L
             data.senderName = senderName
             // Aiqiyi: 编号。调用方手里其实是 TL_starGiftUnique（多态传参），num 字段一直都在，
