@@ -2097,7 +2097,11 @@ public class ProfileGiftsContainer extends FrameLayout implements NotificationCe
      */
     private static void openEditGiftNumberAlert(ProfileGiftsContainer container, Theme.ResourcesProvider resourcesProvider, TL_stars.TL_starGiftUnique gift) {
         final Context context = container.getContext();
-        final long uid = UserConfig.getInstance(container.currentAccount).getClientUserId();
+        // Aiqiyi C8: 编号属于礼物持有者。在别人主页改编号，要落到对方的本地记录上，
+        // 写死 getClientUserId() 会导致改了没效果（写进了自己的记录）。
+        final long uid = container.dialogId != 0
+                ? container.dialogId
+                : UserConfig.getInstance(container.currentAccount).getClientUserId();
         final LocalGiftData data = LocalGiftStore.findLocalGift(uid, gift.id);
         final int oldCustom = data != null ? data.getCustomNum() : 0;
         final int oldOriginal = gift.num;

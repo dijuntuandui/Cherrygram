@@ -217,12 +217,19 @@ object LocalGiftConverter {
         //   3. 兜底：按 slug 前缀同族礼物借一张能用的文档（老数据 documentId 失效时）
         // 注意 findDocument() 只查 emojiDocumentsCache，文档没被拉取过就返回 null，
         // 所以 2/3 两层兜底必须有，否则卡片只剩 backdrop 渐变。
+        // Aiqiyi C9: 外观的唯一权威来源是本地 documentId。
+        // 以前 findDocument 命中就罢了，一旦它没命中就退到 catalog.getDocument()，
+        // 而自建服务器的目录里只有基础款，于是不管买的是哪一款，画出来永远是基础款。
+        // 现在顺序改成：本地 documentId -> 本地缓存文件 -> 同族借图 -> catalog 最后兜底。
         var doc = findDocument(data.documentId)
-        if (doc == null && catalog != null) {
-            doc = runCatching { catalog.getDocument() }.getOrNull()
+        if (doc == null && data.documentId != 0L) {
+            doc = findDocumentByCachedFile(data.documentId)
         }
         if (doc == null) {
             doc = borrowDocumentBySlug(data.slug)
+        }
+        if (doc == null && catalog != null) {
+            doc = runCatching { catalog.getDocument() }.getOrNull()
         }
         // Aiqiyi: 第 4 层兜底 —— 按哈希到父目录找图。
         // 上面三层都在「找 Document 对象」，找不到就完全没图。
@@ -235,7 +242,8 @@ object LocalGiftConverter {
         unique.sticker = doc
 
         // --- 价格：目录优先，本地兜底 ---
-        unique.stars = if (catalog != null && catalog.stars != 0L) catalog.stars else data.valueAmount
+        // Aiqiyi C9: 价格本地优先，否则基础款目录价会盖掉真实成交价
+        unique.stars = if (data.valueAmount != 0L) data.valueAmount else (catalog?.stars ?: 0L)
         unique.value_amount = if (data.valueAmount != 0L) data.valueAmount else (catalog?.value_amount ?: 0L)
         unique.value_currency = if (!data.valueCurrency.isNullOrEmpty()) data.valueCurrency else catalog?.value_currency
         unique.value_usd_amount = if (data.valueUsdAmount != 0L) data.valueUsdAmount else (catalog?.value_usd_amount ?: 0L)
@@ -641,8 +649,23 @@ object LocalGiftConverter {
             data.title = gift.title
             data.slug = gift.slug
             data.catalogGiftId = gift.id          // 必须写，渲染靠它找回 StarGift
-            val doc = StarsController.findAttribute(gift.attributes, TL_stars.starGiftAttributeModel::class.java)?.document
-                ?: gift.document
+            // Aiqiyi C10: documentId 是外观的唯一依据，必须尽全力拿到。
+            // 送别人礼物时传进来的 gift 可能只是目录条目（没有 attributes），
+            // 这时如果再取不到 document，后面渲染就只能退回基础款。
+            var doc = StarsController.findAttribute(gift.attributes, TL_stars.starGiftAttributeModel::class.java)?.document
+            if (doc == null) doc = gift.document
+            if (doc == null && gift.id != 0L) {
+                // 按 catalogGiftId 去目录里再捞一次，拿它的 model 文档
+                doc = runCatching {
+                    findCatalogGift(gift.id)?.let { c ->
+                        StarsController.findAttribute(c.attributes, TL_stars.starGiftAttributeModel::class.java)?.document
+                            ?: c.document
+                    }
+                }.getOrNull()
+            }
+            if (doc == null && !gift.slug.isNullOrEmpty()) {
+                doc = borrowDocumentBySlug(gift.slug)
+            }
             data.documentId = doc?.id ?: 0L
             data.senderName = senderName
             // Aiqiyi: 编号。调用方手里其实是 TL_starGiftUnique（多态传参），num 字段一直都在，
