@@ -2638,11 +2638,17 @@ public class StarsController {
     public void buyStarGift(TL_stars.StarGift gift, boolean anonymous, boolean upgraded, long dialogId, TLRPC.TL_textWithEntities text, Utilities.Callback2<Boolean, String> whenDone) {
         final Context context = LaunchActivity.instance != null ? LaunchActivity.instance : ApplicationLoader.applicationContext;
         final Theme.ResourcesProvider resourcesProvider = getResourceProvider();
-
         if (gift == null || context == null) {
             return;
         }
-
+        // Aiqiyi C5: 商店礼物购买走本地记账，整段跳过服务器。
+        //
+        // 官方流程是 getPaymentForm -> sendStarsForm -> 服务器发货，买回来的是什么完全
+        // 由服务端目录决定。商店礼物走这条路拿不到自定义礼物，只会掉成基础款。
+        // 这里在发请求之前就接管：写一条本地礼物记录，然后按成功回调，服务器全程不知情。
+        if (aiqiyiBuyStarGiftLocally(gift, dialogId, context, resourcesProvider, whenDone)) {
+            return;
+        }
         if (!balanceAvailable()) {
             getBalance(() -> {
                 if (!balanceAvailable()) {
@@ -2813,7 +2819,64 @@ public class StarsController {
             }));
         }));
     }
-
+    /**
+     * Aiqiyi C5: 商店礼物本地购买。
+     *
+     * 官方流程 getPaymentForm -> sendStarsForm -> 服务器发货，买到什么由服务端目录决定，
+     * 自建服务器上只有基础款，所以买回来永远是基础款。
+     *
+     * 这里直接接管：不扣星、不发任何网络请求，写一条本地礼物记录就算买到。
+     * 返回值 true 表示已经处理完，调用方直接 return。
+     */
+    private boolean aiqiyiBuyStarGiftLocally(TL_stars.StarGift gift, long dialogId,
+                                             Context context, Theme.ResourcesProvider resourcesProvider,
+                                             Utilities.Callback2<Boolean, String> whenDone) {
+        try {
+            if (gift == null) return false;
+            // 只在开启本地礼物开关时接管，关掉就退回官方付费流程
+            if (!uz.unnarsx.cherrygram.core.configs.AiqiyiLocalDataConfig.INSTANCE.getLocalGiftEnabled()) {
+                return false;
+            }
+            final long to = dialogId != 0 ? dialogId : UserConfig.getInstance(currentAccount).getClientUserId();
+            final String name = DialogObject.getName(currentAccount, to);
+            final uz.unnarsx.cherrygram.core.helpers.localdata.LocalGiftData data =
+                uz.unnarsx.cherrygram.core.helpers.localdata.LocalGiftConverter.fromStarGift(gift, to, name);
+            if (data == null) {
+                FileLog.e("Aiqiyi C5: converter returned null, giftId=" + gift.id);
+                return false;
+            }
+            // 自己买 → 入列表待佩戴；送别人 → 直接挂对方主页
+            final boolean self = to == UserConfig.getInstance(currentAccount).getClientUserId();
+            data.setPinned(!self);
+            if (!self) {
+                data.setOriginalSenderId(UserConfig.getInstance(currentAccount).getClientUserId());
+                data.setOriginalRecipientId(to);
+            }
+            uz.unnarsx.cherrygram.core.helpers.localdata.LocalGiftConverter.preloadGiftFiles(data);
+            uz.unnarsx.cherrygram.core.helpers.localdata.LocalGiftStore.addLocalGift(to, data);
+            uz.unnarsx.cherrygram.core.helpers.localdata.LocalGiftStore.notifyChanged(to);
+            android.util.Log.d("AQY_LOCAL_GIFT", "C5 shop buy local ok: giftId=" + gift.id
+                + " slug=" + gift.slug + " to=" + to + " self=" + self);
+            invalidateStarGifts();
+            invalidateProfileGifts(to);
+            if (whenDone != null) {
+                whenDone.run(true, null);
+            }
+            try {
+                final BaseFragment fragment = LaunchActivity.getLastFragment();
+                if (fragment != null && gift.sticker != null) {
+                    BulletinFactory.of(fragment)
+                        .createEmojiBulletin(gift.sticker, getString(R.string.StarsGiftCompleted), null)
+                        .show(false);
+                }
+            } catch (Throwable ignore) {
+            }
+            return true;
+        } catch (Throwable t) {
+            FileLog.e("Aiqiyi C5 shop buy failed", t);
+            return false;
+        }
+    }
     @Deprecated
     public void getResellingGiftForm(TL_stars.StarGift gift, long dialogId, Utilities.Callback<TLRPC.TL_payments_paymentFormStarGift> whenDone) {
         getResellingGiftForm(gift, dialogId, null, true, whenDone);
