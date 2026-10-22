@@ -632,7 +632,9 @@ public class ProfileGiftsContainer extends FrameLayout implements NotificationCe
                 if (data == null || data.isEmpty()) { aiqiyiDbg("skip: data empty"); return null; }
                 aiqiyiDbg("INJECT count=" + data.size() + " first=" + (data.get(0) == null ? "null" : data.get(0).getTitle()) + " catalogId=" + (data.get(0) == null ? -1 : data.get(0).getCatalogGiftId()));
                 // 本地记录直接转成 SavedStarGift，saved_id 为负作为本地标记
-                return LocalGiftConverter.toSavedGiftList(data, true);
+                // Aiqiyi C7: isMine 按当前资料页主人判定，别人主页要拿 originalRecipientId 当 from_id
+                final boolean aiqiyiIsMine = ownerId == UserConfig.getInstance(currentAccount).getClientUserId();
+                return LocalGiftConverter.toSavedGiftList(data, aiqiyiIsMine);
             } catch (Throwable t) {
                 org.telegram.messenger.FileLog.e("Aiqiyi aiqiyiBuildLocalGifts failed", t);
                 return null;
@@ -797,6 +799,11 @@ public class ProfileGiftsContainer extends FrameLayout implements NotificationCe
 
         public boolean onItemLongPress(UItem item, View view, int position, float x, float y) {
             if (list == null) return false;
+            // Aiqiyi C7: 本地礼物优先接管，否则原版菜单按 saved_id 去服务器找找不到，点了没反应
+            if (view instanceof GiftSheet.GiftCell && item.object instanceof TL_stars.SavedStarGift
+                    && aiqiyiShowLocalGiftMenu((TL_stars.SavedStarGift) item.object, view)) {
+                return true;
+            }
             if (view instanceof GiftSheet.GiftCell && item.object instanceof TL_stars.SavedStarGift) {
                 final GiftSheet.GiftCell cell = (GiftSheet.GiftCell) view;
                 final TL_stars.SavedStarGift savedStarGift = (TL_stars.SavedStarGift) item.object;
@@ -1826,18 +1833,34 @@ public class ProfileGiftsContainer extends FrameLayout implements NotificationCe
     }
 
     public int getGiftsCount() {
+        // Aiqiyi C7: 礼物数量要把本地礼物算进去，否则永远显示服务器那个 0
+        final int aiqiyiLocalCount = aiqiyiLocalGiftCount();
         final Page page = getCurrentPage();
         if (page == null || page.list == list) {
-            if (list != null && list.totalCount > 0) return list.totalCount;
+            if (list != null && list.totalCount > 0) return list.totalCount + aiqiyiLocalCount;
         } else {
-            if (page.list != null && page.list.totalCount > 0) return page.list.totalCount;
+            if (page.list != null && page.list.totalCount > 0) return page.list.totalCount + aiqiyiLocalCount;
         }
         if (dialogId >= 0) {
             final TLRPC.UserFull userFull = MessagesController.getInstance(currentAccount).getUserFull(dialogId);
-            return userFull != null ? userFull.stargifts_count : 0;
+            return (userFull != null ? userFull.stargifts_count : 0) + aiqiyiLocalCount;
         } else {
             final TLRPC.ChatFull chatFull = MessagesController.getInstance(currentAccount).getChatFull(-dialogId);
-            return chatFull != null ? chatFull.stargifts_count : 0;
+            return (chatFull != null ? chatFull.stargifts_count : 0) + aiqiyiLocalCount;
+        }
+    }
+    /** Aiqiyi C7: 当前资料页主人持有的本地礼物条数 */
+    private int aiqiyiLocalGiftCount() {
+        try {
+            if (!AiqiyiLocalDataConfig.INSTANCE.getLocalGiftEnabled()) return 0;
+            if (!AiqiyiLocalDataConfig.INSTANCE.getLocalGiftShowInList()) return 0;
+            if (dialogId == 0) return 0;
+            if (!LocalGiftStore.hasLocalGifts(dialogId)) return 0;
+            final ArrayList<LocalGiftData> data = LocalGiftStore.getDataForUser(dialogId);
+            return data == null ? 0 : data.size();
+        } catch (Throwable t) {
+            org.telegram.messenger.FileLog.e("Aiqiyi aiqiyiLocalGiftCount failed", t);
+            return 0;
         }
     }
 
