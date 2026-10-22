@@ -642,31 +642,14 @@ public class ProfileGiftsContainer extends FrameLayout implements NotificationCe
         }
 
         /**
-         * 本地礼物长按菜单。返回 true 表示已消费，不再走原版菜单。
+         * Aiqiyi: 原先这里会接管长按菜单、只塞一个「删除」然后 return true，
+         * 结果本人资料页反而丢掉了佩带/修改编号/修复旧数据/分享等全部入口。
+         * 现在原版分支（onItemLongPress）已内置 aiqiyiIsLocalGiftId 判断，
+         * 本地礼物走原版就能拿到完整菜单，这里只保留入口、不再接管。
          */
         private boolean aiqiyiShowLocalGiftMenu(TL_stars.SavedStarGift savedStarGift, View view) {
-            try {
-                if (!LocalGiftConverter.isLocalSavedGift(savedStarGift)) return false;
-                final long selfId = UserConfig.getInstance(currentAccount).getClientUserId();
-                if (parent == null || parent.dialogId != selfId) return false;
-                final long collectibleId = savedStarGift.saved_id;
-                final ItemOptions o = ItemOptions.makeOptions(parent.fragment, view, true);
-                parent.currentMenu = o;
-                o.add(R.drawable.msg_delete, getString(R.string.Delete), () -> {
-                    LocalGiftStore.removeLocalGift(selfId, collectibleId);
-                    listView.adapter.update(true);
-                    if (parent != null) {
-                        parent.fillTabs(true);
-                    }
-                });
-                o.show();
-                return true;
-            } catch (Throwable t) {
-                org.telegram.messenger.FileLog.e("Aiqiyi aiqiyiShowLocalGiftMenu failed", t);
-                return false;
-            }
+            return false;
         }
-
         public void fillItems(ArrayList<UItem> items, UniversalAdapter adapter) {
             if (list == null)
                 return;
