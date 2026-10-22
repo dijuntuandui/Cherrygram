@@ -525,14 +525,13 @@ object LocalGiftStore {
         }
     }
     /**
-     * Aiqiyi: 删除一条本地礼物（带确认弹窗）。
+     * Aiqiyi: 删除一条本地礼物（直接删除，不再弹确认）。
      *
-     * 抽到这里是因为「礼物列表」和「礼物详情页」两个入口都要用：
+     * 函数名保留 showDeleteLocalGiftDialog 是为了三个调用方零改动：
      *   - ProfileGiftsContainer 长按列表项
      *   - StarGiftSheet 详情页右上角菜单
-     * 之前只有详情页有，用户在列表里长按找不到删除，体验断层。
-     *
-     * 只删本机记录，不碰服务端任何真实礼物。
+     *   - LocalGiftStore 内部
+     * 只删本机记录，不碰服务端任何真实礼物，所以确认这一步是多余的。
      */
     @JvmStatic
     fun showDeleteLocalGiftDialog(
@@ -542,27 +541,15 @@ object LocalGiftStore {
         giftName: String?,
         onDeleted: Runnable?
     ) {
-        if (ctx == null || collectibleId == 0L) return
+        if (collectibleId == 0L) return
         try {
-            val b = android.app.AlertDialog.Builder(ctx)
-            b.setTitle("删除本地礼物")
-            b.setMessage("确定删除「" + (if (giftName.isNullOrEmpty()) "该礼物" else giftName)
-                    + "」吗？\n只删除本机显示，不影响账号里任何真实礼物。")
-            b.setPositiveButton("删除") { _, _ ->
-                try {
-                    removeLocalGift(dialogId, collectibleId)
-                    resetPrefetchMarks()
-                    FileLog.d("Aiqiyi delete local gift id=" + collectibleId + " did=" + dialogId)
-                } catch (t: Throwable) {
-                    FileLog.e("Aiqiyi delete local gift failed", t)
-                }
-                try { onDeleted?.run() } catch (t: Throwable) {}
-            }
-            b.setNegativeButton("取消", null)
-            b.show()
+            removeLocalGift(dialogId, collectibleId)
+            resetPrefetchMarks()
+            FileLog.d("Aiqiyi delete local gift id=" + collectibleId + " did=" + dialogId)
         } catch (t: Throwable) {
-            FileLog.e("Aiqiyi showDeleteLocalGiftDialog failed", t)
+            FileLog.e("Aiqiyi delete local gift failed", t)
         }
+        try { onDeleted?.run() } catch (t: Throwable) {}
     }
 
     /**

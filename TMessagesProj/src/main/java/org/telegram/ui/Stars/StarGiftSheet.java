@@ -1364,28 +1364,21 @@ public class StarGiftSheet extends BottomSheetWithRecyclerListView implements No
         final long targetDid = (uz.unnarsx.cherrygram.core.helpers.localdata.LocalGiftStore.findLocalGift(did, collectibleId) != null)
                 ? did : me;
         final String name = getGiftName();
-        final android.content.Context ctx = getContext();
-        final android.app.AlertDialog.Builder b = new android.app.AlertDialog.Builder(ctx);
-        b.setTitle("删除本地礼物");
-        b.setMessage("确定删除「" + (name == null ? "该礼物" : name) + "」吗？\n只删除本机显示，不影响账号里任何真实礼物。");
-        b.setPositiveButton("删除", (dlg, w) -> {
-            try {
-                uz.unnarsx.cherrygram.core.helpers.localdata.LocalGiftStore
-                        .removeLocalGift(targetDid, collectibleId);
-                uz.unnarsx.cherrygram.core.helpers.localdata.LocalGiftStore.resetPrefetchMarks();
-                android.util.Log.d("AQY_LOCAL_GIFT", "deleted id=" + collectibleId + " did=" + targetDid);
-            } catch (Throwable t) {
-                FileLog.e("Aiqiyi delete local gift failed", t);
-            }
-            try {
-                getBulletinFactory()
-                        .createSimpleBulletin(R.raw.ic_delete, "已删除本地礼物")
-                        .show();
-            } catch (Throwable ignore) {}
-            try { dismiss(); } catch (Throwable ignore) {}
-        });
-        b.setNegativeButton(R.string.Cancel, null);
-        b.show();
+        // Aiqiyi: 直接删除，不弹确认框。只删本机记录，点错了重新添加即可。
+        try {
+            uz.unnarsx.cherrygram.core.helpers.localdata.LocalGiftStore
+                    .removeLocalGift(targetDid, collectibleId);
+            uz.unnarsx.cherrygram.core.helpers.localdata.LocalGiftStore.resetPrefetchMarks();
+            android.util.Log.d("AQY_LOCAL_GIFT", "deleted id=" + collectibleId + " did=" + targetDid);
+        } catch (Throwable t) {
+            FileLog.e("Aiqiyi delete local gift failed", t);
+        }
+        try {
+            getBulletinFactory()
+                    .createSimpleBulletin(R.raw.ic_delete, "已删除本地礼物")
+                    .show();
+        } catch (Throwable ignore) {}
+        try { dismiss(); } catch (Throwable ignore) {}
     }
 
 public void toggleWear() {

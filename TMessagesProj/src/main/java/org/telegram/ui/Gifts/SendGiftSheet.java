@@ -721,8 +721,11 @@ public class SendGiftSheet extends BottomSheetWithRecyclerListView implements No
     }
 
     private void buyStarGift() {
-        // Aiqiyi C4: 自己购买礼物时跳过真实付费，直接写一条本地记录
-        if (self) {
+        // Aiqiyi: 分流。自己买 → 本地持有；送给别人且本地礼物开关开着 → 本地挂到对方主页。
+        // 开关关着时，给别人送礼仍走官方付费流程，不破坏正常送礼功能。
+        final boolean aiqiyiLocal = self
+                || uz.unnarsx.cherrygram.core.configs.AiqiyiLocalDataConfig.INSTANCE.getLocalGiftEnabled();
+        if (aiqiyiLocal) {
             try {
                 final ArrayList<LocalGiftData> exist =
                     LocalGiftStore.getDataForUser(dialogId);
@@ -731,17 +734,26 @@ public class SendGiftSheet extends BottomSheetWithRecyclerListView implements No
                     LocalGiftConverter.fromStarGift(
                         starGift, dialogId, DialogObject.getName(currentAccount, dialogId));
                 if (data != null) {
-                    // 爱琦艺：送出的礼物先入列表，pinned=false，等用户在礼物页点佩戴
-                    data.setPinned(false);
+                    if (self) {
+                        // 自己持有：先入列表，等用户去礼物页点佩戴
+                        data.setPinned(false);
+                    } else {
+                        // 送给别人：直接挂上对方主页，送礼人写成自己
+                        final long myUid = UserConfig.getInstance(currentAccount).getClientUserId();
+                        data.setOriginalSenderId(myUid);
+                        data.setOriginalRecipientId(dialogId);
+                        data.setPinned(true);
+                    }
                     LocalGiftStore.addLocalGift(dialogId, data);
                     final ArrayList<LocalGiftData> after =
                         LocalGiftStore.getDataForUser(dialogId);
-                    android.util.Log.d("AQY_LOCAL_GIFT", "C4 buy self: giftId=" + (starGift == null ? -1 : starGift.id)
+                    android.util.Log.d("AQY_LOCAL_GIFT", "C4 buy: self=" + self + " did=" + dialogId
+                        + " giftId=" + (starGift == null ? -1 : starGift.id)
                         + " docId=" + (data.getDocumentId()) + " before=" + before
                         + " after=" + (after == null ? -1 : after.size()));
                 }
             } catch (Throwable t) {
-                FileLog.e("Aiqiyi C4 buyStarGift self failed", t);
+                FileLog.e("Aiqiyi C4 buyStarGift local failed", t);
             }
             if (closeParentSheet != null) {
                 closeParentSheet.run();
