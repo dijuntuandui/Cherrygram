@@ -221,21 +221,10 @@ object LocalGiftConverter {
         // 以前 findDocument 命中就罢了，一旦它没命中就退到 catalog.getDocument()，
         // 而自建服务器的目录里只有基础款，于是不管买的是哪一款，画出来永远是基础款。
         // 现在顺序改成：本地 documentId -> 本地缓存文件 -> 同族借图 -> catalog 最后兜底。
-        var doc = findDocument(data.documentId)
-        if (doc == null && data.documentId != 0L) {
-            doc = findDocumentByCachedFile(data.documentId)
-        }
-        if (doc == null) {
-            doc = borrowDocumentBySlug(data.slug)
-        }
-        if (doc == null && catalog != null) {
-            doc = runCatching { catalog.getDocument() }.getOrNull()
-        }
-        // Aiqiyi: 第 4 层兜底 —— 按哈希到父目录找图。
-        // 上面三层都在「找 Document 对象」，找不到就完全没图。
-        // 但只要当初买的时候 preloadGiftFiles 下载过，文件就躺在
-        // MEDIA_DIR_CACHE 里（文件名 dc_id_id，id 就是哈希），
-        // 这时用 documentId 造一个最小的 Document 顶上即可。
+        // Aiqiyi C13: 统一走 resolveStickerDocument。
+        // 这里已经包含了：本地 documentId -> 本地缓存文件 -> 按 modelName 精确借图，
+        // 并且一旦 modelName 存在就绝不回落目录基础款（否则同族全画成同一只）。
+        var doc = resolveStickerDocument(data, catalog)
         if (doc == null && data.documentId != 0L) {
             doc = findDocumentByCachedFile(data.documentId)
         }
@@ -540,6 +529,19 @@ object LocalGiftConverter {
      */
     @JvmStatic
     fun borrowDocumentBySlug(slug: String?): TLRPC.Document? {
+        return borrowDocumentBySlug(slug, null)
+    }
+
+    /**
+     * Aiqiyi C11: 精确版借图。
+     *
+     * 旧实现只取 slug 的 `-` 前前缀（"ResistanceDog-283" -> "ResistanceDog"），
+     * 然后在目录里找「第一条同族」就直接返回 —— 结果同族所有礼物都画成同一只。
+     * 正确做法是带 modelName 做精确匹配，匹配不到就宁可返回 null 让上层走 catalog，
+     * 也不要把整个家族强行画成一条狗。
+     */
+    @JvmStatic
+    fun borrowDocumentBySlug(slug: String?, modelName: String?): TLRPC.Document? {
         if (slug.isNullOrEmpty()) return null
         val family = slug.substringBefore('-', slug)
         if (family.isEmpty()) return null
@@ -552,6 +554,22 @@ object LocalGiftConverter {
                 if (g != null) {
                     val t = g.title
                     val s = runCatching { (g as? TL_stars.TL_starGiftUnique)?.slug }.getOrNull()
+                    // Aiqiyi C11: 有 modelName 就必须精确命中，不许「随便找一条同族」
+                    if (!modelName.isNullOrEmpty()) {
+                        val attrName = runCatching {
+                            StarsController.findAttribute(g.attributes, TL_stars.starGiftAttributeModel::class.java)?.name
+                        }.getOrNull()
+                        val exact = (!attrName.isNullOrEmpty() && attrName.equals(modelName, ignoreCase = true))
+                                || (!s.isNullOrEmpty() && s.equals(slug, ignoreCase = true))
+                        if (!exact) {
+                            i++
+                            continue
+                        }
+                        val dExact = runCatching { g.getDocument() }.getOrNull()
+                        if (dExact != null && dExact.id != 0L) return dExact
+                        i++
+                        continue
+                    }
                     val match = (!t.isNullOrEmpty() && t.equals(family, ignoreCase = true))
                             || (!s.isNullOrEmpty() && s.startsWith(family))
                     if (match) {
@@ -566,6 +584,27 @@ object LocalGiftConverter {
             FileLog.e("LocalGiftConverter borrowDocumentBySlug failed", e)
             null
         }
+    }
+
+    /**
+     * Aiqiyi C13: 渲染阶段的贴图决策。
+     *
+     * 只要能确定「这一只」的 modelName，就绝不允许退回目录里的基础款：
+     * 目录基础款是别人的狗，画上去等于骗人。宁可留空（上层画渐变背景），
+     * 也不能把六只不同的狗全画成同一只。
+     */
+    @JvmStatic
+    fun resolveStickerDocument(data: LocalGiftData, catalog: TL_stars.StarGift?): TLRPC.Document? {
+        var doc = findDocument(data.documentId)
+        if (doc == null && data.documentId != 0L) doc = findDocumentByCachedFile(data.documentId)
+        if (doc != null) return doc
+        val byModel = borrowDocumentBySlug(data.slug, data.modelName)
+        if (byModel != null) return byModel
+        if (!data.modelName.isNullOrEmpty()) {
+            FileLog.e("Aiqiyi resolveStickerDocument: model=" + data.modelName + " 精确匹配失败，不使用目录基础款")
+            return null
+        }
+        return if (catalog != null) runCatching { catalog.getDocument() }.getOrNull() else null
     }
 
     /**
@@ -652,8 +691,17 @@ object LocalGiftConverter {
             // Aiqiyi C10: documentId 是外观的唯一依据，必须尽全力拿到。
             // 送别人礼物时传进来的 gift 可能只是目录条目（没有 attributes），
             // 这时如果再取不到 document，后面渲染就只能退回基础款。
+            // Aiqiyi C11: model attribute 的 name 才是「这一只」的唯一标识。
+            // 之前从头到尾没存过它，导致同族多款礼物共享同一个 slug 前缀，
+            // 渲染时只能借到目录里第一条同族底图 -> 全部变成同一只。
             var doc = StarsController.findAttribute(gift.attributes, TL_stars.starGiftAttributeModel::class.java)?.document
             if (doc == null) doc = gift.document
+            runCatching {
+                val modelAttr = StarsController.findAttribute(gift.attributes, TL_stars.starGiftAttributeModel::class.java)
+                if (modelAttr != null && !modelAttr.name.isNullOrEmpty()) {
+                    data.modelName = modelAttr.name
+                }
+            }
             if (doc == null && gift.id != 0L) {
                 // 按 catalogGiftId 去目录里再捞一次，拿它的 model 文档
                 doc = runCatching {
@@ -664,7 +712,7 @@ object LocalGiftConverter {
                 }.getOrNull()
             }
             if (doc == null && !gift.slug.isNullOrEmpty()) {
-                doc = borrowDocumentBySlug(gift.slug)
+                doc = borrowDocumentBySlug(gift.slug, data.modelName)
             }
             data.documentId = doc?.id ?: 0L
             data.senderName = senderName
