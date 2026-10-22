@@ -623,10 +623,12 @@ public class ProfileGiftsContainer extends FrameLayout implements NotificationCe
                 if (!AiqiyiLocalDataConfig.INSTANCE.getLocalGiftShowInList()) { aiqiyiDbg("skip: showInList=false"); return null; }
                 if (targetList == null || isCollection) { aiqiyiDbg("skip: null-or-collection isCol=" + isCollection); return null; }
                 if (parent == null || targetList != parent.list) { aiqiyiDbg("skip: list mismatch"); return null; }
-                final long selfId = UserConfig.getInstance(currentAccount).getClientUserId();
-                if (parent.dialogId != selfId) { aiqiyiDbg("skip: dialogId=" + parent.dialogId + " selfId=" + selfId); return null; }
-                if (!LocalGiftStore.hasLocalGifts(selfId)) { aiqiyiDbg("skip: no local gifts, selfId=" + selfId); return null; }
-                final ArrayList<LocalGiftData> data = LocalGiftStore.getDataForUser(selfId);
+                // Aiqiyi C6: 不再限定只读自己。资料页主人是谁就读谁的本地礼物，
+                // 这样送给别人的礼物才会出现在对方主页上。
+                final long ownerId = parent.dialogId;
+                if (ownerId == 0) { aiqiyiDbg("skip: ownerId=0"); return null; }
+                if (!LocalGiftStore.hasLocalGifts(ownerId)) { aiqiyiDbg("skip: no local gifts, ownerId=" + ownerId); return null; }
+                final ArrayList<LocalGiftData> data = LocalGiftStore.getDataForUser(ownerId);
                 if (data == null || data.isEmpty()) { aiqiyiDbg("skip: data empty"); return null; }
                 aiqiyiDbg("INJECT count=" + data.size() + " first=" + (data.get(0) == null ? "null" : data.get(0).getTitle()) + " catalogId=" + (data.get(0) == null ? -1 : data.get(0).getCatalogGiftId()));
                 // 本地记录直接转成 SavedStarGift，saved_id 为负作为本地标记
@@ -670,12 +672,12 @@ public class ProfileGiftsContainer extends FrameLayout implements NotificationCe
                 // Aiqiyi: 服务器没有礼物但本地有，仍然要渲染本地礼物，不能提前返回
                 boolean aiqiyiHasLocal = false;
                 try {
-                    final long aiqiyiSelfId = UserConfig.getInstance(currentAccount).getClientUserId();
-                    aiqiyiHasLocal = parent != null && parent.dialogId == aiqiyiSelfId
+                    final long aiqiyiOwnerId = parent == null ? 0L : parent.dialogId;
+                    aiqiyiHasLocal = aiqiyiOwnerId != 0
                             && !isCollection && list == parent.list
                             && AiqiyiLocalDataConfig.INSTANCE.getLocalGiftEnabled()
                             && AiqiyiLocalDataConfig.INSTANCE.getLocalGiftShowInList()
-                            && LocalGiftStore.hasLocalGifts(aiqiyiSelfId);
+                            && LocalGiftStore.hasLocalGifts(aiqiyiOwnerId);
                 } catch (Throwable ignore) {}
                 if (!aiqiyiHasLocal) {
                     return;
