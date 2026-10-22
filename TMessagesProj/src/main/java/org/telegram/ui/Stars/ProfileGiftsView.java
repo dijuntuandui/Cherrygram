@@ -583,6 +583,10 @@ public class ProfileGiftsView extends View implements NotificationCenter.Notific
                     } catch (Throwable ignore) {}
                     try {
                         if (LocalGiftStore.INSTANCE.repairPatternDocuments() > 0) changed = true;
+                        // Aiqiyi: 旧数据正数 collectibleId 自动修成负数。
+                        // 不修的话 aiqiyiIsLocalGiftId() 快路径失效，用户点本地礼物
+                        // 会落到商店购买页，买回来的是服务端基础款。
+                        if (LocalGiftStore.INSTANCE.repairPositiveCollectibleIds() > 0) changed = true;
                     } catch (Throwable ignore) {}
                     if (changed) {
                         org.telegram.messenger.AndroidUtilities.runOnUIThread(() -> {
