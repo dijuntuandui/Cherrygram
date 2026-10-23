@@ -96,8 +96,13 @@ object LocalGiftStore {
                     val loader = org.telegram.messenger.FileLoader.getInstance(account)
                     val imageLoader = org.telegram.messenger.ImageLoader.getInstance()
                     for (d in list) {
+                        // Aiqiyi C17: 预取的文档来源必须与渲染层一致，逐层往下取。
+                        // 注意这里不再用「只传 slug」的旧借图 —— 那版按家族前缀匹配，
+                        // 会把同族六只狗全当成第一只，是「全都变一只」的元凶。
                         val doc = LocalGiftConverter.findDocument(d.documentId)
-                            ?: LocalGiftConverter.borrowDocumentBySlug(d.slug)
+                            ?: LocalGiftConverter.findDocumentByCachedFile(d.documentId)
+                            ?: LocalGiftConverter.getPersistedStickerDocument(d)
+                            ?: LocalGiftConverter.borrowDocumentBySlug(d.slug, d.modelName)
                             ?: continue
                         val docId = doc.id
                         if (!prefetchedDocs.add(docId)) continue
@@ -441,6 +446,27 @@ object LocalGiftStore {
                         FileLog.d("Aiqiyi gift repair: uid=" + uid + " " + old + " -> " + item.collectibleId)
                         fixed++
                         changed = true
+                    }
+                    // Aiqiyi C17: 顺手把老数据的图案补钉一遍。
+                    // 只要这一只现在还能从缓存/磁盘/目录里拿到 document，
+                    // 就序列化存进记录，以后再也不靠运气。
+                    if (item.stickerDocumentData.isNullOrEmpty()) {
+                        try {
+                            val d = LocalGiftConverter.resolveStickerDocument(
+                                item,
+                                if (item.catalogGiftId != 0L) LocalGiftConverter.findCatalogGift(item.catalogGiftId) else null
+                            )
+                            if (d != null) {
+                                LocalGiftConverter.persistStickerDocument(item, d)
+                                FileLog.d("Aiqiyi gift repair: 补钉图案 uid=" + uid + " id=" + item.collectibleId + " doc=" + d.id)
+                                fixed++
+                                changed = true
+                            } else {
+                                FileLog.e("Aiqiyi gift repair: 无法补钉图案 id=" + item.collectibleId + " docId=" + item.documentId + " model=" + item.modelName)
+                            }
+                        } catch (e: Throwable) {
+                            FileLog.e("Aiqiyi gift repair sticker failed id=" + item.collectibleId, e)
+                        }
                     }
                 }
                 if (changed) {

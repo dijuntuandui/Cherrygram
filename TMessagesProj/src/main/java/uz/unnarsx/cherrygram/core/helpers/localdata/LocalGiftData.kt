@@ -116,6 +116,17 @@ data class LocalGiftData(
     @SerializedName("patternDocumentData")
     var patternDocumentData: String? = null,
     /**
+     * Aiqiyi C17: 礼物本体（sticker）Document 的序列化数据（base64）。
+     *
+     * 为什么需要：sticker 的 Document 只存在于购买那一刻的目录对象里。
+     * 之后 AnimatedEmojiDrawable.findDocument() 只查内存缓存，重启就没了；
+     * 缓存文件也可能被 FileLoader 清掉。结果就是礼物卡片只剩底纹、画不出图案。
+     *
+     * 存一份 base64，等于把「买时那一只」钉死在本机，永不丢失、永不变形。
+     */
+    @SerializedName("stickerDocumentData")
+    var stickerDocumentData: String? = null,
+    /**
      * 爱琦艺：是否已佩戴。
      *
      * true  = 显示在资料页名字下方（用户点佩戴后置为 true）

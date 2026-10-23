@@ -459,6 +459,42 @@ object LocalGiftConverter {
     }
 
     /**
+     * Aiqiyi C17: 把礼物本体（sticker）文档序列化成 base64 钉进本地记录。
+     *
+     * 和 persistPatternDocument 同一套思路：Document 只活在内存里，重启就丢。
+     * 序列化一存，之后无论缓存怎么清、服务器换没换，`买时那一只`都在。
+     */
+    @JvmStatic
+    fun persistStickerDocument(data: LocalGiftData, doc: TLRPC.Document?) {
+        if (doc == null || doc.id == 0L) return
+        try {
+            val sd = org.telegram.tgnet.SerializedData()
+            doc.serializeToStream(sd)
+            val bytes = sd.toByteArray()
+            if (bytes.isEmpty()) return
+            data.stickerDocumentData = android.util.Base64.encodeToString(bytes, android.util.Base64.NO_WRAP)
+            if (data.documentId == 0L) data.documentId = doc.id
+        } catch (e: Throwable) {
+            FileLog.e("LocalGiftConverter persistStickerDocument failed", e)
+        }
+    }
+
+    /** 从持久化的 base64 还原 sticker 文档 */
+    @JvmStatic
+    fun getPersistedStickerDocument(data: LocalGiftData): TLRPC.Document? {
+        val raw = data.stickerDocumentData
+        if (raw.isNullOrEmpty()) return null
+        return try {
+            val bytes = android.util.Base64.decode(raw, android.util.Base64.DEFAULT)
+            val stream = org.telegram.tgnet.SerializedData(bytes)
+            TLRPC.Document.TLdeserialize(stream, stream.readInt32(false), false)
+        } catch (e: Throwable) {
+            FileLog.e("LocalGiftConverter getPersistedStickerDocument failed", e)
+            null
+        }
+    }
+
+    /**
      * Aiqiyi: 三层兜底取 pattern 文档（底图）。
      *
      *   1. patternDocumentId -> 内存缓存
@@ -604,6 +640,9 @@ object LocalGiftConverter {
         var doc = findDocument(data.documentId)
         if (doc == null && data.documentId != 0L) doc = findDocumentByCachedFile(data.documentId)
         if (doc != null) return doc
+        // Aiqiyi C17: 缓存和磁盘都空了，用购买时钉进来的 base64 还原 —— 这才是最稳的一层
+        val persisted = getPersistedStickerDocument(data)
+        if (persisted != null) return persisted
         val byModel = borrowDocumentBySlug(data.slug, data.modelName)
         if (byModel != null) return byModel
         if (!data.modelName.isNullOrEmpty()) {
@@ -717,6 +756,14 @@ object LocalGiftConverter {
             // 目录里的图是别的款/基础款，借来就变成「买时一只，买后另一只」。
             // 这里只认 gift 本身带来的图；实在没有就存 0，渲染层再用缓存文件兜底。
             data.documentId = doc?.id ?: 0L
+            // Aiqiyi C17: 买的那一刻就把图案钉进本地记录（base64 序列化）。
+            // 这是「购买时保存数据做持久化」的落点：之后缓存被清、服务器换榜、
+            // 甚至 documentId 变成孤儿，渲染层都能从这条记录里原样还原这一只。
+            if (doc != null) {
+                persistStickerDocument(data, doc)
+            } else {
+                FileLog.e("Aiqiyi fromStarGift: 该礼物没带 document，id=" + (gift.id) + " title=" + gift.title)
+            }
             data.senderName = senderName
             // Aiqiyi: 编号。调用方手里其实是 TL_starGiftUnique（多态传参），num 字段一直都在，
             // 之前硬编码成 1 把真编号（如 #51,488）丢了，导致详情卡显示 1 或借来目录的编号。
