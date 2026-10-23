@@ -251,6 +251,8 @@
     <string name="CP_MessageMenuCompactLayout">紧凑型消息菜单</string>
     <string name="CP_MessageMenuCompactLayout_Desc">在消息菜单底部以更紧凑的布局显示主要的指令操作。</string>
     <string name="CP_MessageMenuCompactLayout_Dot">对于具有长按功能的按钮在其旁边显示圆点标记。</string>
+    <string name="AQY_LiquidGlassBubble">液态玻璃气泡</string>
+    <string name="AQY_LiquidGlassBubble_Desc">消息气泡改为半透明磨砂玻璃质感，背景会隐约透上来，文字保持清晰。关闭则恢复普通气泡样式。</string>
     <string name="CP_UnreadBadgeOnBackButton">显示未读聊天数量</string>
     <string name="CP_UnreadBadgeOnBackButton_Desc">在已打开的聊天中显示未读消息数</string>
     <string name="CP_Slider_RecentEmojisAndStickers">最近使用的 Emoji 表情和贴纸数量</string>

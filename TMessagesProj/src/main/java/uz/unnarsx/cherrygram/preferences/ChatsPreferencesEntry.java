@@ -76,6 +76,7 @@ public class ChatsPreferencesEntry extends BaseCGPreferencesEntry {
     private final int notificationSoundRow = 28, vibrateInChatsRow = 29;
 
     private final int aqyBlurMsgMenuRow = 41, aqyCompactMsgMenuRow = 42, aqyMsgFilterRow = 43, aqyFoldersAtBottomRow = 44, aqyMsgFilterPageRow = 45;
+    private final int aqyLiquidGlassBubbleRow = 46;
     private boolean expandedHeaderSettingsSection = false;
     private boolean expandedBottomBarSettingsSection = false;
 
@@ -321,6 +322,10 @@ public class ChatsPreferencesEntry extends BaseCGPreferencesEntry {
                 .setChecked(CherrygramMessagesConfig.INSTANCE.getEnableMsgFilters())
                 .slug("aqyMsgFilter")
         );
+        items.add(SettingsHelper.asSwitchCG(aqyLiquidGlassBubbleRow, getString(R.string.AQY_LiquidGlassBubble), getString(R.string.AQY_LiquidGlassBubble_Desc))
+                .setChecked(CherrygramMessagesConfig.INSTANCE.getAiqiyiLiquidGlassBubble())
+                .slug("aqyLiquidGlassBubble")
+        );
         items.add(SettingsHelper.asSwitchCG(aqyFoldersAtBottomRow, getString(R.string.AP_FoldersAtBottom))
                 .setChecked(CherrygramAppearanceConfig.INSTANCE.getFoldersAtBottom())
                 .slug("aqyFoldersAtBottom")
@@ -484,6 +489,11 @@ public class ChatsPreferencesEntry extends BaseCGPreferencesEntry {
         } else if (item.id == aqyMsgFilterRow) {
             CherrygramMessagesConfig.INSTANCE.setEnableMsgFilters(!CherrygramMessagesConfig.INSTANCE.getEnableMsgFilters());
             SettingsHelper.updateCheckState(view, CherrygramMessagesConfig.INSTANCE.getEnableMsgFilters());
+        } else if (item.id == aqyLiquidGlassBubbleRow) {
+            CherrygramMessagesConfig.INSTANCE.setAiqiyiLiquidGlassBubble(!CherrygramMessagesConfig.INSTANCE.getAiqiyiLiquidGlassBubble());
+            SettingsHelper.updateCheckState(view, CherrygramMessagesConfig.INSTANCE.getAiqiyiLiquidGlassBubble());
+
+            getParentLayout().rebuildAllFragmentViews(false, false);
         } else if (item.id == aqyFoldersAtBottomRow) {
             CherrygramAppearanceConfig.INSTANCE.setFoldersAtBottom(!CherrygramAppearanceConfig.INSTANCE.getFoldersAtBottom());
             SettingsHelper.updateCheckState(view, CherrygramAppearanceConfig.INSTANCE.getFoldersAtBottom());

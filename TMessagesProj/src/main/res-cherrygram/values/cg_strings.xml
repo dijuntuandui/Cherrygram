@@ -334,6 +334,8 @@
     <string name="CP_MessageMenuCompactLayout">Compact menu layout</string>
     <string name="CP_MessageMenuCompactLayout_Desc">Displays primary message actions in a compact layout at the bottom of the menu.</string>
     <string name="CP_MessageMenuCompactLayout_Dot">A dot next to the button indicates it has a long-press action.</string>
+    <string name="AQY_LiquidGlassBubble">Liquid Glass Bubbles</string>
+    <string name="AQY_LiquidGlassBubble_Desc">Renders message bubbles as translucent frosted glass so the wallpaper shows through faintly, while keeping text sharp. Turn off to restore the default bubble style.</string>
 
     <string name="CP_UnreadBadgeOnBackButton">Show unread chats counter</string>
     <string name="CP_UnreadBadgeOnBackButton_Desc">Enable unread chats counter on back button in opened chat</string>

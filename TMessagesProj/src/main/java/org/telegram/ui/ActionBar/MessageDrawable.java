@@ -549,6 +549,10 @@ public class MessageDrawable extends Drawable {
 
     public void draw(Canvas canvas, Paint paintToUse) {
         Rect bounds = getBounds();
+        if (paintToUse == null && gradientShader == null && useLiquidGlass()) {
+            drawLiquidGlass(canvas, bounds);
+            return;
+        }
         if (paintToUse == null && gradientShader == null && overrideRoundRadius == 0 && overrideRounding <= 0) {
             Drawable background = getBackgroundDrawable();
             if (background != null) {
@@ -613,6 +617,118 @@ public class MessageDrawable extends Drawable {
             selectedPaint.setColor(ColorUtils.setAlphaComponent(color, (int) (Color.alpha(color) * alpha / 255f)));
             canvas.drawPath(path, selectedPaint);
         }
+    }
+
+    /**
+     * Aiqiyi liquid glass bubbles.
+     * Whether the current message is drawn with the translucent frosted-glass look.
+     */
+    private boolean useLiquidGlass() {
+        if (currentType == TYPE_PREVIEW || themePreview) {
+            return false;
+        }
+        if (isCrossfadeBackground || crossfadeFromDrawable != null) {
+            return false;
+        }
+        try {
+            return uz.unnarsx.cherrygram.core.configs.CherrygramMessagesConfig.INSTANCE.getAiqiyiLiquidGlassBubble();
+        } catch (Throwable t) {
+            return false;
+        }
+    }
+
+    private Paint liquidGlassFillPaint;
+    private Paint liquidGlassStrokePaint;
+    private Paint liquidGlassHighlightPaint;
+
+    private void drawLiquidGlass(Canvas canvas, Rect bounds) {
+        if (bounds.width() <= 0 || bounds.height() <= 0) {
+            return;
+        }
+
+        int padding = dp(2);
+        int rad;
+        if (overrideRoundRadius != 0) {
+            rad = overrideRoundRadius;
+        } else if (overrideRounding > 0) {
+            rad = AndroidUtilities.lerp(dp(SharedConfig.bubbleRadius), Math.min(bounds.width(), bounds.height()) / 2, overrideRounding);
+        } else {
+            rad = dp(SharedConfig.bubbleRadius);
+        }
+        int smallRad = dp(6);
+        int nearRad = overrideRoundRadius != 0 ? overrideRoundRadius : dp(Math.min(6, SharedConfig.bubbleRadius));
+        int top = Math.max(bounds.top, 0);
+
+        if (path == null) {
+            path = new Path();
+        }
+        if (pathDrawCacheParams != null && pathDrawCacheParams.path != null) {
+            // reuse the shared path object, same as the opaque branch
+            path = pathDrawCacheParams.path;
+            boolean invalidatePath = pathDrawCacheParams.invalidatePath(bounds, true, true);
+            if (invalidatePath) {
+                generatePath(path, bounds, padding, rad, smallRad, nearRad, top, true, true, true);
+            }
+        } else {
+            generatePath(path, bounds, padding, rad, smallRad, nearRad, top, true, true, true);
+        }
+
+        // Base color of this bubble (in / out / selected)
+        int baseColor;
+        if (isSelected) {
+            baseColor = getColor(isOut ? Theme.key_chat_outBubbleSelected : Theme.key_chat_inBubbleSelected);
+        } else {
+            baseColor = getColor(isOut ? Theme.key_chat_outBubble : Theme.key_chat_inBubble);
+        }
+
+        int glassAlpha;
+        try {
+            glassAlpha = uz.unnarsx.cherrygram.core.configs.CherrygramMessagesConfig.INSTANCE.getAiqiyiLiquidGlassBubbleAlpha();
+        } catch (Throwable t) {
+            glassAlpha = 58;
+        }
+        if (isSelected) {
+            glassAlpha = Math.min(255, glassAlpha + 22);
+        }
+        glassAlpha = Math.max(12, Math.min(220, glassAlpha));
+        // Respect the drawable alpha (fade in / out animations)
+        glassAlpha = (int) (glassAlpha * (alpha / 255f));
+
+        if (liquidGlassFillPaint == null) {
+            liquidGlassFillPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+            liquidGlassFillPaint.setStyle(Paint.Style.FILL);
+            liquidGlassStrokePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+            liquidGlassStrokePaint.setStyle(Paint.Style.STROKE);
+            liquidGlassStrokePaint.setStrokeWidth(Math.max(1f, AndroidUtilities.dp(0.7f)));
+            liquidGlassHighlightPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+            liquidGlassHighlightPaint.setStyle(Paint.Style.FILL);
+        }
+
+        // 1. translucent frosted base -- wallpaper shows through
+        int fillColor = ColorUtils.setAlphaComponent(baseColor, glassAlpha);
+        liquidGlassFillPaint.setColor(fillColor);
+        liquidGlassFillPaint.setShader(null);
+        canvas.drawPath(path, liquidGlassFillPaint);
+
+        // 2. soft vertical sheen: slightly brighter on top, dimmer at the bottom
+        int topAlpha = Math.min(255, glassAlpha + 26);
+        int topTint = (Color.red(baseColor) + Color.green(baseColor) + Color.blue(baseColor)) / 3 > 140
+                ? ColorUtils.setAlphaComponent(0xFFFFFF, topAlpha / 3)
+                : ColorUtils.setAlphaComponent(0xFFFFFF, topAlpha / 4);
+        liquidGlassHighlightPaint.setShader(new LinearGradient(
+                0, bounds.top + padding,
+                0, bounds.bottom - padding,
+                new int[]{topTint, 0x00FFFFFF, ColorUtils.setAlphaComponent(0x000000, glassAlpha / 5)},
+                new float[]{0f, 0.45f, 1f},
+                Shader.TileMode.CLAMP
+        ));
+        canvas.drawPath(path, liquidGlassHighlightPaint);
+        liquidGlassHighlightPaint.setShader(null);
+
+        // 3. hairline edge so the glass reads as a surface
+        int strokeAlpha = Math.min(255, glassAlpha + 70);
+        liquidGlassStrokePaint.setColor(ColorUtils.setAlphaComponent(0xFFFFFF, strokeAlpha / 3));
+        canvas.drawPath(path, liquidGlassStrokePaint);
     }
 
     public Path makePath() {
