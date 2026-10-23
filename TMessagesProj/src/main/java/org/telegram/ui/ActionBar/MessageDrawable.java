@@ -549,7 +549,7 @@ public class MessageDrawable extends Drawable {
 
     public void draw(Canvas canvas, Paint paintToUse) {
         Rect bounds = getBounds();
-        if (paintToUse == null && gradientShader == null && useLiquidGlass()) {
+        if (paintToUse == null && useLiquidGlass()) {
             drawLiquidGlass(canvas, bounds);
             return;
         }
@@ -673,12 +673,37 @@ public class MessageDrawable extends Drawable {
             generatePath(path, bounds, padding, rad, smallRad, nearRad, top, true, true, true);
         }
 
-        // Base color of this bubble (in / out / selected)
+        // Base color of this bubble (in / out / selected).
+        // Outgoing bubbles may use a vertical gradient, so read the gradient stops straight
+        // from the fields populated in setTop() instead of rasterizing the shader per frame.
         int baseColor;
         if (isSelected) {
             baseColor = getColor(isOut ? Theme.key_chat_outBubbleSelected : Theme.key_chat_inBubbleSelected);
         } else {
             baseColor = getColor(isOut ? Theme.key_chat_outBubble : Theme.key_chat_inBubble);
+        }
+        int baseColor2 = baseColor;
+        boolean hasGradientBase = false;
+        if (gradientShader != null) {
+            // The gradient runs from the last stop (top) down to currentColor (bottom);
+            // see the LinearGradient construction in setTop().
+            int gradBottom = currentColor;
+            int gradTop = 0;
+            if (currentGradientColor3 != 0) {
+                gradTop = currentGradientColor3;
+            } else if (currentGradientColor2 != 0) {
+                gradTop = currentGradientColor2;
+            } else if (currentGradientColor1 != 0) {
+                gradTop = currentGradientColor1;
+            }
+            if (Color.alpha(gradTop) > 8 && Color.alpha(gradBottom) > 8) {
+                baseColor = gradTop;
+                baseColor2 = gradBottom;
+                hasGradientBase = true;
+            } else if (Color.alpha(gradBottom) > 8) {
+                baseColor = gradBottom;
+                baseColor2 = gradBottom;
+            }
         }
 
         int glassAlpha;
@@ -706,9 +731,23 @@ public class MessageDrawable extends Drawable {
 
         // 1. translucent frosted base -- wallpaper shows through
         int fillColor = ColorUtils.setAlphaComponent(baseColor, glassAlpha);
-        liquidGlassFillPaint.setColor(fillColor);
-        liquidGlassFillPaint.setShader(null);
+        if (hasGradientBase) {
+            // keep the original bubble gradient, just make it translucent
+            int fillColor2 = ColorUtils.setAlphaComponent(baseColor2, glassAlpha);
+            liquidGlassFillPaint.setShader(new LinearGradient(
+                    0, bounds.top + padding,
+                    0, bounds.bottom - padding,
+                    new int[]{fillColor, fillColor2},
+                    null,
+                    Shader.TileMode.CLAMP
+            ));
+            liquidGlassFillPaint.setColor(0xFFFFFFFF);
+        } else {
+            liquidGlassFillPaint.setColor(fillColor);
+            liquidGlassFillPaint.setShader(null);
+        }
         canvas.drawPath(path, liquidGlassFillPaint);
+        liquidGlassFillPaint.setShader(null);
 
         // 2. soft vertical sheen: slightly brighter on top, dimmer at the bottom
         int topAlpha = Math.min(255, glassAlpha + 26);
