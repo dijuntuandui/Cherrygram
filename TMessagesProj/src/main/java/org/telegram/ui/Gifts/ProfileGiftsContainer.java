@@ -611,6 +611,73 @@ public class ProfileGiftsContainer extends FrameLayout implements NotificationCe
             } catch (Throwable ignored) {}
         }
 
+        // ===================== Aiqiyi 性能(C18) =====================
+        /** 正在后台加载的 userId，防重复调度 */
+        private final java.util.HashSet<Long> aiqiyiLoadingUsers = new java.util.HashSet<>();
+        /** aiqiyiBuildLocalGifts 的结果缓存：key=userId, value=[数据版本号, 转换结果] */
+        private final java.util.HashMap<Long, Object[]> aiqiyiBuildCache = new java.util.HashMap<>();
+
+        /**
+         * 本地礼物转换结果的缓存版本号。
+         *
+         * toSavedGiftList 里每条都要走 resolveStickerDocument（含可能的目录扫描），
+         * 9 件礼物就是 9 次，而且 fillItems 会被反复调用。
+         * 用「用户礼物 id 拼接」当版本号，数据一变版本号就变，缓存自动失效。
+         */
+        private String aiqiyiGiftSignature(java.util.ArrayList<LocalGiftData> data) {
+            final StringBuilder sb = new StringBuilder(data.size() * 12 + 8);
+            for (int i = 0; i < data.size(); i++) {
+                final LocalGiftData d = data.get(i);
+                if (d == null) {
+                    sb.append("n,");
+                    continue;
+                }
+                sb.append(d.getCollectibleId()).append(':').append(d.getDocumentId()).append(',');
+            }
+            return sb.toString();
+        }
+
+        /**
+         * Aiqiyi 性能(C18): 后台把某用户的本地礼物读进内存。
+         *
+         * fillItems 跑在 UI 线程，绝不能让它触发 prefs.getString + gson.fromJson。
+         * 缓存缺失时就在后台读，读完发通知回来重绘。
+         */
+        /**
+         * Aiqiyi 性能(C18): 不触发 IO 的「有没有本地礼物」判定。
+         *
+         * LocalGiftStore.hasLocalGifts() 内部走 getDataForUser()，首次会同步 gson，
+         * 而 fillItems 在 UI 线程。这里改成读内存缓存，未加载就顺手丢后台加载。
+         */
+        private boolean aiqiyiHasLocalGiftsNoIo(long ownerId) {
+            final ArrayList<LocalGiftData> cached = LocalGiftStore.peekForUser(ownerId);
+            if (cached == null) {
+                aiqiyiEnsureLoaded(ownerId);
+                return false;
+            }
+            return !cached.isEmpty();
+        }
+
+        private void aiqiyiEnsureLoaded(final long ownerId) {
+            if (LocalGiftStore.isLoadedForUser(ownerId)) return;
+            if (!aiqiyiLoadingUsers.add(ownerId)) return;
+            org.telegram.messenger.Utilities.globalQueue.postRunnable(() -> {
+                try {
+                    LocalGiftStore.getDataForUser(ownerId);
+                } catch (Throwable ignore) {
+                }
+                aiqiyiLoadingUsers.remove(ownerId);
+                org.telegram.messenger.AndroidUtilities.runOnUIThread(() -> {
+                    try {
+                        if (listView != null && listView.adapter != null) {
+                            listView.adapter.notifyDataSetChanged();
+                        }
+                    } catch (Throwable ignore) {
+                    }
+                });
+            });
+        }
+
         // ===================== Aiqiyi: 本地礼物条目 =====================
 
         /**
@@ -627,14 +694,34 @@ public class ProfileGiftsContainer extends FrameLayout implements NotificationCe
                 // 这样送给别人的礼物才会出现在对方主页上。
                 final long ownerId = parent.dialogId;
                 if (ownerId == 0) { aiqiyiDbg("skip: ownerId=0"); return null; }
-                if (!LocalGiftStore.hasLocalGifts(ownerId)) { aiqiyiDbg("skip: no local gifts, ownerId=" + ownerId); return null; }
-                final ArrayList<LocalGiftData> data = LocalGiftStore.getDataForUser(ownerId);
-                if (data == null || data.isEmpty()) { aiqiyiDbg("skip: data empty"); return null; }
+                // Aiqiyi 性能(C18): 这里跑在 UI 线程，只读内存缓存。
+                // 以前是 hasLocalGifts() + getDataForUser() 两次同步 gson，
+                // 首次进某人的礼物页会整页卡住。现在缓存缺失就丢后台，
+                // 这一帧先不注入本地礼物，加载完 notifyDataSetChanged 再补上。
+                final ArrayList<LocalGiftData> data = LocalGiftStore.peekForUser(ownerId);
+                if (data == null) {
+                    aiqiyiEnsureLoaded(ownerId);
+                    aiqiyiDbg("skip: not loaded yet, ownerId=" + ownerId);
+                    return null;
+                }
+                if (data.isEmpty()) { aiqiyiDbg("skip: no local gifts, ownerId=" + ownerId); return null; }
                 aiqiyiDbg("INJECT count=" + data.size() + " first=" + (data.get(0) == null ? "null" : data.get(0).getTitle()) + " catalogId=" + (data.get(0) == null ? -1 : data.get(0).getCatalogGiftId()));
+                // Aiqiyi 性能(C18): 转换结果按数据版本号缓存。
+                // toSavedGiftList 每条都要 resolveStickerDocument，而 fillItems 会被反复调用，
+                // 不缓存的话等于每次重绘都重新做一遍文档解析。
+                final String aiqiyiSig = aiqiyiGiftSignature(data);
+                final Object[] aiqiyiCached = aiqiyiBuildCache.get(ownerId);
+                if (aiqiyiCached != null && aiqiyiSig.equals(aiqiyiCached[0])) {
+                    @SuppressWarnings("unchecked")
+                    final ArrayList<TL_stars.SavedStarGift> hit = (ArrayList<TL_stars.SavedStarGift>) aiqiyiCached[1];
+                    return hit;
+                }
                 // 本地记录直接转成 SavedStarGift，saved_id 为负作为本地标记
                 // Aiqiyi C7: isMine 按当前资料页主人判定，别人主页要拿 originalRecipientId 当 from_id
                 final boolean aiqiyiIsMine = ownerId == UserConfig.getInstance(currentAccount).getClientUserId();
-                return LocalGiftConverter.toSavedGiftList(data, aiqiyiIsMine);
+                final ArrayList<TL_stars.SavedStarGift> aiqiyiConverted = LocalGiftConverter.toSavedGiftList(data, aiqiyiIsMine);
+                aiqiyiBuildCache.put(ownerId, new Object[] { aiqiyiSig, aiqiyiConverted });
+                return aiqiyiConverted;
             } catch (Throwable t) {
                 org.telegram.messenger.FileLog.e("Aiqiyi aiqiyiBuildLocalGifts failed", t);
                 return null;
@@ -662,7 +749,7 @@ public class ProfileGiftsContainer extends FrameLayout implements NotificationCe
                             && !isCollection && list == parent.list
                             && AiqiyiLocalDataConfig.INSTANCE.getLocalGiftEnabled()
                             && AiqiyiLocalDataConfig.INSTANCE.getLocalGiftShowInList()
-                            && LocalGiftStore.hasLocalGifts(aiqiyiOwnerId);
+                            && aiqiyiHasLocalGiftsNoIo(aiqiyiOwnerId);
                 } catch (Throwable ignore) {}
                 if (!aiqiyiHasLocal) {
                     return;

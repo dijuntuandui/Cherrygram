@@ -376,9 +376,40 @@ object LocalGiftConverter {
      * 造出来的 Document 只带 id / dc_id / mime_type / 一个空 sizes，
      * 足够让 ImageReceiver 走「本地文件直读」分支把图画出来。
      */
+    /**
+     * Aiqiyi 性能(C18): 扫目录的负结果缓存。
+     *
+     * findDocumentByCachedFile 在磁盘没命中时要 listFiles() 遍历整个缓存目录。
+     * 礼物列表页每帧 fillItems 会逐条调它，9 件礼物就是 9 次全目录扫描 ——
+     * 这是点进资料页卡顿的主因。
+     *
+     * 这里把「扫过且没找到」的 id 记下来，下次直接返回 null，不再碰文件系统。
+     * 唯一的代价是：若某文件在本进程内后来才下载完成，需要调用
+     * clearCachedFileMiss() 清标记，否则要等重启才能识别。
+     */
+    private val aiqiyiCacheFileMiss: MutableSet<Long> = java.util.Collections.synchronizedSet(HashSet())
+
+    /** Aiqiyi: 清除负结果标记（文件刚下载完 / 修复数据后调用） */
+    @JvmStatic
+    fun clearCachedFileMiss() {
+        aiqiyiCacheFileMiss.clear()
+    }
+
     @JvmStatic
     fun findDocumentByCachedFile(documentId: Long): TLRPC.Document? {
         if (documentId == 0L) return null
+        if (aiqiyiCacheFileMiss.contains(documentId)) return null
+        val missMarker = java.lang.Long.valueOf(documentId)
+        val result = findDocumentByCachedFileInner(documentId)
+        if (result == null) {
+            aiqiyiCacheFileMiss.add(missMarker)
+        } else {
+            aiqiyiCacheFileMiss.remove(missMarker)
+        }
+        return result
+    }
+
+    private fun findDocumentByCachedFileInner(documentId: Long): TLRPC.Document? {
         return try {
             val account = UserConfig.selectedAccount
             // 先看数据库里有没有记录过这个 id 的落盘路径

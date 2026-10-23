@@ -67,6 +67,18 @@ object LocalGiftStore {
     }
 
     /**
+     * Aiqiyi 性能(C18): 只读内存缓存，绝不触发 IO。
+     *
+     * 未加载时返回 null，调用方应当把这个 userId 丢到后台线程去 getDataForUser()。
+     * 这是礼物列表页 fillItems 唯一的合法取数方式 —— 那方法是 UI 线程跑的。
+     */
+    @JvmStatic
+    fun peekForUser(userId: Long): ArrayList<LocalGiftData>? {
+        if (!loadedUsers.contains(userId)) return null
+        return dataMap[userId]
+    }
+
+    /**
      * 是否有本地礼物
      */
     @JvmStatic
@@ -228,19 +240,49 @@ object LocalGiftStore {
      * 列表为空时直接删除对应 key，避免留空 JSON。
      */
     private fun saveData(userId: Long, data: List<LocalGiftData>) {
+        // Aiqiyi 性能(C18): 内存态同步更新，磁盘写丢到后台。
+        //
+        // 以前这里是同步 gson.toJson + prefs.edit().putString()。
+        // 礼物记录多了、每条又带 base64 图案之后，一次购买要卡几百毫秒，
+        // 这就是「点购买卡一下」的直接来源。而调用方（购买/佩戴/修复）
+        // 真正要的是内存里立刻可见，落盘晚几十毫秒完全不影响。
         dataMap[userId] = ArrayList(data)
         loadedUsers.add(userId)
+        scheduleSave(KEY_PREFIX + userId, ArrayList(data))
+    }
 
-        val key = KEY_PREFIX + userId
+    // Aiqiyi 性能(C18): 合并写盘。同一 key 短时间内多次保存只落最后一次。
+    private val pendingSave: MutableMap<String, List<LocalGiftData>> =
+        java.util.Collections.synchronizedMap(HashMap())
+    private val aiqiyiSaveScheduled = java.util.concurrent.atomic.AtomicBoolean(false)
+
+    private fun scheduleSave(key: String, snapshot: List<LocalGiftData>) {
+        pendingSave[key] = snapshot
+        if (!aiqiyiSaveScheduled.compareAndSet(false, true)) return
         try {
-            if (data.isEmpty()) {
-                prefs.edit { remove(key) }
-            } else {
-                val json = gson.toJson(data, listType)
-                prefs.edit { putString(key, json) }
+            org.telegram.messenger.Utilities.globalQueue.postRunnable {
+                aiqiyiSaveScheduled.set(false)
+                val batch: Map<String, List<LocalGiftData>>
+                synchronized(pendingSave) {
+                    batch = HashMap(pendingSave)
+                    pendingSave.clear()
+                }
+                for ((k, v) in batch) {
+                    try {
+                        if (v.isEmpty()) {
+                            prefs.edit { remove(k) }
+                        } else {
+                            val json = gson.toJson(v, listType)
+                            prefs.edit { putString(k, json) }
+                        }
+                    } catch (e: Exception) {
+                        FileLog.e("LocalGiftStore save failed, key=" + k, e)
+                    }
+                }
             }
-        } catch (e: Exception) {
-            FileLog.e("LocalGiftStore save failed, userId=$userId", e)
+        } catch (e: Throwable) {
+            aiqiyiSaveScheduled.set(false)
+            FileLog.e("LocalGiftStore scheduleSave failed", e)
         }
     }
 
