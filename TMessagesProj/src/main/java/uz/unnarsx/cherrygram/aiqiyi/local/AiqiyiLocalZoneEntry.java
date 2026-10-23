@@ -308,6 +308,30 @@ public class AiqiyiLocalZoneEntry extends BaseCGPreferencesEntry {
     }
 
     /**
+     * Aiqiyi: 模板选择器的礼物白名单。
+     *
+     * 目录是全量的（基础款 + 限量款），而模板只用得上带图案、能在头像周围挂出来的那批，
+     * 基础款在这里既没图案也没意义，全放出来只是刷屏。
+     * 所以这里只放行指定 id，其余一律不出现在选择器里。
+     *
+     * 注意：这只影响「选模板」这个界面，catalog 本身不动 —— 礼物商店、送礼面板、
+     * 别人送你的礼物展示仍然走完整目录，不会因为这里收窄而缺项显示空框。
+     */
+    private static final long[] TEMPLATE_GIFT_WHITELIST = {
+            5170145012310081615L,
+            5170233102089322756L,
+            5170250947678437525L,
+            5168103777563050263L,
+            5170144170496491616L,
+            5170314324215857265L,
+            5170564780938756245L,
+            5168043875654172773L,
+            5170690322832818290L,
+            5170521118301225164L,
+            6028601630662853006L
+    };
+
+    /**
      * Aiqiyi: 礼物目录选择器
      */
     private void showGiftCatalogPicker(long userId) {
@@ -319,15 +343,22 @@ public class AiqiyiLocalZoneEntry extends BaseCGPreferencesEntry {
 
         final java.util.List<String> names = new java.util.ArrayList<>();
         final java.util.List<TL_stars.StarGift> refs = new java.util.ArrayList<>();
-        // 只收限量款（unique 礼物有图案可展示），最多 40 个
-        for (int i = 0; i < catalog.size() && refs.size() < 40; i++) {
-            final TL_stars.StarGift g = catalog.get(i);
-            if (g.sticker == null) {
-                continue;
+        // 按白名单顺序收集（而不是按目录顺序），保证这 11 个的排列稳定可预期
+        for (long wantId : TEMPLATE_GIFT_WHITELIST) {
+            for (int i = 0; i < catalog.size(); i++) {
+                final TL_stars.StarGift g = catalog.get(i);
+                if (g.id != wantId) {
+                    continue;
+                }
+                if (g.sticker == null) {
+                    // 没图案的模板挂上去是空白，宁可跳过
+                    break;
+                }
+                final String label = (g.title == null || g.title.isEmpty()) ? ("#" + g.id) : g.title;
+                names.add(label);
+                refs.add(g);
+                break;
             }
-            final String label = (g.title == null || g.title.isEmpty()) ? ("#" + g.id) : g.title;
-            names.add(label);
-            refs.add(g);
         }
         if (refs.isEmpty()) {
             return;
