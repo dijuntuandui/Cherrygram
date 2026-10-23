@@ -55,6 +55,8 @@ public class AiqiyiLocalZoneEntry extends BaseCGPreferencesEntry {
     private final int localGiftShowOnProfileRow = 334;
     private final int localGiftAddRow = 335;
     private final int localGiftListRow = 336;
+    // Aiqiyi: 临时导出礼物目录（用于挑选模板，挑完即删）
+    private final int DUMP_ROW = 337;
 
     @Override
     protected CharSequence getTitle() {
@@ -140,6 +142,10 @@ public class AiqiyiLocalZoneEntry extends BaseCGPreferencesEntry {
         items.add(UItem.asButton(clearLocalGiftsRow, getString(R.string.AQY_LocalGift_Clear), getString(R.string.AQY_LocalGift_Clear_Desc))
                 .slug("aqy_local_gift_clear")
         );
+        // Aiqiyi: 临时导出（挑模板用，挑完即删）
+        items.add(UItem.asButton(DUMP_ROW, getString(R.string.AQY_LocalGift_Dump), getString(R.string.AQY_LocalGift_Dump_Desc))
+                .slug("aqy_local_gift_dump")
+        );
         items.add(UItem.asShadow(getString(R.string.AQY_LocalGift_Note)));
 
         // ===== 本地消息 =====
@@ -206,6 +212,8 @@ public class AiqiyiLocalZoneEntry extends BaseCGPreferencesEntry {
             listView.adapter.update(true);
         } else if (item.id == localGiftAddRow) {
             showAddLocalGiftDialog();
+        } else if (item.id == DUMP_ROW) {
+            dumpGiftCatalog();
         } else if (item.id == localMessageOverrideRow) {
             AiqiyiLocalDataConfig.INSTANCE.setLocalMessageOverride(!AiqiyiLocalDataConfig.INSTANCE.getLocalMessageOverride());
             AiqiyiLocalMessageHelper.invalidate();
@@ -406,6 +414,60 @@ public class AiqiyiLocalZoneEntry extends BaseCGPreferencesEntry {
         });
         builder.setNegativeButton(getString(R.string.Cancel), null);
         builder.show();
+    }
+
+    /**
+     * Aiqiyi: 临时导出 —— 把礼物全量目录写成文本，方便挑选模板。
+     *
+     * 输出每个礼物的 id / 名称 / 售罄 / 限量 / 拍卖 / 单价 / 转售底价 / 剩余数量。
+     * 落到 Download/爱琦艺/礼物目录.txt。用完即删这个入口。
+     */
+    private void dumpGiftCatalog() {
+        final StarsController controller = StarsController.getInstance(UserConfig.selectedAccount);
+        final ArrayList<TL_stars.StarGift> catalog = controller.gifts;
+        if (catalog == null || catalog.isEmpty()) {
+            return;
+        }
+        try {
+            final StringBuilder sb = new StringBuilder();
+            sb.append("# 礼物目录导出 共 ").append(catalog.size()).append(" 项\n");
+            sb.append("# id | title | slug | sold_out | limited | auction | stars | resell_min | remains/total\n");
+            for (int i = 0; i < catalog.size(); i++) {
+                final TL_stars.StarGift g = catalog.get(i);
+                sb.append(g.id).append(" | ")
+                        .append(g.title == null ? "" : g.title).append(" | ")
+                        .append(g.slug == null ? "" : g.slug).append(" | ")
+                        .append(g.sold_out ? "SOLD" : "-").append(" | ")
+                        .append(g.limited ? "LIM" : "-").append(" | ")
+                        .append(g.auction ? "AUC" : "-").append(" | ")
+                        .append(g.stars).append(" | ")
+                        .append(g.resell_min_stars).append(" | ")
+                        .append(g.availability_remains).append("/").append(g.availability_total)
+                        .append("\n");
+            }
+            final java.io.File dir = new java.io.File(android.os.Environment.getExternalStoragePublicDirectory(
+                    android.os.Environment.DIRECTORY_DOWNLOADS), "爱琦艺");
+            if (!dir.exists()) {
+                dir.mkdirs();
+            }
+            final java.io.File out = new java.io.File(dir, "礼物目录.txt");
+            final java.io.FileOutputStream fos = new java.io.FileOutputStream(out);
+            fos.write(sb.toString().getBytes("UTF-8"));
+            fos.flush();
+            fos.close();
+
+            final AlertDialog.Builder b = new AlertDialog.Builder(getContext());
+            b.setTitle("导出完成");
+            b.setMessage("共 " + catalog.size() + " 项\n" + out.getAbsolutePath());
+            b.setPositiveButton(getString(R.string.OK), null);
+            b.show();
+        } catch (Exception e) {
+            final AlertDialog.Builder b = new AlertDialog.Builder(getContext());
+            b.setTitle("导出失败");
+            b.setMessage(String.valueOf(e));
+            b.setPositiveButton(getString(R.string.OK), null);
+            b.show();
+        }
     }
 
     private CharSequence getMessageRulesText() {

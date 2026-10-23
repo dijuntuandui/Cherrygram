@@ -745,5 +745,7 @@
     <string name="AQY_LocalGift_SenderSelf">You</string>
     <string name="AQY_LocalGift_Clear">Clear local virtual gifts</string>
     <string name="AQY_LocalGift_Clear_Desc">Remove all local gift records</string>
+    <string name="AQY_LocalGift_Dump">Export gift catalog (temp)</string>
+    <string name="AQY_LocalGift_Dump_Desc">Write full catalog to Download/Aiqiyi/gifts.txt</string>
     <string name="AQY_LocalGift_Note">Clearing only affects local records and never touches real Telegram gifts or account data.</string>
 </resources>
