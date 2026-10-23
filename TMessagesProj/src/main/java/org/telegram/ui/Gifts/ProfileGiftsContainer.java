@@ -413,16 +413,37 @@ public class ProfileGiftsContainer extends FrameLayout implements NotificationCe
         protected void onAttachedToWindow() {
             super.onAttachedToWindow();
             NotificationCenter.getInstance(currentAccount).addObserver(this, NotificationCenter.starUserGiftsLoaded);
+            // Aiqiyi: 本地礼物增删后要重拼列表。
+            // 之前只监听 starUserGiftsLoaded（服务端加载完成），
+            // 本地删除只发 aiqiyiLocalGiftUpdated，这个页面完全收不到，
+            // 于是删完还留在屏幕上。
+            NotificationCenter.getInstance(currentAccount).addObserver(this, NotificationCenter.aiqiyiLocalGiftUpdated);
         }
 
         @Override
         protected void onDetachedFromWindow() {
             super.onDetachedFromWindow();
             NotificationCenter.getInstance(currentAccount).removeObserver(this, NotificationCenter.starUserGiftsLoaded);
+            NotificationCenter.getInstance(currentAccount).removeObserver(this, NotificationCenter.aiqiyiLocalGiftUpdated);
         }
 
         @Override
         public void didReceivedNotification(int id, int account, Object... args) {
+            if (id == NotificationCenter.aiqiyiLocalGiftUpdated) {
+                // Aiqiyi: 只关心当前这个资料页的本地数据变动
+                final long changed = (args != null && args.length > 0) ? (long) args[0] : 0L;
+                final long pageOwner = parent == null ? 0L : parent.dialogId;
+                if (changed != 0L && changed != pageOwner) {
+                    return;
+                }
+                // 数据变了，转换缓存作废
+                aiqiyiBuildCache.remove(pageOwner);
+                aiqiyiBuildCache.remove(changed);
+                if (listView != null && listView.adapter != null) {
+                    listView.adapter.update(true);
+                }
+                return;
+            }
             if (id == NotificationCenter.starUserGiftsLoaded) {
                 if (args[1] != list)
                     return;
@@ -1058,11 +1079,19 @@ public class ProfileGiftsContainer extends FrameLayout implements NotificationCe
                         // 用户在列表长按找不到，只能进详情页绕一圈。
                         o.add(R.drawable.msg_delete, "删除本地礼物", () -> {
                             o.dismiss();
-                            final long selfUid = UserConfig.getInstance(currentAccount).getClientUserId();
-                            final long ownerDid = DialogObject.getPeerDialogId(gift.owner_id);
-                            final long targetDid = (ownerDid != 0
-                                    ? ownerDid
-                                    : (parent != null ? parent.dialogId : selfUid));
+                            // Aiqiyi 修复: 删除时必须按「当前资料页主人」定位存储 key。
+                            //
+                            // 旧实现优先用 gift.owner_id 反推，但 buildUniqueGift() 把
+                            // 所有本地礼物的 owner_id 统一写成了「当前登录用户」，
+                            // 于是在别人资料页送礼时，targetDid 算成自己的 id，
+                            // removeLocalGift 就会去自己列表里找一个只存在于对方列表的记录，
+                            // 必然删不掉。自己资料页因为两者恰好相等，所以一直是好的。
+                            //
+                            // 存储位置只由 parent.dialogId 决定（写入时就是按它存的），
+                            // 这里直接用它，不再受 owner_id 干扰。
+                            final long targetDid = parent != null
+                                    ? parent.dialogId
+                                    : DialogObject.getPeerDialogId(gift.owner_id);
                             uz.unnarsx.cherrygram.core.helpers.localdata.LocalGiftStore.showDeleteLocalGiftDialog(
                                     getContext(),
                                     targetDid,
