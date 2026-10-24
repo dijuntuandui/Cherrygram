@@ -1605,8 +1605,8 @@ public class MessagesController extends BaseController implements NotificationCe
         callConnectTimeout = mainPreferences.getInt("callConnectTimeout", 30000);
         callPacketTimeout = mainPreferences.getInt("callPacketTimeout", 10000);
         updateCheckDelay = mainPreferences.getInt("updateCheckDelay", 24 * 60 * 60);
-        maxFolderPinnedDialogsCountDefault = Integer.MAX_VALUE; // [Aiqiyi] 无限文件夹内置顶
-        maxFolderPinnedDialogsCountPremium = Integer.MAX_VALUE; // [Aiqiyi] 无限文件夹内置顶
+        maxFolderPinnedDialogsCountDefault = mainPreferences.getInt("maxFolderPinnedDialogsCountDefault", 100);
+        maxFolderPinnedDialogsCountPremium = mainPreferences.getInt("maxFolderPinnedDialogsCountPremium", 100);
         maxMessageLength = mainPreferences.getInt("maxMessageLength", 4096);
         maxCaptionLength = mainPreferences.getInt("maxCaptionLength", 1024);
         mapProvider = mainPreferences.getInt("mapProvider", 0);
@@ -1656,18 +1656,19 @@ public class MessagesController extends BaseController implements NotificationCe
         channelsLimitPremium = mainPreferences.getInt("channelsLimitPremium", 2 * channelsLimitDefault);
         savedGifsLimitDefault = mainPreferences.getInt("savedGifsLimitDefault", 200);
         savedGifsLimitPremium = mainPreferences.getInt("savedGifsLimitPremium", 400);
-        stickersFavedLimitDefault = Integer.MAX_VALUE; // [Aiqiyi] 无限收藏贴纸
-        stickersFavedLimitPremium = Integer.MAX_VALUE; // [Aiqiyi] 无限收藏贴纸
-        maxPinnedDialogsCountDefault = Integer.MAX_VALUE; // [Aiqiyi] 无限置顶
-        maxPinnedDialogsCountPremium = Integer.MAX_VALUE; // [Aiqiyi] 无限置顶
-        maxPinnedDialogsCountDefault = Integer.MAX_VALUE; // [Aiqiyi] 无限置顶
-        maxPinnedDialogsCountPremium = Integer.MAX_VALUE; // [Aiqiyi] 无限置顶
-        dialogFiltersLimitDefault = Integer.MAX_VALUE; // [Aiqiyi] 无限文件夹
-        dialogFiltersLimitPremium = Integer.MAX_VALUE; // [Aiqiyi] 无限文件夹
+        stickersFavedLimitDefault = mainPreferences.getInt("stickersFavedLimitDefault", 5);
+        stickersFavedLimitPremium = mainPreferences.getInt("stickersFavedLimitPremium", 200);
+        maxPinnedDialogsCountDefault = mainPreferences.getInt("maxPinnedDialogsCountDefault", 5);
+        maxPinnedDialogsCountPremium = mainPreferences.getInt("maxPinnedDialogsCountPremium", 5);
+        maxPinnedDialogsCountDefault = mainPreferences.getInt("maxPinnedDialogsCountDefault", 5);
+        maxPinnedDialogsCountPremium = mainPreferences.getInt("maxPinnedDialogsCountPremium", 5);
+        dialogFiltersLimitDefault = mainPreferences.getInt("dialogFiltersLimitDefault", 10);
+        dialogFiltersLimitPremium = mainPreferences.getInt("dialogFiltersLimitPremium", 20);
         dialogFiltersChatsLimitDefault = mainPreferences.getInt("dialogFiltersChatsLimitDefault", 100);
         dialogFiltersChatsLimitPremium = mainPreferences.getInt("dialogFiltersChatsLimitPremium", 200);
         dialogFiltersPinnedLimitDefault = mainPreferences.getInt("dialogFiltersPinnedLimitDefault", 5);
         dialogFiltersPinnedLimitPremium = mainPreferences.getInt("dialogFiltersPinnedLimitPremium", 10);
+        uz.unnarsx.cherrygram.aiqiyi.AiqiyiLimitsHelper.apply(this); // [Aiqiyi] 无限置顶/文件夹/收藏贴纸（须在所有上限字段读取之后）
         publicLinksLimitDefault = mainPreferences.getInt("publicLinksLimitDefault", 10);
         publicLinksLimitPremium = mainPreferences.getInt("publicLinksLimitPremium", 20);
         captionLengthLimitDefault = mainPreferences.getInt("captionLengthLimitDefault", 1024);
@@ -3503,7 +3504,7 @@ public class MessagesController extends BaseController implements NotificationCe
                     if (value.value instanceof TLRPC.TL_jsonNumber) {
                         TLRPC.TL_jsonNumber number = (TLRPC.TL_jsonNumber) value.value;
                         if (number.value != stickersFavedLimitDefault) {
-                            stickersFavedLimitDefault = Integer.MAX_VALUE; // [Aiqiyi] 无限收藏贴纸：忽略服务端上限
+                            if (uz.unnarsx.cherrygram.core.configs.CherrygramAppearanceConfig.INSTANCE.getAiqiyiUnlimitedFavedStickers()) stickersFavedLimitDefault = Integer.MAX_VALUE; else stickersFavedLimitDefault = (int) number.value;
                             editor.putInt("stickersFavedLimitDefault", stickersFavedLimitDefault);
                             changed = true;
                         }
@@ -3514,7 +3515,7 @@ public class MessagesController extends BaseController implements NotificationCe
                     if (value.value instanceof TLRPC.TL_jsonNumber) {
                         TLRPC.TL_jsonNumber number = (TLRPC.TL_jsonNumber) value.value;
                         if (number.value != stickersFavedLimitPremium) {
-                            stickersFavedLimitPremium = Integer.MAX_VALUE; // [Aiqiyi] 无限收藏贴纸：忽略服务端上限
+                            if (uz.unnarsx.cherrygram.core.configs.CherrygramAppearanceConfig.INSTANCE.getAiqiyiUnlimitedFavedStickers()) stickersFavedLimitPremium = Integer.MAX_VALUE; else stickersFavedLimitPremium = (int) number.value;
                             editor.putInt("stickersFavedLimitPremium", stickersFavedLimitPremium);
                             changed = true;
                         }
@@ -3525,7 +3526,7 @@ public class MessagesController extends BaseController implements NotificationCe
                     if (value.value instanceof TLRPC.TL_jsonNumber) {
                         TLRPC.TL_jsonNumber number = (TLRPC.TL_jsonNumber) value.value;
                         if (number.value != maxPinnedDialogsCountDefault) {
-                            maxPinnedDialogsCountDefault = Integer.MAX_VALUE; // [Aiqiyi] 无限置顶：忽略服务端上限
+                            if (uz.unnarsx.cherrygram.core.configs.CherrygramAppearanceConfig.INSTANCE.getAiqiyiUnlimitedPins()) maxPinnedDialogsCountDefault = Integer.MAX_VALUE; else maxPinnedDialogsCountDefault = (int) number.value;
                             editor.putInt("maxPinnedDialogsCountDefault", maxPinnedDialogsCountDefault);
                             changed = true;
                         }
@@ -3536,7 +3537,7 @@ public class MessagesController extends BaseController implements NotificationCe
                     if (value.value instanceof TLRPC.TL_jsonNumber) {
                         TLRPC.TL_jsonNumber number = (TLRPC.TL_jsonNumber) value.value;
                         if (number.value != maxPinnedDialogsCountPremium) {
-                            maxPinnedDialogsCountPremium = Integer.MAX_VALUE; // [Aiqiyi] 无限置顶：忽略服务端上限
+                            if (uz.unnarsx.cherrygram.core.configs.CherrygramAppearanceConfig.INSTANCE.getAiqiyiUnlimitedPins()) maxPinnedDialogsCountPremium = Integer.MAX_VALUE; else maxPinnedDialogsCountPremium = (int) number.value;
                             editor.putInt("maxPinnedDialogsCountPremium", maxPinnedDialogsCountPremium);
                             changed = true;
                         }
@@ -3547,7 +3548,7 @@ public class MessagesController extends BaseController implements NotificationCe
                     if (value.value instanceof TLRPC.TL_jsonNumber) {
                         TLRPC.TL_jsonNumber number = (TLRPC.TL_jsonNumber) value.value;
                         if (number.value != dialogFiltersLimitDefault) {
-                            dialogFiltersLimitDefault = Integer.MAX_VALUE; // [Aiqiyi] 无限文件夹：忽略服务端上限
+                            if (uz.unnarsx.cherrygram.core.configs.CherrygramAppearanceConfig.INSTANCE.getAiqiyiUnlimitedFolders()) dialogFiltersLimitDefault = Integer.MAX_VALUE; else dialogFiltersLimitDefault = (int) number.value;
                             editor.putInt("dialogFiltersLimitDefault", dialogFiltersLimitDefault);
                             changed = true;
                         }
@@ -3558,7 +3559,7 @@ public class MessagesController extends BaseController implements NotificationCe
                     if (value.value instanceof TLRPC.TL_jsonNumber) {
                         TLRPC.TL_jsonNumber number = (TLRPC.TL_jsonNumber) value.value;
                         if (number.value != dialogFiltersLimitPremium) {
-                            dialogFiltersLimitPremium = Integer.MAX_VALUE; // [Aiqiyi] 无限文件夹：忽略服务端上限
+                            if (uz.unnarsx.cherrygram.core.configs.CherrygramAppearanceConfig.INSTANCE.getAiqiyiUnlimitedFolders()) dialogFiltersLimitPremium = Integer.MAX_VALUE; else dialogFiltersLimitPremium = (int) number.value;
                             editor.putInt("dialogFiltersLimitPremium", dialogFiltersLimitPremium);
                             changed = true;
                         }

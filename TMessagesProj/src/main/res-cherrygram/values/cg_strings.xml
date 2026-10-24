@@ -631,6 +631,12 @@
     <!--Aiqiyi: show online status-->
     <string name="AQY_ShowOnlineStatus">Show User Online Status</string>
     <string name="AQY_ShowOnlineStatus_Desc">Show a three-color status dot at the bottom-right corner of private chat avatars (blue=online, yellow=recently, red=offline)</string>
+    <string name="AQY_UnlimitedPins">Unlimited Pins</string>
+    <string name="AQY_UnlimitedPins_Desc">Remove the pinned dialogs limit — pin freely in the main list and in folders</string>
+    <string name="AQY_UnlimitedFolders">Unlimited Folders</string>
+    <string name="AQY_UnlimitedFolders_Desc">Remove the folders limit — extra folders are no longer locked by the server</string>
+    <string name="AQY_UnlimitedFavedStickers">Unlimited Faved Stickers</string>
+    <string name="AQY_UnlimitedFavedStickers_Desc">Remove the favorite stickers limit — save as many as you want</string>
     <string name="AQY_AutoSignIn">Auto Sign-in</string>
     <string name="AQY_AutoSignIn_Desc">Automatically send a preset message at a scheduled time every day</string>
     <!--Aiqiyi: self cert badge-->

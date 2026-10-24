@@ -81,6 +81,9 @@ public class GeneralPreferencesEntry extends BaseCGPreferencesEntry {
     private final int aiqiyiAutoSignInRow = 30;
     private final int aiqiyiSelfCertRow = 31;
     private final int aiqiyiLocalZoneRow = 32;
+    private final int aiqiyiUnlimitedPinsRow = 33;
+    private final int aiqiyiUnlimitedFoldersRow = 34;
+    private final int aiqiyiUnlimitedFavedStickersRow = 35;
 
     private boolean expandedArchiveStoriesSection = false;
 
@@ -267,6 +270,18 @@ public class GeneralPreferencesEntry extends BaseCGPreferencesEntry {
                 .setChecked(CherrygramAppearanceConfig.INSTANCE.getAiqiyiShowOnlineStatus())
                 .slug("aiqiyi_show_online_status")
         );
+        items.add(SettingsHelper.asSwitchCG(aiqiyiUnlimitedPinsRow, getString(R.string.AQY_UnlimitedPins), getString(R.string.AQY_UnlimitedPins_Desc))
+                .setChecked(CherrygramAppearanceConfig.INSTANCE.getAiqiyiUnlimitedPins())
+                .slug("aiqiyi_unlimited_pins")
+        );
+        items.add(SettingsHelper.asSwitchCG(aiqiyiUnlimitedFoldersRow, getString(R.string.AQY_UnlimitedFolders), getString(R.string.AQY_UnlimitedFolders_Desc))
+                .setChecked(CherrygramAppearanceConfig.INSTANCE.getAiqiyiUnlimitedFolders())
+                .slug("aiqiyi_unlimited_folders")
+        );
+        items.add(SettingsHelper.asSwitchCG(aiqiyiUnlimitedFavedStickersRow, getString(R.string.AQY_UnlimitedFavedStickers), getString(R.string.AQY_UnlimitedFavedStickers_Desc))
+                .setChecked(CherrygramAppearanceConfig.INSTANCE.getAiqiyiUnlimitedFavedStickers())
+                .slug("aiqiyi_unlimited_faved_stickers")
+        );
 items.add(SettingsHelper.asTextDetail(aiqiyiAutoSignInRow, 0, getString(R.string.AQY_AutoSignIn), getAutoSignInSummary())
                 .slug("aiqiyi_auto_sign_in"));
         items.add(SettingsHelper.asSwitchCG(aiqiyiSelfCertRow, getString(R.string.AQY_SelfCert), getString(R.string.AQY_SelfCert_Desc))
@@ -433,6 +448,18 @@ items.add(SettingsHelper.asTextDetail(aiqiyiAutoSignInRow, 0, getString(R.string
         } else if (item.id == aiqiyiShowOnlineStatusRow) {
             CherrygramAppearanceConfig.INSTANCE.setAiqiyiShowOnlineStatus(!CherrygramAppearanceConfig.INSTANCE.getAiqiyiShowOnlineStatus());
             SettingsHelper.updateCheckState(view, CherrygramAppearanceConfig.INSTANCE.getAiqiyiShowOnlineStatus());
+        } else if (item.id == aiqiyiUnlimitedPinsRow) {
+            CherrygramAppearanceConfig.INSTANCE.setAiqiyiUnlimitedPins(!CherrygramAppearanceConfig.INSTANCE.getAiqiyiUnlimitedPins());
+            SettingsHelper.updateCheckState(view, CherrygramAppearanceConfig.INSTANCE.getAiqiyiUnlimitedPins());
+            uz.unnarsx.cherrygram.aiqiyi.AiqiyiLimitsHelper.applyLimits();
+        } else if (item.id == aiqiyiUnlimitedFoldersRow) {
+            CherrygramAppearanceConfig.INSTANCE.setAiqiyiUnlimitedFolders(!CherrygramAppearanceConfig.INSTANCE.getAiqiyiUnlimitedFolders());
+            SettingsHelper.updateCheckState(view, CherrygramAppearanceConfig.INSTANCE.getAiqiyiUnlimitedFolders());
+            uz.unnarsx.cherrygram.aiqiyi.AiqiyiLimitsHelper.applyLimits();
+        } else if (item.id == aiqiyiUnlimitedFavedStickersRow) {
+            CherrygramAppearanceConfig.INSTANCE.setAiqiyiUnlimitedFavedStickers(!CherrygramAppearanceConfig.INSTANCE.getAiqiyiUnlimitedFavedStickers());
+            SettingsHelper.updateCheckState(view, CherrygramAppearanceConfig.INSTANCE.getAiqiyiUnlimitedFavedStickers());
+            uz.unnarsx.cherrygram.aiqiyi.AiqiyiLimitsHelper.applyLimits();
         } else if (item.id == aiqiyiSelfCertRow) {
             CherrygramAppearanceConfig.INSTANCE.setAiqiyiSelfCertBadge(!CherrygramAppearanceConfig.INSTANCE.getAiqiyiSelfCertBadge());
             SettingsHelper.updateCheckState(view, CherrygramAppearanceConfig.INSTANCE.getAiqiyiSelfCertBadge());

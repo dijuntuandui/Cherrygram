@@ -494,6 +494,12 @@
     <!--Aiqiyi: show online status-->
     <string name="AQY_ShowOnlineStatus">显示用户在线状态</string>
     <string name="AQY_ShowOnlineStatus_Desc">在单聊头像右下角显示三色状态点（蓝=在线，黄=刚离开，红=离线）</string>
+    <string name="AQY_UnlimitedPins">无限置顶</string>
+    <string name="AQY_UnlimitedPins_Desc">解除置顶数量上限，主列表与文件夹内都可随意置顶</string>
+    <string name="AQY_UnlimitedFolders">无限文件夹</string>
+    <string name="AQY_UnlimitedFolders_Desc">解除文件夹数量上限，不再被服务器锁定多余文件夹</string>
+    <string name="AQY_UnlimitedFavedStickers">无限收藏贴纸</string>
+    <string name="AQY_UnlimitedFavedStickers_Desc">解除收藏贴纸数量上限，想存多少存多少</string>
     <string name="AQY_AutoSignIn">自动签到</string>
     <string name="AQY_AutoSignIn_Desc">每天在指定时间自动发送预设消息</string>
     <!--Aiqiyi: self cert badge-->

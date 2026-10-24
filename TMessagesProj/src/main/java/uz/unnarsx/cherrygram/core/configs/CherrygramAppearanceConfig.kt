@@ -36,6 +36,12 @@ object CherrygramAppearanceConfig {
     var aiqiyiInputHintText by sharedPreferences.string("AP_AiqiyiInputHintText", "")
     /** 爱琦艺插件 - 显示用户在线状态（群组聊天时头像右下角显示在线状态） */
     var aiqiyiShowOnlineStatus by sharedPreferences.boolean("AP_AiqiyiShowOnlineStatus", true)
+    /** 爱琦艺插件 - 无限收起聊天（不限置顶数量） */
+    var aiqiyiUnlimitedPins by sharedPreferences.boolean("AP_AiqiyiUnlimitedPins", true)
+    /** 爱琦艺插件 - 无限文件夹（不限文件夹数量） */
+    var aiqiyiUnlimitedFolders by sharedPreferences.boolean("AP_AiqiyiUnlimitedFolders", true)
+    /** 爱琦艺插件 - 无限收藏贴纸（不限收藏贴纸数量） */
+    var aiqiyiUnlimitedFavedStickers by sharedPreferences.boolean("AP_AiqiyiUnlimitedFavedStickers", true)
     /** Header finish */
 
     /** Appearance start */
