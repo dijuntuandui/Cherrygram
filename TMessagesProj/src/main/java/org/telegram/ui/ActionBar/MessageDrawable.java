@@ -674,16 +674,14 @@ public class MessageDrawable extends Drawable {
         }
 
         // Base color of this bubble (in / out / selected).
-        // Outgoing bubbles may use a vertical gradient, so read the gradient stops straight
-        // from the fields populated in setTop() instead of rasterizing the shader per frame.
+        // Outgoing bubbles may use a vertical gradient. The user wants glass bubbles with one
+        // flat translucent tint, so blend the gradient stops into a single average color.
         int baseColor;
         if (isSelected) {
             baseColor = getColor(isOut ? Theme.key_chat_outBubbleSelected : Theme.key_chat_inBubbleSelected);
         } else {
             baseColor = getColor(isOut ? Theme.key_chat_outBubble : Theme.key_chat_inBubble);
         }
-        int baseColor2 = baseColor;
-        boolean hasGradientBase = false;
         if (gradientShader != null) {
             // The gradient runs from the last stop (top) down to currentColor (bottom);
             // see the LinearGradient construction in setTop().
@@ -697,12 +695,14 @@ public class MessageDrawable extends Drawable {
                 gradTop = currentGradientColor1;
             }
             if (Color.alpha(gradTop) > 8 && Color.alpha(gradBottom) > 8) {
-                baseColor = gradTop;
-                baseColor2 = gradBottom;
-                hasGradientBase = true;
+                // average the two stops into one flat color
+                baseColor = Color.rgb(
+                        (Color.red(gradTop) + Color.red(gradBottom)) / 2,
+                        (Color.green(gradTop) + Color.green(gradBottom)) / 2,
+                        (Color.blue(gradTop) + Color.blue(gradBottom)) / 2
+                );
             } else if (Color.alpha(gradBottom) > 8) {
                 baseColor = gradBottom;
-                baseColor2 = gradBottom;
             }
         }
 
@@ -730,24 +730,11 @@ public class MessageDrawable extends Drawable {
         }
 
         // 1. translucent frosted base -- wallpaper shows through
+        // One flat translucent tint for every bubble, incoming or outgoing.
         int fillColor = ColorUtils.setAlphaComponent(baseColor, glassAlpha);
-        if (hasGradientBase) {
-            // keep the original bubble gradient, just make it translucent
-            int fillColor2 = ColorUtils.setAlphaComponent(baseColor2, glassAlpha);
-            liquidGlassFillPaint.setShader(new LinearGradient(
-                    0, bounds.top + padding,
-                    0, bounds.bottom - padding,
-                    new int[]{fillColor, fillColor2},
-                    null,
-                    Shader.TileMode.CLAMP
-            ));
-            liquidGlassFillPaint.setColor(0xFFFFFFFF);
-        } else {
-            liquidGlassFillPaint.setColor(fillColor);
-            liquidGlassFillPaint.setShader(null);
-        }
-        canvas.drawPath(path, liquidGlassFillPaint);
+        liquidGlassFillPaint.setColor(fillColor);
         liquidGlassFillPaint.setShader(null);
+        canvas.drawPath(path, liquidGlassFillPaint);
 
         // 2. soft vertical sheen: slightly brighter on top, dimmer at the bottom
         int topAlpha = Math.min(255, glassAlpha + 26);
