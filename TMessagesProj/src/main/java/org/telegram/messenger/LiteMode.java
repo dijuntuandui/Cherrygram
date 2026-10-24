@@ -284,6 +284,15 @@ public class LiteMode {
 
         int prevValue = value;
         value = preferences.getInt("lite_mode6", defaultValue);
+        // [Aiqiyi] 液态玻璃强制开启：已持久化的 lite_mode6 会覆盖上面的 defaultValue，
+        // 所以必须在赋值之后再补这一位，否则老用户永远开不出来。
+        // 受 FLAG_LIQUID_GLASS 自身条件约束（Android 13+），低版本会自动降级。
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if ((value & FLAG_LIQUID_GLASS) == 0) {
+                value |= FLAG_LIQUID_GLASS;
+                preferences.edit().putInt("lite_mode6", value).apply();
+            }
+        }
         if (loaded) {
             onFlagsUpdate(prevValue, value);
         }
