@@ -216,15 +216,21 @@ public class AiqiyiComebackEntry extends BaseCGPreferencesEntry {
             return;
         }
         AiqiyiComebackHelper h = helper();
-        String[] options = new String[]{
+        String[] baseOptions = new String[]{
                 getString(R.string.AQY_Comeback_Mode_Sequential),
                 getString(R.string.AQY_Comeback_Mode_Random)
         };
         int current = h.getSendMode() == AiqiyiComebackHelper.MODE_RANDOM ? 1 : 0;
 
+        // 该版本 AlertDialog.Builder 无 setSingleChoiceItems，用勾选标记表示当前值
+        CharSequence[] options = new CharSequence[baseOptions.length];
+        for (int i = 0; i < baseOptions.length; i++) {
+            options[i] = (i == current ? "✓ " : "     ") + baseOptions[i];
+        }
+
         new AlertDialog.Builder(getParentActivity())
                 .setTitle(getString(R.string.AQY_Comeback_Mode))
-                .setSingleChoiceItems(options, current, (dialog, which) -> {
+                .setItems(options, (dialog, which) -> {
                     dialog.dismiss();
                     h.setSendMode(which == 0
                             ? AiqiyiComebackHelper.MODE_SEQUENTIAL
@@ -240,7 +246,7 @@ public class AiqiyiComebackEntry extends BaseCGPreferencesEntry {
             return;
         }
         AiqiyiComebackHelper h = helper();
-        String[] options = new String[]{
+        String[] baseOptions = new String[]{
                 getString(R.string.AQY_Comeback_Speed_1),
                 getString(R.string.AQY_Comeback_Speed_2),
                 getString(R.string.AQY_Comeback_Speed_3),
@@ -255,9 +261,15 @@ public class AiqiyiComebackEntry extends BaseCGPreferencesEntry {
             }
         }
 
+        // 同上，用勾选标记表示当前倍速
+        CharSequence[] options = new CharSequence[baseOptions.length];
+        for (int i = 0; i < baseOptions.length; i++) {
+            options[i] = (i == current ? "✓ " : "     ") + baseOptions[i];
+        }
+
         new AlertDialog.Builder(getParentActivity())
                 .setTitle(getString(R.string.AQY_Comeback_Speed))
-                .setSingleChoiceItems(options, current, (dialog, which) -> {
+                .setItems(options, (dialog, which) -> {
                     dialog.dismiss();
                     h.setSendSpeed(values[which]);
                     listView.adapter.update(true);
