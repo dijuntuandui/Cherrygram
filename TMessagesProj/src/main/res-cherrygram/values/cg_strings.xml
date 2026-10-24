@@ -681,6 +681,50 @@
     <string name="AQY_LocalZone_On">On</string>
     <string name="AQY_LocalZone_Off">Off</string>
 
+    <!-- Comeback system -->
+    <string name="AQY_Comeback_Title">Comeback System</string>
+    <string name="AQY_Comeback_Header">Comeback System</string>
+    <string name="AQY_Comeback_Enabled">Enable Comeback System</string>
+    <string name="AQY_Comeback_Enabled_Desc">Auto-send corpus content when you send the trigger word in a private chat</string>
+    <string name="AQY_Comeback_Note">Only your own messages in private chats are detected. Groups and channels are ignored. All corpora are stored on this device only.</string>
+    <string name="AQY_Comeback_Trigger_Header">Trigger</string>
+    <string name="AQY_Comeback_Trigger">Trigger Word</string>
+    <string name="AQY_Comeback_StopTrigger">Stop Word</string>
+    <string name="AQY_Comeback_NotSet">Not set</string>
+    <string name="AQY_Comeback_Input_Hint">Enter text</string>
+    <string name="AQY_Comeback_Trigger_Note">Sending a message that exactly matches the trigger word starts sending. Sending the stop word stops it immediately.</string>
+    <string name="AQY_Comeback_Send_Header">Sending</string>
+    <string name="AQY_Comeback_Mode">Send Mode</string>
+    <string name="AQY_Comeback_Mode_Sequential">Sequential</string>
+    <string name="AQY_Comeback_Mode_Random">Random</string>
+    <string name="AQY_Comeback_Speed">Send Speed</string>
+    <string name="AQY_Comeback_Speed_Normal">Normal</string>
+    <string name="AQY_Comeback_Speed_Format">%1$dx speed</string>
+    <string name="AQY_Comeback_Speed_1">1x (normal)</string>
+    <string name="AQY_Comeback_Speed_2">2x</string>
+    <string name="AQY_Comeback_Speed_3">3x</string>
+    <string name="AQY_Comeback_Speed_5">5x (fast)</string>
+    <string name="AQY_Comeback_Send_Note">Sequential loops through the corpus in order; random picks a random line each time. Higher speeds are more likely to hit server rate limits.</string>
+    <string name="AQY_Comeback_Corpus_Header">Corpora</string>
+    <string name="AQY_Comeback_Corpus_Manage">Manage Corpora</string>
+    <string name="AQY_Comeback_Corpus_Manage_Note">Tap the switch to enable or disable a corpus. Long press to edit or delete.</string>
+    <string name="AQY_Comeback_Corpus_Add">New Corpus</string>
+    <string name="AQY_Comeback_Corpus_Add_Desc">One line per entry</string>
+    <string name="AQY_Comeback_Corpus_Edit">Edit Corpus</string>
+    <string name="AQY_Comeback_Corpus_Delete">Delete Corpus</string>
+    <string name="AQY_Comeback_Corpus_Delete_Confirm">Delete this corpus? This cannot be undone.</string>
+    <string name="AQY_Comeback_Corpus_Clear">Clear All Corpora</string>
+    <string name="AQY_Comeback_Corpus_Clear_Desc">Delete every corpus stored on this device</string>
+    <string name="AQY_Comeback_Corpus_Clear_Confirm">Clear all corpora? This cannot be undone.</string>
+    <string name="AQY_Comeback_Corpus_Note">Corpora are stored on this device only and never uploaded.</string>
+    <string name="AQY_Comeback_Corpus_None">No corpora</string>
+    <string name="AQY_Comeback_Corpus_Empty">No corpora yet. Tap "New Corpus" above to add one.</string>
+    <string name="AQY_Comeback_Corpus_CountFormat">%1$d corpora enabled</string>
+    <string name="AQY_Comeback_Corpus_LinesFormat">%1$d entries</string>
+    <string name="AQY_Comeback_Corpus_Name_Hint">Corpus name</string>
+    <string name="AQY_Comeback_Corpus_Text_Hint">One line per entry</string>
+    <string name="AQY_Comeback_Corpus_Unnamed">Unnamed corpus</string>
+
     <!-- Local message override -->
     <string name="AQY_LocalMessage_Header">Local Messages</string>
     <string name="AQY_LocalMessage_Override">Enable message replacement</string>

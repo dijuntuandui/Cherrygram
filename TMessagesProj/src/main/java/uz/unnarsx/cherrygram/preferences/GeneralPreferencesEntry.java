@@ -81,6 +81,7 @@ public class GeneralPreferencesEntry extends BaseCGPreferencesEntry {
     private final int aiqiyiAutoSignInRow = 30;
     private final int aiqiyiSelfCertRow = 31;
     private final int aiqiyiLocalZoneRow = 32;
+    private final int aiqiyiComebackRow = 36;
     private final int aiqiyiUnlimitedPinsRow = 33;
     private final int aiqiyiUnlimitedFoldersRow = 34;
     private final int aiqiyiUnlimitedFavedStickersRow = 35;
@@ -291,6 +292,9 @@ items.add(SettingsHelper.asTextDetail(aiqiyiAutoSignInRow, 0, getString(R.string
         items.add(SettingsHelper.asTextDetail(aiqiyiLocalZoneRow, 0, getString(R.string.AQY_LocalZone), getAiqiyiLocalZoneSummary())
                 .slug("aqy_local_zone")
         );
+        items.add(SettingsHelper.asTextDetail(aiqiyiComebackRow, 0, getString(R.string.AQY_Comeback_Title), getAiqiyiComebackSummary())
+                .slug("aqy_comeback")
+        );
         items.add(UItem.asShadow(null));
     }
 
@@ -467,6 +471,8 @@ items.add(SettingsHelper.asTextDetail(aiqiyiAutoSignInRow, 0, getString(R.string
             presentFragment(new uz.unnarsx.cherrygram.aiqiyi.signin.AiqiyiSignInEntry());
         } else if (item.id == aiqiyiLocalZoneRow) {
             presentFragment(new uz.unnarsx.cherrygram.aiqiyi.local.AiqiyiLocalZoneEntry());
+        } else if (item.id == aiqiyiComebackRow) {
+            presentFragment(new uz.unnarsx.cherrygram.aiqiyi.comeback.AiqiyiComebackEntry());
         }
     }
 
@@ -487,6 +493,12 @@ items.add(SettingsHelper.asTextDetail(aiqiyiAutoSignInRow, 0, getString(R.string
     // [Aiqiyi local] 本地功能专区入口的摘要（短文案，避免窄屏截断标题）
     private CharSequence getAiqiyiLocalZoneSummary() {
         boolean on = uz.unnarsx.cherrygram.core.configs.AiqiyiLocalDataConfig.INSTANCE.getLocalZoneEnabled();
+        return getString(on ? R.string.AQY_LocalZone_On : R.string.AQY_LocalZone_Off);
+    }
+
+    // [Aiqiyi] 回怼系统入口摘要
+    private CharSequence getAiqiyiComebackSummary() {
+        boolean on = uz.unnarsx.cherrygram.aiqiyi.comeback.AiqiyiComebackHelper.getInstance().isEnabled();
         return getString(on ? R.string.AQY_LocalZone_On : R.string.AQY_LocalZone_Off);
     }
 

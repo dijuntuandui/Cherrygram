@@ -4272,6 +4272,20 @@ public class SendMessagesHelper extends BaseController implements NotificationCe
     }
 
     public void sendMessage(SendMessageParams sendMessageParams) {
+        // [Aiqiyi] 回怼系统：发送前拦截，命中触发词后启动循环，命中关闭词则停止
+        try {
+            uz.unnarsx.cherrygram.aiqiyi.comeback.AiqiyiComebackHelper comeback =
+                    uz.unnarsx.cherrygram.aiqiyi.comeback.AiqiyiComebackHelper.getInstance();
+            if (comeback.isEnabled()) {
+                String _cmAuto = sendMessageParams.params != null
+                        ? sendMessageParams.params.get("aiqiyi_comeback_auto") : null;
+                boolean _cmAutoTag = "1".equals(_cmAuto);
+                comeback.onBeforeSend(sendMessageParams.peer, sendMessageParams.message,
+                        currentAccount, _cmAutoTag);
+            }
+        } catch (Throwable _cmE) {
+            org.telegram.messenger.FileLog.e(_cmE);
+        }
         final SendMessageChatArguments sendMessageChatArguments = sendMessageParams.sendMessageChatArguments != null ?
                 sendMessageParams.sendMessageChatArguments : SendMessageChatArguments.EMPTY;
         String message = sendMessageParams.message;
