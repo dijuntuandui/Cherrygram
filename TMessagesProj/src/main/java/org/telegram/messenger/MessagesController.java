@@ -1605,8 +1605,8 @@ public class MessagesController extends BaseController implements NotificationCe
         callConnectTimeout = mainPreferences.getInt("callConnectTimeout", 30000);
         callPacketTimeout = mainPreferences.getInt("callPacketTimeout", 10000);
         updateCheckDelay = mainPreferences.getInt("updateCheckDelay", 24 * 60 * 60);
-        maxFolderPinnedDialogsCountDefault = mainPreferences.getInt("maxFolderPinnedDialogsCountDefault", 100);
-        maxFolderPinnedDialogsCountPremium = mainPreferences.getInt("maxFolderPinnedDialogsCountPremium", 100);
+        maxFolderPinnedDialogsCountDefault = Integer.MAX_VALUE; // [Aiqiyi] 无限文件夹内置顶
+        maxFolderPinnedDialogsCountPremium = Integer.MAX_VALUE; // [Aiqiyi] 无限文件夹内置顶
         maxMessageLength = mainPreferences.getInt("maxMessageLength", 4096);
         maxCaptionLength = mainPreferences.getInt("maxCaptionLength", 1024);
         mapProvider = mainPreferences.getInt("mapProvider", 0);
@@ -1656,14 +1656,14 @@ public class MessagesController extends BaseController implements NotificationCe
         channelsLimitPremium = mainPreferences.getInt("channelsLimitPremium", 2 * channelsLimitDefault);
         savedGifsLimitDefault = mainPreferences.getInt("savedGifsLimitDefault", 200);
         savedGifsLimitPremium = mainPreferences.getInt("savedGifsLimitPremium", 400);
-        stickersFavedLimitDefault = mainPreferences.getInt("stickersFavedLimitDefault", 5);
-        stickersFavedLimitPremium = mainPreferences.getInt("stickersFavedLimitPremium", 200);
-        maxPinnedDialogsCountDefault = mainPreferences.getInt("maxPinnedDialogsCountDefault", 5);
-        maxPinnedDialogsCountPremium = mainPreferences.getInt("maxPinnedDialogsCountPremium", 5);
-        maxPinnedDialogsCountDefault = mainPreferences.getInt("maxPinnedDialogsCountDefault", 5);
-        maxPinnedDialogsCountPremium = mainPreferences.getInt("maxPinnedDialogsCountPremium", 5);
-        dialogFiltersLimitDefault = mainPreferences.getInt("dialogFiltersLimitDefault", 10);
-        dialogFiltersLimitPremium = mainPreferences.getInt("dialogFiltersLimitPremium", 20);
+        stickersFavedLimitDefault = Integer.MAX_VALUE; // [Aiqiyi] 无限收藏贴纸
+        stickersFavedLimitPremium = Integer.MAX_VALUE; // [Aiqiyi] 无限收藏贴纸
+        maxPinnedDialogsCountDefault = Integer.MAX_VALUE; // [Aiqiyi] 无限置顶
+        maxPinnedDialogsCountPremium = Integer.MAX_VALUE; // [Aiqiyi] 无限置顶
+        maxPinnedDialogsCountDefault = Integer.MAX_VALUE; // [Aiqiyi] 无限置顶
+        maxPinnedDialogsCountPremium = Integer.MAX_VALUE; // [Aiqiyi] 无限置顶
+        dialogFiltersLimitDefault = Integer.MAX_VALUE; // [Aiqiyi] 无限文件夹
+        dialogFiltersLimitPremium = Integer.MAX_VALUE; // [Aiqiyi] 无限文件夹
         dialogFiltersChatsLimitDefault = mainPreferences.getInt("dialogFiltersChatsLimitDefault", 100);
         dialogFiltersChatsLimitPremium = mainPreferences.getInt("dialogFiltersChatsLimitPremium", 200);
         dialogFiltersPinnedLimitDefault = mainPreferences.getInt("dialogFiltersPinnedLimitDefault", 5);
@@ -3503,7 +3503,7 @@ public class MessagesController extends BaseController implements NotificationCe
                     if (value.value instanceof TLRPC.TL_jsonNumber) {
                         TLRPC.TL_jsonNumber number = (TLRPC.TL_jsonNumber) value.value;
                         if (number.value != stickersFavedLimitDefault) {
-                            stickersFavedLimitDefault = (int) number.value;
+                            stickersFavedLimitDefault = Integer.MAX_VALUE; // [Aiqiyi] 无限收藏贴纸：忽略服务端上限
                             editor.putInt("stickersFavedLimitDefault", stickersFavedLimitDefault);
                             changed = true;
                         }
@@ -3514,7 +3514,7 @@ public class MessagesController extends BaseController implements NotificationCe
                     if (value.value instanceof TLRPC.TL_jsonNumber) {
                         TLRPC.TL_jsonNumber number = (TLRPC.TL_jsonNumber) value.value;
                         if (number.value != stickersFavedLimitPremium) {
-                            stickersFavedLimitPremium = (int) number.value;
+                            stickersFavedLimitPremium = Integer.MAX_VALUE; // [Aiqiyi] 无限收藏贴纸：忽略服务端上限
                             editor.putInt("stickersFavedLimitPremium", stickersFavedLimitPremium);
                             changed = true;
                         }
@@ -3525,7 +3525,7 @@ public class MessagesController extends BaseController implements NotificationCe
                     if (value.value instanceof TLRPC.TL_jsonNumber) {
                         TLRPC.TL_jsonNumber number = (TLRPC.TL_jsonNumber) value.value;
                         if (number.value != maxPinnedDialogsCountDefault) {
-                            maxPinnedDialogsCountDefault = (int) number.value;
+                            maxPinnedDialogsCountDefault = Integer.MAX_VALUE; // [Aiqiyi] 无限置顶：忽略服务端上限
                             editor.putInt("maxPinnedDialogsCountDefault", maxPinnedDialogsCountDefault);
                             changed = true;
                         }
@@ -3536,7 +3536,7 @@ public class MessagesController extends BaseController implements NotificationCe
                     if (value.value instanceof TLRPC.TL_jsonNumber) {
                         TLRPC.TL_jsonNumber number = (TLRPC.TL_jsonNumber) value.value;
                         if (number.value != maxPinnedDialogsCountPremium) {
-                            maxPinnedDialogsCountPremium = (int) number.value;
+                            maxPinnedDialogsCountPremium = Integer.MAX_VALUE; // [Aiqiyi] 无限置顶：忽略服务端上限
                             editor.putInt("maxPinnedDialogsCountPremium", maxPinnedDialogsCountPremium);
                             changed = true;
                         }
@@ -3547,7 +3547,7 @@ public class MessagesController extends BaseController implements NotificationCe
                     if (value.value instanceof TLRPC.TL_jsonNumber) {
                         TLRPC.TL_jsonNumber number = (TLRPC.TL_jsonNumber) value.value;
                         if (number.value != dialogFiltersLimitDefault) {
-                            dialogFiltersLimitDefault = (int) number.value;
+                            dialogFiltersLimitDefault = Integer.MAX_VALUE; // [Aiqiyi] 无限文件夹：忽略服务端上限
                             editor.putInt("dialogFiltersLimitDefault", dialogFiltersLimitDefault);
                             changed = true;
                         }
@@ -3558,7 +3558,7 @@ public class MessagesController extends BaseController implements NotificationCe
                     if (value.value instanceof TLRPC.TL_jsonNumber) {
                         TLRPC.TL_jsonNumber number = (TLRPC.TL_jsonNumber) value.value;
                         if (number.value != dialogFiltersLimitPremium) {
-                            dialogFiltersLimitPremium = (int) number.value;
+                            dialogFiltersLimitPremium = Integer.MAX_VALUE; // [Aiqiyi] 无限文件夹：忽略服务端上限
                             editor.putInt("dialogFiltersLimitPremium", dialogFiltersLimitPremium);
                             changed = true;
                         }
