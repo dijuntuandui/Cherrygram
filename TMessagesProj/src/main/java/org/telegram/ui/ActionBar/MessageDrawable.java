@@ -673,37 +673,14 @@ public class MessageDrawable extends Drawable {
             generatePath(path, bounds, padding, rad, smallRad, nearRad, top, true, true, true);
         }
 
-        // Base color of this bubble (in / out / selected).
-        // Outgoing bubbles may use a vertical gradient. The user wants glass bubbles with one
-        // flat translucent tint, so blend the gradient stops into a single average color.
+        // Base color of this bubble.
+        // The user wants both incoming and outgoing glass bubbles to share ONE translucent
+        // tint, identical to the incoming bubble, so the out/in distinction is dropped here.
         int baseColor;
         if (isSelected) {
-            baseColor = getColor(isOut ? Theme.key_chat_outBubbleSelected : Theme.key_chat_inBubbleSelected);
+            baseColor = getColor(Theme.key_chat_inBubbleSelected);
         } else {
-            baseColor = getColor(isOut ? Theme.key_chat_outBubble : Theme.key_chat_inBubble);
-        }
-        if (gradientShader != null) {
-            // The gradient runs from the last stop (top) down to currentColor (bottom);
-            // see the LinearGradient construction in setTop().
-            int gradBottom = currentColor;
-            int gradTop = 0;
-            if (currentGradientColor3 != 0) {
-                gradTop = currentGradientColor3;
-            } else if (currentGradientColor2 != 0) {
-                gradTop = currentGradientColor2;
-            } else if (currentGradientColor1 != 0) {
-                gradTop = currentGradientColor1;
-            }
-            if (Color.alpha(gradTop) > 8 && Color.alpha(gradBottom) > 8) {
-                // average the two stops into one flat color
-                baseColor = Color.rgb(
-                        (Color.red(gradTop) + Color.red(gradBottom)) / 2,
-                        (Color.green(gradTop) + Color.green(gradBottom)) / 2,
-                        (Color.blue(gradTop) + Color.blue(gradBottom)) / 2
-                );
-            } else if (Color.alpha(gradBottom) > 8) {
-                baseColor = gradBottom;
-            }
+            baseColor = getColor(Theme.key_chat_inBubble);
         }
 
         int glassAlpha;
