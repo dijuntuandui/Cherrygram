@@ -3568,7 +3568,8 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
             } else {
                 actionBar.setTitle(actionBarDefaultTitle = getString(R.string.SelectChat));
             }
-            actionBar.setBackgroundColor(getThemedColor(Theme.key_windowBackgroundWhite));
+            // [Aiqiyi] 顶栏透明，让壁纸顶到状态栏
+        actionBar.setBackgroundColor(Theme.getCachedWallpaper() != null ? 0 : getThemedColor(Theme.key_windowBackgroundWhite));
         } else {
             if (searchString != null || folderId != 0 || communityId != 0) {
                 actionBar.setBackButtonDrawable(backDrawable = new BackDrawable(false));
@@ -4131,6 +4132,11 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
 
         ContentView contentView = new ContentView(context);
         fragmentView = contentView;
+
+        // [Aiqiyi] 聊天列表页显示用户壁纸，让底栏玻璃有内容可透
+        if (Theme.getCachedWallpaper() != null) {
+            contentView.setBackgroundImage(Theme.getCachedWallpaper(), Theme.isWallpaperMotion());
+        }
 
         viewPositionWatcher = new ViewPositionWatcher(contentView);
         iBlur3FactoryFrostedLiquidGlass.setSourceRootView(viewPositionWatcher, contentView);
@@ -5536,7 +5542,8 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
             actionBar.addView(avatarContainer, 0, LayoutHelper.createFrame(LayoutHelper.WRAP_CONTENT, LayoutHelper.MATCH_PARENT, Gravity.TOP | Gravity.LEFT, 0, 0, 40, 0));
             floatingButton3.imageView.setVisibility(View.INVISIBLE);
             actionBar.setOccupyStatusBar(false);
-            actionBar.setBackgroundColor(getThemedColor(Theme.key_windowBackgroundWhite));
+            // [Aiqiyi] 顶栏透明，让壁纸顶到状态栏
+            actionBar.setBackgroundColor(Theme.getCachedWallpaper() != null ? 0 : getThemedColor(Theme.key_windowBackgroundWhite));
             if (fragmentContextViewWrapper != null) {
                 AndroidUtilities.removeFromParent(fragmentContextViewWrapper);
             }
@@ -7722,7 +7729,8 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
             setDialogsListFrozen(true);
             viewPages[0].listView.setVerticalScrollBarEnabled(false);
             if (searchViewPager != null) {
-                searchViewPager.setBackgroundColor(getThemedColor(Theme.key_windowBackgroundWhite));
+                // [Aiqiyi] 搜索页透明，露出壁纸
+                searchViewPager.setBackgroundColor(Theme.getCachedWallpaper() != null ? 0 : getThemedColor(Theme.key_windowBackgroundWhite));
             }
             searchAnimator = new AnimatorSet();
             ArrayList<Animator> animators = new ArrayList<>();
