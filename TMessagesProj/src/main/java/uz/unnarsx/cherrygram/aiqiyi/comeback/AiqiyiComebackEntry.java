@@ -198,7 +198,10 @@ public class AiqiyiComebackEntry extends BaseCGPreferencesEntry {
         EditTextBoldCursor editText = new EditTextBoldCursor(getParentActivity());
         editText.setText(current == null ? "" : current);
         editText.setSingleLine(true);
-        editText.setInputType(InputType.TYPE_CLASS_TEXT);
+        // 关闭输入法联想/自动纠正，避免写入零宽字符或拼音候选残留导致 equals 失配
+        editText.setInputType(InputType.TYPE_CLASS_TEXT
+                | InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS
+                | InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD);
         editText.setHint(getString(R.string.AQY_Comeback_Input_Hint));
 
         new AlertDialog.Builder(getParentActivity())

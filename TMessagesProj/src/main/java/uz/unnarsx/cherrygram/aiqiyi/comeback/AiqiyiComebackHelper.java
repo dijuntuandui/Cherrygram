@@ -99,6 +99,31 @@ public class AiqiyiComebackHelper {
 
     // ==================== 配置读写 ====================
 
+    /**
+     * 清洗输入：去除零宽字符、BOM、不间断空格等不可见字符，并统一全角空格。
+     * 中文输入法联想、某些剪贴板来源会混入这些字符，肉眼不可见但会让 equals 失配。
+     */
+    private static String sanitize(String raw) {
+        if (raw == null) {
+            return "";
+        }
+        StringBuilder sb = new StringBuilder(raw.length());
+        for (int i = 0; i < raw.length(); i++) {
+            char c = raw.charAt(i);
+            if (c == '\u200B' || c == '\u200C' || c == '\u200D' || c == '\uFEFF'
+                    || c == '\u00A0' || c == '\u3000' || c == '\u0009') {
+                continue;
+            }
+            sb.append(c);
+        }
+        return sb.toString().trim();
+    }
+
+    /** 归一化比较：清洗后逐字符比对，忽略不可见差异 */
+    private static boolean sameText(String a, String b) {
+        return sanitize(a).equals(sanitize(b));
+    }
+
     public boolean isEnabled() {
         return prefs.getBoolean("enabled", false);
     }
@@ -115,7 +140,7 @@ public class AiqiyiComebackHelper {
     }
 
     public void setTrigger(String value) {
-        prefs.edit().putString("trigger", value == null ? "" : value.trim()).apply();
+        prefs.edit().putString("trigger", sanitize(value)).apply();
     }
 
     public String getStopTrigger() {
@@ -123,7 +148,7 @@ public class AiqiyiComebackHelper {
     }
 
     public void setStopTrigger(String value) {
-        prefs.edit().putString("stop_trigger", value == null ? "" : value.trim()).apply();
+        prefs.edit().putString("stop_trigger", sanitize(value)).apply();
     }
 
     public int getSendMode() {
@@ -311,9 +336,10 @@ public class AiqiyiComebackHelper {
         }
         final String trimmed = message.trim();
 
-        // 关闭词优先判定，命中即停
+        // 关闭词优先判定，命中即停（归一化比较，容忍不可见字符差异）
+        // 注意：关闭词判定不受私聊限制，任何会话都能停
         String stop = getStopTrigger();
-        if (!TextUtils.isEmpty(stop) && trimmed.equals(stop)) {
+        if (!TextUtils.isEmpty(stop) && sameText(trimmed, stop)) {
             stopPendingMessages();
             return true;
         }
@@ -327,7 +353,7 @@ public class AiqiyiComebackHelper {
         if (TextUtils.isEmpty(trigger)) {
             return false;
         }
-        if (!trimmed.equals(trigger)) {
+        if (!sameText(trimmed, trigger)) {
             return false;
         }
         if (getEnabledCorpusCount() <= 0) {
