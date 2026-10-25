@@ -4,7 +4,7 @@
  * You should have received a copy of the license in this archive (see LICENSE).
  * Please, be respectful and credit the original author if you use this code.
  *
- * Aiqiyi plugin: 在线状态圆点（共用工具）。
+ * Aiqiyi plugin: 在线状态圆点（判定与颜色，全部集中在这一次，绘制在调用方）。
  *
  * 五档语义，按「离线时长」分色：
  *   绿     = 在线
@@ -14,14 +14,15 @@
  *   不显示 = 离线超过 60 分钟，或拿不到任何状态依据
  *
  * 设计要点：
- *   - 纯静态、无状态，DialogCell / ChatMessageCell / 群头像汇总共用同一套判定，
- *     避免多处逻辑漂移。
+ *   - 纯静态、无状态，列表页 / 聊天页 / 群头像汇总共用同一套判定，避免逻辑漂移。
  *   - 不发起任何网络请求，只读本地缓存（MessagesController.getUser /
- *     onlinePrivacy），因此零流量、零风控。
+ *     getChatFull / onlinePrivacy），因此零流量、零风控。
+ *   - 判定和绘制严格分离：这里只返回颜色值，0 表示不画。
  */
 package uz.unnarsx.cherrygram.aiqiyi;
 
 import org.telegram.messenger.MessagesController;
+import org.telegram.messenger.MessageObject;
 import org.telegram.tgnet.ConnectionsManager;
 import org.telegram.tgnet.TLRPC;
 
@@ -105,10 +106,61 @@ public final class AiqiyiOnlineDot {
     }
 
     /**
-     * [Aiqiyi] 群聊 / 频道头像用的汇总状态。
+     * 群组 / 频道头像用的状态色。
      *
      * 群头像代表的是「群」而不是某个人，所以不画某个成员的精确状态，
      * 只回答一个问题：这个群现在有没有人在线。
+     *
+     * 数据来源按可靠性排序：
+     *   1. 群成员列表（fullChats 缓存）里在线的人数 —— 最准，但只有打开过群资料才有
+     *   2. 最近一条消息的发送者 —— 列表项自带，任何时候都在，但需要排除机器人
+     *
+     * @param account 当前账号
+     * @param chat    会话对应的群/频道；为 null 返回 0
+     * @param lastMsg 列表项上最后一条消息，可为 null
+     * @return 颜色值，或 0 表示不显示
+     */
+    public static int getChatStatusColor(int account, TLRPC.Chat chat, MessageObject lastMsg) {
+        if (chat == null) {
+            return 0;
+        }
+        // 1. 成员汇总优先
+        final int countColor = getChatDotColor(account, chat.id);
+        if (countColor != 0) {
+            return countColor;
+        }
+        // 2. 退回看最近发言者（必须是真人，客服机器人永远不该给群点灯）
+        if (lastMsg != null && lastMsg.messageOwner != null) {
+            try {
+                final long fromId = lastMsg.getFromChatId();
+                if (fromId > 0) {
+                    final TLRPC.User sender = MessagesController.getInstance(account).getUser(fromId);
+                    if (sender != null && !sender.bot && !sender.self) {
+                        return getDotColor(account, sender);
+                    }
+                }
+            } catch (Throwable ignore) {
+            }
+        }
+        return 0;
+    }
+
+    /**
+     * 统计群内在线人数，再换算成颜色。
+     *
+     * @return 颜色值；成员列表未缓存、人数过多或没人时返回 0
+     */
+    public static int getChatDotColor(int account, long chatId) {
+        final int onlineCount = getChatOnlineCount(account, chatId);
+        if (onlineCount <= 0) {
+            return 0;
+        }
+        // 人数越多越亮，1~2 人用亮黄，3 人以上用绿
+        return onlineCount >= 3 ? DOT_ONLINE : DOT_JUST_LEFT;
+    }
+
+    /**
+     * 统计群内在线人数。
      *
      * @return 在线成员数量；0 表示没人或拿不到数据
      */
@@ -150,19 +202,5 @@ public final class AiqiyiOnlineDot {
         } catch (Throwable ignore) {
             return 0;
         }
-    }
-
-    /**
-     * [Aiqiyi] 汇总状态对应的颜色。
-     *
-     * @param onlineCount 在线人数
-     * @return 颜色值，0 表示不画
-     */
-    public static int getChatDotColor(int onlineCount) {
-        if (onlineCount <= 0) {
-            return 0;
-        }
-        // 人数越多越亮，1~2 人用亮黄，3 人以上用绿
-        return onlineCount >= 3 ? DOT_ONLINE : DOT_JUST_LEFT;
     }
 }
