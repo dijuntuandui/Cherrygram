@@ -410,6 +410,10 @@ public class SettingsActivity extends BaseFragment implements NotificationCenter
             private final Paint blurScrimPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
             @Override
             protected void onDraw(@NonNull Canvas canvas) {
+                // [Aiqiyi] 有壁纸时顶栏不做模糊遮罩，直接露出壁纸
+                if (Theme.getCachedWallpaper() != null) {
+                    return;
+                }
                 int top = actionBar.getHeight();
                 AndroidUtilities.rectTmp2.set(0, 0, getMeasuredWidth(), top);
                 blurScrimPaint.setColor(Theme.getColor(Theme.key_actionBarDefault, resourceProvider));

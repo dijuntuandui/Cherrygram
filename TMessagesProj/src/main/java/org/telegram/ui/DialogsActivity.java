@@ -1047,7 +1047,10 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
                     }
                 }
             } else if (!inPreviewMode) {
-                if (progressToActionMode > 0) {
+                // [Aiqiyi] 有壁纸时顶栏不做模糊遮罩，直接露出壁纸
+                if (Theme.getCachedWallpaper() != null) {
+                    // skip actionbar blur scrim
+                } else if (progressToActionMode > 0) {
                     actionBarSearchPaint.setColor(getThemedColor(Theme.key_windowBackgroundWhite));
                     blurBounds.set(0, Math.max(0, top), getMeasuredWidth(), top + actionBarHeight - dp(2 * searchAnimationProgress));
                     drawBlurRect(canvas, 0, blurBounds, actionBarSearchPaint, true);
@@ -13582,6 +13585,8 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
         searchViewPager.setScaleX(1.05f);
         searchViewPager.setScaleY(1.05f);
         searchViewPager.setVisibility(View.GONE);
+        // [Aiqiyi] 搜索页创建时就透明，露出壁纸（原来只在动画里设，首次展示会露出不透明底）
+        searchViewPager.setBackgroundColor(Theme.getCachedWallpaper() != null ? 0 : getThemedColor(Theme.key_windowBackgroundWhite));
         searchViewPager.setBlurredBackgroundDrawableFactory(iBlur3FactoryBlur);
     }
 

@@ -3611,7 +3611,13 @@ public class RecyclerListView extends RecyclerView implements IBlur3Capture {
         if (MD3ListAdapter.shouldUseCustomColors()) {
             sectionBackgroundPaint.setColor(MD3ListAdapter.getBackgroundColor(resourcesProvider));
         } else {
-            sectionBackgroundPaint.setColor(multAlpha(Theme.getColor(Theme.key_windowBackgroundWhite, resourcesProvider), alpha));
+            int sectionColor = Theme.getColor(Theme.key_windowBackgroundWhite, resourcesProvider);
+            // [Aiqiyi] 有壁纸时分组卡片半透明，让壁纸透出来
+            final Drawable wp = Theme.getCachedWallpaper();
+            if (wp != null) {
+                sectionColor = Theme.multAlpha(sectionColor, 0.55f);
+            }
+            sectionBackgroundPaint.setColor(multAlpha(sectionColor, alpha));
         }
         if (topRadius == bottomRadius) {
             if (SharedConfig.shadowsInSections) {

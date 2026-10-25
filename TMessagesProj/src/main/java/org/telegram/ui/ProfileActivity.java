@@ -1402,7 +1402,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                     }
                 }
             }
-            if (y1 != v && !openAnimationInProgress) {
+            if (y1 != v && !openAnimationInProgress && Theme.getCachedWallpaper() == null) {
                 int color = getThemedColor(Theme.key_windowBackgroundWhite);
                 paint.setColor(color);
                 blurBounds.set(0, y1, getMeasuredWidth(), (int) v);
@@ -3335,7 +3335,8 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                     if (iBlur3SourceGlass != null && !iBlur3SourceGlass.inRecording()) {
                         //if (iBlur3SourceGlass.needUpdateDisplayList(width, height) || iBlur3Invalidated) {
                         final Canvas c = iBlur3SourceGlass.beginRecording(width, height);
-                        c.drawColor(getThemedColor(Theme.key_windowBackgroundGray));
+                        // [Aiqiyi] 有壁纸时录制底色透明，让玻璃折射到真实背景
+                        c.drawColor(Theme.getCachedWallpaper() != null ? 0 : getThemedColor(Theme.key_windowBackgroundGray));
                         if (SharedConfig.chatBlurEnabled()) {
                             scrollableViewNoiseSuppressor.draw(c, DownscaleScrollableNoiseSuppressor.DRAW_GLASS);
                         }
@@ -3769,6 +3770,10 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
 
             @Override
             protected void drawBackgroundWithBlur(Canvas canvas, float y, Rect rectTmp2, Paint backgroundPaint) {
+                // [Aiqiyi] 有壁纸时分组区不做模糊底色，直接露出壁纸
+                if (Theme.getCachedWallpaper() != null) {
+                    return;
+                }
                 contentView.drawBlurRect(canvas, listView.getY() + getY() + y, rectTmp2, backgroundPaint, true);
             }
 
@@ -4267,7 +4272,8 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
         };
         listView.setSections();
         listView.applyPaddingToSections = false;
-        listView.setBackgroundColor(getThemedColor(Theme.key_windowBackgroundGray));
+        // [Aiqiyi] 列表透明，露出壁纸
+        listView.setBackgroundColor(Theme.getCachedWallpaper() != null ? 0 : getThemedColor(Theme.key_windowBackgroundGray));
         listView.setVerticalScrollBarEnabled(false);
         final IBlur3Capture listViewCapture = new ViewGroupPartRenderer(listView, (ViewGroup) fragmentView, (canvas, child, drawingTime) -> {
             if (child == sharedMediaLayout) {
@@ -5177,7 +5183,8 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
             searchListView.setItemAnimator(null);
             searchListView.setVisibility(View.GONE);
             searchListView.setLayoutAnimation(null);
-            searchListView.setBackgroundColor(getThemedColor(Theme.key_windowBackgroundWhite));
+            // [Aiqiyi] 搜索列表透明，露出壁纸
+            searchListView.setBackgroundColor(Theme.getCachedWallpaper() != null ? 0 : getThemedColor(Theme.key_windowBackgroundWhite));
             frameLayout.addView(searchListView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT, Gravity.TOP | Gravity.LEFT));
             searchListView.setOnItemClickListener((view, position) -> {
                 if (position < 0) {
@@ -5324,7 +5331,8 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
 
         topView = new TopView(context);
         topView.setBackgroundColorId(peerColor, false);
-        topView.setBackgroundColor(getThemedColor(Theme.key_windowBackgroundGray));
+        // [Aiqiyi] 头部透明，露出壁纸
+        topView.setBackgroundColor(Theme.getCachedWallpaper() != null ? 0 : getThemedColor(Theme.key_windowBackgroundGray));
         frameLayout.addView(topView);
         contentView.blurBehindViews.add(topView);
 
@@ -8738,7 +8746,8 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                         } else {
                             expandAnimator.setDuration(0);
                         }
-                        topView.setBackgroundColor(getThemedColor(Theme.key_windowBackgroundGray));
+                        // [Aiqiyi] 主题切换时顶部保持透明
+                        topView.setBackgroundColor(Theme.getCachedWallpaper() != null ? 0 : getThemedColor(Theme.key_windowBackgroundGray));
 
                         if (!doNotSetForeground) {
                             BackupImageView imageView = avatarsViewPager.getCurrentItemView();
@@ -15813,7 +15822,8 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                         ((UserCell) child).update(0);
                     }
                 }
-                listView.setBackgroundColor(getThemedColor(Theme.key_windowBackgroundGray));
+                // [Aiqiyi] 主题切换时保持透明
+                listView.setBackgroundColor(Theme.getCachedWallpaper() != null ? 0 : getThemedColor(Theme.key_windowBackgroundGray));
             }
             if (!isPulledDown) {
                 if (onlineTextView[1] != null) {
