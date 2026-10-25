@@ -135,15 +135,36 @@ public class AiqiyiSaveDeleted {
         SQLiteCursor cursor = null;
         ArrayList<TLRPC.Message> result = null;
         try {
+            // [Aiqiyi] Purge rows that were persisted before the id fix. Older
+            // builds stored message.id straight out of the `data` blob, which can
+            // be 0 there - such rows collapse onto PRIMARY KEY (dialog_id, 0) and
+            // make every merged message jump to one spot. They are unrecoverable,
+            // so drop them once here.
+            try {
+                database.executeFast(String.format(Locale.US,
+                        "DELETE FROM " + TABLE + " WHERE mid = 0 OR date = 0"))
+                        .stepThis().dispose();
+            } catch (Throwable ignored) {
+            }
             cursor = database.queryFinalized(String.format(Locale.US,
-                    "SELECT data FROM " + TABLE + " WHERE dialog_id = %d", dialogId));
+                    "SELECT data, mid, date FROM " + TABLE + " WHERE dialog_id = %d", dialogId));
             while (cursor.next()) {
                 NativeByteBuffer data = cursor.byteBufferValue(0);
+                int colMid = cursor.intValue(1);
+                int colDate = cursor.intValue(2);
                 if (data != null) {
                     TLRPC.Message message = TLRPC.Message.TLdeserialize(data, data.readInt32(false), false);
                     message.readAttachPath(data, 0);
                     data.reuse();
                     if (message != null) {
+                        // Column values win - same rule Telegram uses in
+                        // getMessagesInternal (mid overwrites message.id).
+                        if (colMid != 0) {
+                            message.id = colMid;
+                        }
+                        if (colDate != 0) {
+                            message.date = colDate;
+                        }
                         if (result == null) {
                             result = new ArrayList<>();
                         }
@@ -248,31 +269,24 @@ public class AiqiyiSaveDeleted {
             }
 
             if (merged != null && !merged.isEmpty()) {
-                // [Aiqiyi] Insert each restored message at its proper slot instead
-                // of re-sorting the whole page. Telegram keeps messages newest
-                // first (descending id) inside messages.v2, and the loader hands
-                // the UI a list in that order - a full re-sort flips the page.
-                Collections.sort(merged, (a, b) -> Integer.compare(b.id, a.id));
-                for (int m = 0; m < merged.size(); m++) {
-                    TLRPC.Message msg = merged.get(m);
-                    if (msg == null) {
-                        continue;
+                // [Aiqiyi] The page assembled by getMessagesInternal is NOT a single
+                // monotonic list: the hole logic UNIONs a "date DESC" half with a
+                // "date ASC" half. Inserting into that shape by binary search puts
+                // messages in the wrong slots and flips the chat. Rebuild the whole
+                // page in one consistent order instead (newest first, matching
+                // messages.v2 ordering), keeping the merged entries in place.
+                merged.addAll(target.messages);
+                Collections.sort(merged, (a, b) -> {
+                    if (a == null || b == null) {
+                        return 0;
                     }
-                    // Find the first existing entry older than msg; insert before it.
-                    // If every existing entry is newer, msg belongs at the head.
-                    int insertAt = target.messages.size();
-                    for (int i = 0; i < target.messages.size(); i++) {
-                        TLRPC.Message existing = target.messages.get(i);
-                        if (existing == null) {
-                            continue;
-                        }
-                        if (existing.id < msg.id) {
-                            insertAt = i;
-                            break;
-                        }
+                    if (a.date != b.date) {
+                        return Integer.compare(b.date, a.date);
                     }
-                    target.messages.add(insertAt, msg);
-                }
+                    return Integer.compare(b.id, a.id);
+                });
+                target.messages.clear();
+                target.messages.addAll(merged);
                 // Warm the membership cache with everything we just learned, so
                 // processLoadedMessages (UI thread) can flag the MessageObjects
                 // without touching SQLite.
@@ -434,6 +448,17 @@ public class AiqiyiSaveDeleted {
                     TLRPC.Message message = TLRPC.Message.TLdeserialize(data, data.readInt32(false), false);
                     if (message != null) {
                         message.readAttachPath(data, 0);
+                        // [Aiqiyi] message.id inside `data` is not authoritative -
+                        // Telegram overwrites it with the mid column on read. Force
+                        // the real id into the snapshot before it is persisted,
+                        // otherwise the merged copy comes back with id 0 and the
+                        // page ordering collapses.
+                        if (mid != 0 && message.id == 0) {
+                            message.id = mid;
+                        }
+                        if (message.date == 0 && date != 0) {
+                            message.date = date;
+                        }
                         saveDeleted(database, uid, mid, date, message);
                         saved++;
                     }

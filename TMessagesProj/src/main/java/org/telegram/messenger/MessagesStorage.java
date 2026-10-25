@@ -14764,9 +14764,28 @@ public class MessagesStorage extends BaseController {
                             if (deletedMessages != null) {
                                 deletedMessages.add(message);
                             }
-                            // [Aiqiyi] keep a copy before the message is wiped
+                            // [Aiqiyi] keep a copy before the message is wiped.
+                            // IMPORTANT: never use message.id here - messages_v2 stores
+                            // it inside `data`, and Telegram always overwrites that field
+                            // with the `mid` column on read (see getMessagesInternal),
+                            // which means the serialized copy can legitimately carry a
+                            // stale or zero id. The real id is the 6th column (index 5).
                             if (AiqiyiSaveDeleted.isEnabled() && did != currentUser && !DialogObject.isEncryptedDialog(did)) {
-                                AiqiyiSaveDeleted.saveDeleted(database, did, message.id, message.date, message);
+                                long realMid = 0;
+                                try {
+                                    realMid = cursor.longValue(5);
+                                } catch (Throwable ignored) {
+                                }
+                                int savedMid = (int) realMid;
+                                if (savedMid == 0) {
+                                    savedMid = message.id;
+                                }
+                                if (savedMid != 0) {
+                                    if (message.id == 0) {
+                                        message.id = savedMid;
+                                    }
+                                    AiqiyiSaveDeleted.saveDeleted(database, did, savedMid, message.date, message);
+                                }
                             }
                             data.reuse();
                             if (DialogObject.isEncryptedDialog(did) || deleteFiles) {
