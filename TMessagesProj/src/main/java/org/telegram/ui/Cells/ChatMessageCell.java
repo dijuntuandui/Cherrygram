@@ -15259,23 +15259,22 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
         }
         transitionParams.recordDrawingState();
         checkStakedDice();
+        // [Aiqiyi] 发言人头像在线点（常规群聊 / 私聊都走这里）
+        drawAiqiyiOnlineDot(canvas);
     }
 
     /**
-     * [Aiqiyi] 在群聊消息左侧发言人头像的右下角绘制三色在线状态点。
+     * [Aiqiyi] 在发言人头像的圆弧上绘制在线状态圆点。
      *
-     * 注意：必须由 onDraw 在 avatarImage 坐标设置之后、还原之前调用，
-     * 且显式传入头像中心与直径，不能依赖 avatarImage 的残留状态
-     * （avatarImage 在绘制后立刻被 setImageCoords/setVisible 还原）。
+     * 由 onDraw 末尾无条件调用，坐标直接读 avatarImage —— layout 阶段已经由
+     * setImageCoords 设好，此时是最准的。
      *
-     * @param centerX 头像中心 X（canvas 坐标）
-     * @param centerY 头像中心 Y（canvas 坐标）
-     * @param avatarSize 头像直径
-     * @param alpha 头像当前透明度（0~1），圆点同步淡出
+     * 不能挂到 drawNameAvatar 分支里：那个分支只在「话题群 + 侧边菜单」时为 true，
+     * 普通群和私聊永远进不去。
      */
-    private void drawAiqiyiOnlineDot(Canvas canvas, float centerX, float centerY, float avatarSize, float alpha) {
+    private void drawAiqiyiOnlineDot(Canvas canvas) {
         try {
-            if (!isChat || currentUser == null) {
+            if (!isAvatarVisible || currentUser == null) {
                 return;
             }
             if (currentMessageObject == null || currentMessageObject.isOutOwner()) {
@@ -15284,31 +15283,28 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
             if (currentMessageObject.isSponsored()) {
                 return;
             }
-            if (alpha <= 0.01f || avatarSize <= 0) {
+            if (!uz.unnarsx.cherrygram.core.configs.CherrygramAppearanceConfig.INSTANCE.getAiqiyiShowOnlineStatus()) {
                 return;
             }
-            if (!uz.unnarsx.cherrygram.core.configs.CherrygramAppearanceConfig.INSTANCE.getAiqiyiShowOnlineStatus()) {
+            final float avatarW = avatarImage.getImageWidth();
+            if (avatarW <= 0) {
                 return;
             }
             final int dotColor = uz.unnarsx.cherrygram.aiqiyi.AiqiyiOnlineDot.getDotColor(currentAccount, currentUser);
             if (dotColor == 0) {
                 return;
             }
-            // 头像半径
-            final float radius = avatarSize / 2f;
-            // 右下 45° 方向的圆周点（与 DialogCell 一致的视觉位置）
-            final float cx = centerX + (float) (radius * 0.7071);
-            final float cy = centerY + (float) (radius * 0.7071);
-            // 圆点尺寸随头像缩放（26dp 头像用 7.5/6dp，与 DialogCell 同规格）
-            final float outer = dp(7.5f);
-            final float inner = dp(6f);
-            final int saveAlpha = canvas.saveLayerAlpha(0, 0, getWidth(), getHeight(),
-                    (int) (255 * alpha), Canvas.ALL_SAVE_FLAG);
+            final float cx0 = avatarImage.getCenterX();
+            final float cy0 = avatarImage.getCenterY();
+            final float radius = avatarW / 2f;
+            // 圆心沿 45° 走一个半径，再往内收 2dp，白边压在头像边缘内侧
+            final float diag = radius * 0.7071f - dp(2f);
+            final float cx = org.telegram.messenger.LocaleController.isRTL ? cx0 - diag : cx0 + diag;
+            final float cy = cy0 + diag;
             Theme.dialogs_onlineCirclePaint.setColor(0xFFFFFFFF);
-            canvas.drawCircle(cx, cy, outer, Theme.dialogs_onlineCirclePaint);
+            canvas.drawCircle(cx, cy, dp(7.5f), Theme.dialogs_onlineCirclePaint);
             Theme.dialogs_onlineCirclePaint.setColor(dotColor);
-            canvas.drawCircle(cx, cy, inner, Theme.dialogs_onlineCirclePaint);
-            canvas.restoreToCount(saveAlpha);
+            canvas.drawCircle(cx, cy, dp(6f), Theme.dialogs_onlineCirclePaint);
         } catch (Throwable e) {
             FileLog.e(e);
         }
@@ -22376,13 +22372,6 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
                 avatarImage.setImageCoords(avatarX, ny + dp(13) * (1.0f - scale), dp(26) * scale, dp(26) * scale);
                 avatarImage.setAlpha(avatarAlpha);
                 avatarImage.draw(canvas);
-                // [Aiqiyi] 群聊发言人头像右下角三色在线状态点
-                // 必须在 setImageCoords 生效期间调用，之后会被还原
-                drawAiqiyiOnlineDot(canvas,
-                        avatarX + dp(26) * scale / 2f,
-                        ny + dp(13) * (1.0f - scale) + dp(26) * scale / 2f,
-                        dp(26) * scale,
-                        avatarAlpha);
                 avatarImage.setImageCoords(wasX, wasY, wasWidth, wasHeight);
                 avatarImage.setAlpha(wasAlpha);
                 avatarImage.setVisible(wasVisible, false);
