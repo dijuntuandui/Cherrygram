@@ -287,6 +287,10 @@ public class UniversalAdapter extends AdapterWithDiffUtils {
     }
 
     public void drawWhiteSections(Canvas canvas, RecyclerListView listView) {
+        // [Aiqiyi] 有壁纸时不再绘制白色分段背景，让壁纸直接透出来
+        if (Theme.getCachedWallpaper() != null) {
+            return;
+        }
         for (int i = 0; i < whiteSections.size(); ++i) {
             Section section = whiteSections.get(i);
             if (section.end < 0) continue;
@@ -598,7 +602,8 @@ public class UniversalAdapter extends AdapterWithDiffUtils {
                 break;
             }
         }
-        if (shouldApplyBackground(viewType)) {
+        // [Aiqiyi] 有壁纸时行不铺底色，直接透壁纸
+        if (shouldApplyBackground(viewType) && Theme.getCachedWallpaper() == null) {
             view.setBackgroundColor(getThemedColor(key_background));
         }
         return new RecyclerListView.Holder(view);
@@ -968,7 +973,8 @@ public class UniversalAdapter extends AdapterWithDiffUtils {
                 TextRightIconCell textCell = (TextRightIconCell) holder.itemView;
                 textCell.setTextAndIcon(item.text, item.iconResId);
                 textCell.setDivider(divider);
-                textCell.setBackgroundColor(getThemedColor(Theme.key_dialogBackground));
+                // [Aiqiyi] 有壁纸时不铺底色
+                textCell.setBackgroundColor(Theme.getCachedWallpaper() != null ? 0 : getThemedColor(Theme.key_dialogBackground));
                 break;
             case VIEW_TYPE_GRAY_SECTION:
                 GraySectionCell sectionCell = (GraySectionCell) holder.itemView;
@@ -1143,7 +1149,8 @@ public class UniversalAdapter extends AdapterWithDiffUtils {
             ((Theme.Colorable) holder.itemView).updateColors();
             if (shouldApplyBackground(holder.getItemViewType())) {
                 final int key_background = dialog ? Theme.key_dialogBackground : Theme.key_windowBackgroundWhite;
-                holder.itemView.setBackgroundColor(getThemedColor(key_background));
+                // [Aiqiyi] 有壁纸时不刷底色（否则主题更新会把灰色写回来）
+                holder.itemView.setBackgroundColor(Theme.getCachedWallpaper() != null ? 0 : getThemedColor(key_background));
             }
         }
     }

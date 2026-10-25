@@ -1371,12 +1371,17 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                 paint.setColor(currentColor);
                 updateBackgroundPaint();
                 final float progressToGradient = (playProfileAnimation == 0 ? 1f : avatarAnimationProgress) * hasColorAnimated.set(hasColorById);
+                // [Aiqiyi] 有壁纸时头部不铺色块，直接露出壁纸
+                if (Theme.getCachedWallpaper() != null) {
+                    // skip whole header scrim
+                } else {
                 if (progressToGradient < 1) {
                     canvas.drawRect(0, 0, getMeasuredWidth(), y1, paint);
                 }
                 if (progressToGradient > 0) {
                     backgroundPaint.setAlpha((int) (0xFF * progressToGradient));
                     canvas.drawRect(0, 0, getMeasuredWidth(), y1, backgroundPaint);
+                }
                 }
                 if (hasEmoji) {
                     final float loadedScale = emojiLoadedT.set(isEmojiLoaded());
@@ -4139,6 +4144,11 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
         fragmentView.setWillNotDraw(false);
         contentView = ((NestedFrameLayout) fragmentView);
         contentView.needBlur = true;
+        // [Aiqiyi] 个人资料页挂壁纸，否则顶部顶栏区域没有东西可透
+        if (Theme.getCachedWallpaper() != null) {
+            contentView.setBackgroundImage(Theme.getCachedWallpaper(), Theme.isWallpaperMotion());
+            contentView.setBackgroundColor(0);
+        }
 
         listView = new ClippedListView(context, resourcesProvider) {
 
@@ -15881,7 +15891,10 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
             arrayList.add(new ThemeDescription(mediaCounterTextView.getNextTextView(), ThemeDescription.FLAG_TEXTCOLOR, null, null, null, themeDelegate, Theme.key_player_actionBarSubtitle));
         }
 
-        arrayList.add(new ThemeDescription(topView, ThemeDescription.FLAG_BACKGROUND, null, null, null, null, Theme.key_windowBackgroundGray));
+        // [Aiqiyi] 有壁纸时 topView 不再被主题刷成灰底（原来会强制覆盖成 key_windowBackgroundGray）
+        if (Theme.getCachedWallpaper() == null) {
+            arrayList.add(new ThemeDescription(topView, ThemeDescription.FLAG_BACKGROUND, null, null, null, null, Theme.key_windowBackgroundGray));
+        }
         arrayList.add(new ThemeDescription(listView, ThemeDescription.FLAG_SELECTOR, null, null, null, null, Theme.key_listSelector));
         arrayList.add(new ThemeDescription(listView, 0, new Class[]{View.class}, Theme.dividerPaint, null, null, Theme.key_divider));
 
