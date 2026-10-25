@@ -23,8 +23,10 @@ import org.telegram.SQLite.SQLitePreparedStatement;
 import org.telegram.messenger.FileLog;
 import org.telegram.tgnet.NativeByteBuffer;
 import org.telegram.tgnet.TLRPC;
+import org.telegram.ui.Components.LongSparseArray;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Locale;
 
 import uz.unnarsx.cherrygram.core.configs.CherrygramMessagesConfig;
@@ -160,6 +162,112 @@ public class AiqiyiSaveDeleted {
             }
         }
         return result;
+    }
+
+    /**
+     * [Aiqiyi] Reload hook. Merges locally retained deleted messages back into a
+     * page of freshly loaded history, so that a revoked message stays visible
+     * after leaving and re-entering the chat (or after an app restart).
+     *
+     * Only rows inside [minMid, maxMid] are considered, so the merge stays
+     * scoped to the page that is actually being displayed. Rows already present
+     * in target are skipped (dedup), and every merged message is flagged
+     * deleted=true so the UI renders it with the deleted mark instead of
+     * treating it as a live message.
+     *
+     * Never throws.
+     */
+    public static void mergeIntoResult(SQLiteDatabase database, long dialogId, int minMid, int maxMid, TLRPC.TL_messages_messages target) {
+        if (database == null || target == null) {
+            return;
+        }
+        if (!isEnabled()) {
+            return;
+        }
+        SQLiteCursor cursor = null;
+        try {
+            LongSparseArray<Boolean> present = null;
+            for (int i = 0; i < target.messages.size(); i++) {
+                TLRPC.Message m = target.messages.get(i);
+                if (m == null) {
+                    continue;
+                }
+                if (present == null) {
+                    present = new LongSparseArray<>();
+                }
+                present.put(m.id, Boolean.TRUE);
+            }
+
+            String where = "dialog_id = " + dialogId;
+            if (maxMid != Integer.MAX_VALUE) {
+                where += " AND mid <= " + maxMid;
+            }
+            if (minMid > 0) {
+                where += " AND mid >= " + minMid;
+            }
+            cursor = database.queryFinalized("SELECT data, mid FROM " + TABLE + " WHERE " + where + " ORDER BY mid ASC");
+
+            ArrayList<TLRPC.Message> merged = null;
+            while (cursor.next()) {
+                int mid = 0;
+                try {
+                    mid = cursor.intValue(1);
+                } catch (Throwable ignored) {
+                }
+                if (present != null && present.get(mid) != null) {
+                    continue;
+                }
+                NativeByteBuffer data = null;
+                try {
+                    data = cursor.byteBufferValue(0);
+                    if (data == null) {
+                        continue;
+                    }
+                    TLRPC.Message message = TLRPC.Message.TLdeserialize(data, data.readInt32(false), false);
+                    if (message == null) {
+                        continue;
+                    }
+                    message.readAttachPath(data, 0);
+                    message.dialog_id = dialogId;
+                    message.deleted = true;
+                    if (message.id == 0 && mid != 0) {
+                        message.id = mid;
+                    }
+                    if (merged == null) {
+                        merged = new ArrayList<>();
+                    }
+                    merged.add(message);
+                } catch (Throwable ignored) {
+                } finally {
+                    if (data != null) {
+                        try {
+                            data.reuse();
+                        } catch (Throwable ignored) {
+                        }
+                    }
+                }
+            }
+
+            if (merged != null && !merged.isEmpty()) {
+                target.messages.addAll(merged);
+                // Keep chronological order - the loader relies on it for page bounds.
+                Collections.sort(target.messages, (a, b) -> {
+                    if (a.date != b.date) {
+                        return Integer.compare(a.date, b.date);
+                    }
+                    return Integer.compare(a.id, b.id);
+                });
+            }
+        } catch (Throwable e) {
+            FileLog.e(e);
+        } finally {
+            if (cursor != null) {
+                try {
+                    cursor.dispose();
+                } catch (Throwable ignored) {
+                }
+            }
+        }
     }
 
     /** How many deleted messages are stored for a dialog. */

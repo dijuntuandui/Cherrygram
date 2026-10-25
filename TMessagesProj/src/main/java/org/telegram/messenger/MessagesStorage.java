@@ -10038,7 +10038,35 @@ public class MessagesStorage extends BaseController {
             };
         } else {*/
         int finalMessagesCount = scheduled ? res.messages.size() : messagesCount;
-        return () -> getMessagesController().processLoadedMessages(res, finalMessagesCount, dialogId, mergeDialogId, countQueryFinal, maxIdOverrideFinal, offset_date, true, classGuid, minUnreadIdFinal, lastMessageIdFinal, countUnreadFinal, maxUnreadDateFinal, load_type, isEndFinal, mode, threadMessageId, loadIndex, queryFromServerFinal, mentionsUnreadFinal, processMessages, isTopic, loaderLogger);
+        // [Aiqiyi] anti-revoke: re-merge locally retained deleted messages into this
+        // page. Without this the saved copies were write-only: leaving and
+        // re-entering the chat (or restarting the app) reloads from messages_v2,
+        // where revoked messages no longer exist, so they silently disappeared.
+        int aiqiyiMergedCount = finalMessagesCount;
+        try {
+            int aiqiyiMinMid = 0;
+            for (int i = 0; i < res.messages.size(); i++) {
+                TLRPC.Message m = res.messages.get(i);
+                if (m == null || m.id <= 0) {
+                    continue;
+                }
+                if (aiqiyiMinMid == 0 || m.id < aiqiyiMinMid) {
+                    aiqiyiMinMid = m.id;
+                }
+            }
+            if (aiqiyiMinMid == 0) {
+                // Empty page (e.g. everything in view was revoked): fall back to a
+                // generous window so the retained messages still show up.
+                aiqiyiMinMid = max_id > 0 ? Math.max(1, max_id - 200) : 1;
+            }
+            AiqiyiSaveDeleted.mergeIntoResult(database, dialogId, aiqiyiMinMid, max_id == 0 ? Integer.MAX_VALUE : max_id, res);
+            if (!scheduled) {
+                aiqiyiMergedCount = Math.max(finalMessagesCount, res.messages.size());
+            }
+        } catch (Throwable ignore) {
+        }
+        final int finalMessagesCountForLambda = aiqiyiMergedCount;
+        return () -> getMessagesController().processLoadedMessages(res, finalMessagesCountForLambda, dialogId, mergeDialogId, countQueryFinal, maxIdOverrideFinal, offset_date, true, classGuid, minUnreadIdFinal, lastMessageIdFinal, countUnreadFinal, maxUnreadDateFinal, load_type, isEndFinal, mode, threadMessageId, loadIndex, queryFromServerFinal, mentionsUnreadFinal, processMessages, isTopic, loaderLogger);
         //}
     }
 
@@ -15415,6 +15443,23 @@ public class MessagesStorage extends BaseController {
     }
 
     private ArrayList<Long> markMessagesAsDeletedInternal(long channelId, int mid, boolean deleteFiles) {
+        // [Aiqiyi] anti-revoke: the channel delete path lives in this separate overload
+        // and previously had no pre-save hook at all, which is why revokes inside
+        // channels were never retained. Mirror the row set that this method is about
+        // to wipe (mid <= beforeMid) into saved_deleted_cherry first.
+        try {
+            ArrayList<Integer> aiqiyiIds = new ArrayList<>();
+            SQLiteCursor aiqiyiCursor = database.queryFinalized(String.format(Locale.US,
+                    "SELECT mid FROM messages_v2 WHERE uid = %d AND mid <= %d", -channelId, mid));
+            while (aiqiyiCursor.next()) {
+                aiqiyiIds.add(aiqiyiCursor.intValue(0));
+            }
+            aiqiyiCursor.dispose();
+            if (!aiqiyiIds.isEmpty()) {
+                AiqiyiSaveDeleted.preSaveBeforeDelete(database, getUserConfig().getClientUserId(), -channelId, aiqiyiIds);
+            }
+        } catch (Throwable ignore) {
+        }
         SQLiteCursor cursor = null;
         SQLitePreparedStatement state = null;
         try {
