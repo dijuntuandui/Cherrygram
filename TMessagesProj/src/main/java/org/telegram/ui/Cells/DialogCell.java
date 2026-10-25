@@ -5167,13 +5167,16 @@ public class DialogCell extends BaseCell implements StoriesListPlaceProvider.Ava
             if (showOnlineDot) {
                 lastDrawnDotColor = dotColor;
                 if (dotColor != 0) {
-                    int top = (int) (storyParams.originalAvatarRect.bottom - dp(useForceThreeLines || SharedConfig.useThreeLinesLayout ? 6 : 8));
-                    int left;
-                    if (LocaleController.isRTL) {
-                        left = (int) (storyParams.originalAvatarRect.left + dp(useForceThreeLines || SharedConfig.useThreeLinesLayout ? 10 : 6));
-                    } else {
-                        left = (int) (storyParams.originalAvatarRect.right - dp(useForceThreeLines || SharedConfig.useThreeLinesLayout ? 10 : 6));
-                    }
+                    // [Aiqiyi] 圆点要贴在头像圆弧上（与 ChatMessageCell 一致），
+                    // 不能再取矩形右下角——那是外接方框的角点，落点会偏到头像外面，
+                    // 看起来像挂了个坠子。这里从圆心沿 45° 走一个半径，落在圆周上，
+                    // 再往圆心方向收 2dp 让白边压在头像边缘内侧。
+                    final float cx = storyParams.originalAvatarRect.centerX();
+                    final float cy = storyParams.originalAvatarRect.centerY();
+                    final float radius = storyParams.originalAvatarRect.width() / 2f;
+                    final float diag = radius * 0.7071f - dp(2f);
+                    final float left = LocaleController.isRTL ? cx - diag : cx + diag;
+                    final float top = cy + diag;
                     Theme.dialogs_onlineCirclePaint.setColor(0xFFFFFFFF);
                     canvas.drawCircle(left, top, dp(7.5f), Theme.dialogs_onlineCirclePaint);
                     Theme.dialogs_onlineCirclePaint.setColor(dotColor);
