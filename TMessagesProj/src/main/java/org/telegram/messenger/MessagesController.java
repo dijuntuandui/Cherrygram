@@ -12143,6 +12143,17 @@ public class MessagesController extends BaseController implements NotificationCe
             message.dialog_id = dialogId;
             final MessageObject messageObject = new MessageObject(currentAccount, message, usersDict, chatsDict, true, false, mode == ChatActivity.MODE_SAVED);
             messageObject.scheduled = mode == 1;
+            // [Aiqiyi] anti-revoke: this message came back from the local
+            // saved_deleted_cherry table, i.e. it was revoked on the server.
+            // Flag the MessageObject so the cell renders the deleted mark
+            // instead of presenting it as a live message.
+            try {
+                if (uz.unnarsx.cherrygram.aiqiyi.AiqiyiSaveDeleted.isEnabled()
+                        && uz.unnarsx.cherrygram.aiqiyi.AiqiyiSaveDeleted.isDeletedMessageCached(dialogId, message.id)) {
+                    messageObject.deleted = true;
+                }
+            } catch (Throwable ignored) {
+            }
             objects.add(messageObject);
             if (isCache) {
                 if (message.legacy && message.layer < TLRPC.LAYER) {

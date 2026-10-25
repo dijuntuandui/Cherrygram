@@ -23,7 +23,7 @@ import org.telegram.SQLite.SQLitePreparedStatement;
 import org.telegram.messenger.FileLog;
 import org.telegram.tgnet.NativeByteBuffer;
 import org.telegram.tgnet.TLRPC;
-import org.telegram.ui.Components.LongSparseArray;
+import androidx.collection.LongSparseArray;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -229,7 +229,6 @@ public class AiqiyiSaveDeleted {
                     }
                     message.readAttachPath(data, 0);
                     message.dialog_id = dialogId;
-                    message.deleted = true;
                     if (message.id == 0 && mid != 0) {
                         message.id = mid;
                     }
@@ -250,6 +249,18 @@ public class AiqiyiSaveDeleted {
 
             if (merged != null && !merged.isEmpty()) {
                 target.messages.addAll(merged);
+                // Warm the membership cache with everything we just learned, so
+                // processLoadedMessages (UI thread) can flag the MessageObjects
+                // without touching SQLite.
+                try {
+                    java.util.HashSet<Integer> warm = new java.util.HashSet<>();
+                    for (int i = 0; i < merged.size(); i++) {
+                        warm.add(merged.get(i).id);
+                    }
+                    MEMBERSHIP_CACHE.put(dialogId, warm);
+                    MEMBERSHIP_CACHE_STAMP.put(dialogId, android.os.SystemClock.elapsedRealtime());
+                } catch (Throwable ignored) {
+                }
                 // Keep chronological order - the loader relies on it for page bounds.
                 Collections.sort(target.messages, (a, b) -> {
                     if (a.date != b.date) {
@@ -267,6 +278,75 @@ public class AiqiyiSaveDeleted {
                 } catch (Throwable ignored) {
                 }
             }
+        }
+    }
+
+    /**
+     * [Aiqiyi] Cheap membership test used by the loader when it builds
+     * MessageObjects: a message that exists in saved_deleted_cherry was
+     * revoked from the server, so its MessageObject must be flagged
+     * deleted = true for the UI to draw the deleted mark.
+     *
+     * The full id set is cached per dialog for a short while so the loader
+     * does not hit SQLite once per message when a page is assembled.
+     *
+     * Never throws.
+     */
+    private static final LongSparseArray<Long> MEMBERSHIP_CACHE_STAMP = new LongSparseArray<>();
+    private static final LongSparseArray<java.util.HashSet<Integer>> MEMBERSHIP_CACHE = new LongSparseArray<>();
+    private static final long MEMBERSHIP_TTL_MS = 3000L;
+
+    /**
+     * [Aiqiyi] UI-thread safe lookup. processLoadedMessages builds MessageObjects
+     * on the UI thread, where touching SQLite directly would be a bad idea, so
+     * this only reads the warm cache that the storage queue filled through
+     * isDeletedMessage(). Returns false on a cold cache - the message simply
+     * renders as normal for that frame, and the next storage-side pass fills it.
+     */
+    public static boolean isDeletedMessageCached(long dialogId, int mid) {
+        if (mid == 0 || !isEnabled()) {
+            return false;
+        }
+        try {
+            java.util.HashSet<Integer> ids = MEMBERSHIP_CACHE.get(dialogId);
+            return ids != null && ids.contains(mid);
+        } catch (Throwable ignored) {
+            return false;
+        }
+    }
+
+    /** Storage-thread variant: refreshes the cache from SQLite if it is stale. */
+    public static boolean isDeletedMessage(SQLiteDatabase database, long dialogId, int mid) {
+        if (database == null || mid == 0 || !isEnabled()) {
+            return false;
+        }
+        try {
+            long now = android.os.SystemClock.elapsedRealtime();
+            Long stamp = MEMBERSHIP_CACHE_STAMP.get(dialogId);
+            java.util.HashSet<Integer> ids = MEMBERSHIP_CACHE.get(dialogId);
+            if (stamp == null || ids == null || now - stamp > MEMBERSHIP_TTL_MS) {
+                ids = new java.util.HashSet<>();
+                SQLiteCursor cursor = null;
+                try {
+                    cursor = database.queryFinalized("SELECT mid FROM " + TABLE + " WHERE dialog_id = " + dialogId);
+                    while (cursor.next()) {
+                        ids.add(cursor.intValue(0));
+                    }
+                } finally {
+                    if (cursor != null) {
+                        try {
+                            cursor.dispose();
+                        } catch (Throwable ignored) {
+                        }
+                    }
+                }
+                MEMBERSHIP_CACHE.put(dialogId, ids);
+                MEMBERSHIP_CACHE_STAMP.put(dialogId, now);
+            }
+            return ids.contains(mid);
+        } catch (Throwable e) {
+            FileLog.e(e);
+            return false;
         }
     }
 
