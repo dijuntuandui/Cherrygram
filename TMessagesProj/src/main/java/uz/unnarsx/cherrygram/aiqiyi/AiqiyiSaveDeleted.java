@@ -248,7 +248,31 @@ public class AiqiyiSaveDeleted {
             }
 
             if (merged != null && !merged.isEmpty()) {
-                target.messages.addAll(merged);
+                // [Aiqiyi] Insert each restored message at its proper slot instead
+                // of re-sorting the whole page. Telegram keeps messages newest
+                // first (descending id) inside messages.v2, and the loader hands
+                // the UI a list in that order - a full re-sort flips the page.
+                Collections.sort(merged, (a, b) -> Integer.compare(b.id, a.id));
+                for (int m = 0; m < merged.size(); m++) {
+                    TLRPC.Message msg = merged.get(m);
+                    if (msg == null) {
+                        continue;
+                    }
+                    // Find the first existing entry older than msg; insert before it.
+                    // If every existing entry is newer, msg belongs at the head.
+                    int insertAt = target.messages.size();
+                    for (int i = 0; i < target.messages.size(); i++) {
+                        TLRPC.Message existing = target.messages.get(i);
+                        if (existing == null) {
+                            continue;
+                        }
+                        if (existing.id < msg.id) {
+                            insertAt = i;
+                            break;
+                        }
+                    }
+                    target.messages.add(insertAt, msg);
+                }
                 // Warm the membership cache with everything we just learned, so
                 // processLoadedMessages (UI thread) can flag the MessageObjects
                 // without touching SQLite.
@@ -261,13 +285,6 @@ public class AiqiyiSaveDeleted {
                     MEMBERSHIP_CACHE_STAMP.put(dialogId, android.os.SystemClock.elapsedRealtime());
                 } catch (Throwable ignored) {
                 }
-                // Keep chronological order - the loader relies on it for page bounds.
-                Collections.sort(target.messages, (a, b) -> {
-                    if (a.date != b.date) {
-                        return Integer.compare(a.date, b.date);
-                    }
-                    return Integer.compare(a.id, b.id);
-                });
             }
         } catch (Throwable e) {
             FileLog.e(e);

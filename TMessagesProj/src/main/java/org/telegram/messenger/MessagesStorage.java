@@ -10045,6 +10045,7 @@ public class MessagesStorage extends BaseController {
         int aiqiyiMergedCount = finalMessagesCount;
         try {
             int aiqiyiMinMid = 0;
+            int aiqiyiMaxMid = 0;
             for (int i = 0; i < res.messages.size(); i++) {
                 TLRPC.Message m = res.messages.get(i);
                 if (m == null || m.id <= 0) {
@@ -10053,13 +10054,21 @@ public class MessagesStorage extends BaseController {
                 if (aiqiyiMinMid == 0 || m.id < aiqiyiMinMid) {
                     aiqiyiMinMid = m.id;
                 }
+                if (m.id > aiqiyiMaxMid) {
+                    aiqiyiMaxMid = m.id;
+                }
             }
             if (aiqiyiMinMid == 0) {
                 // Empty page (e.g. everything in view was revoked): fall back to a
-                // generous window so the retained messages still show up.
+                // bounded window around max_id instead of dragging in the whole
+                // conversation.
                 aiqiyiMinMid = max_id > 0 ? Math.max(1, max_id - 200) : 1;
+                aiqiyiMaxMid = max_id > 0 ? max_id : Integer.MAX_VALUE;
             }
-            AiqiyiSaveDeleted.mergeIntoResult(database, dialogId, aiqiyiMinMid, max_id == 0 ? Integer.MAX_VALUE : max_id, res);
+            // [Aiqiyi] Clamp to the page that was actually loaded. Using
+            // Integer.MAX_VALUE as the upper bound pulled every historical
+            // revoked message into the first screen.
+            AiqiyiSaveDeleted.mergeIntoResult(database, dialogId, aiqiyiMinMid, aiqiyiMaxMid, res);
             if (!scheduled) {
                 aiqiyiMergedCount = Math.max(finalMessagesCount, res.messages.size());
             }
