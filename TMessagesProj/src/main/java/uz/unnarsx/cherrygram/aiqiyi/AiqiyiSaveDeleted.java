@@ -21,6 +21,9 @@ import org.telegram.SQLite.SQLiteCursor;
 import org.telegram.SQLite.SQLiteDatabase;
 import org.telegram.SQLite.SQLitePreparedStatement;
 import org.telegram.messenger.FileLog;
+import org.telegram.messenger.FileLoader;
+import org.telegram.messenger.AndroidUtilities;
+import org.telegram.messenger.UserConfig;
 import org.telegram.tgnet.NativeByteBuffer;
 import org.telegram.tgnet.TLRPC;
 import androidx.collection.LongSparseArray;
@@ -38,8 +41,43 @@ public class AiqiyiSaveDeleted {
     public static final String META_TABLE = "aiqiyi_meta";
     public static final String CREATE_SQL =
             "CREATE TABLE IF NOT EXISTS " + TABLE +
-            "(dialog_id INTEGER, mid INTEGER, date INTEGER, data BLOB, " +
+            "(dialog_id INTEGER, mid INTEGER, date INTEGER, data BLOB, path TEXT, " +
             "PRIMARY KEY(dialog_id, mid))";
+
+    /**
+     * [Aiqiyi] Add the `path` column to databases created by earlier builds.
+     * SQLite has no "add column if not exists", so probe table_info first.
+     * Never throws.
+     */
+    public static void ensurePathColumn(SQLiteDatabase database) {
+        if (database == null) {
+            return;
+        }
+        try {
+            boolean has = false;
+            SQLiteCursor c = null;
+            try {
+                c = database.queryFinalized("PRAGMA table_info(" + TABLE + ")");
+                while (c.next()) {
+                    String name = c.stringValue(1);
+                    if ("path".equals(name)) {
+                        has = true;
+                        break;
+                    }
+                }
+            } finally {
+                if (c != null) {
+                    c.dispose();
+                }
+            }
+            if (!has) {
+                database.executeFast("ALTER TABLE " + TABLE + " ADD COLUMN path TEXT").stepThis().dispose();
+                FileLog.d("AiqiyiSaveDeleted: added path column");
+            }
+        } catch (Throwable e) {
+            FileLog.e(e);
+        }
+    }
 
     /** Whether revoked messages should be retained locally. */
     public static boolean isEnabled() {
@@ -121,18 +159,34 @@ public class AiqiyiSaveDeleted {
      * Never throws: a failure here must not break the normal delete flow.
      */
     public static void saveDeleted(SQLiteDatabase database, long dialogId, int mid, int date, TLRPC.Message message) {
+        saveDeleted(database, dialogId, mid, date, message, null);
+    }
+
+    /**
+     * [Aiqiyi] Same as {@link #saveDeleted(SQLiteDatabase, long, int, int, TLRPC.Message)}
+     * but also records a locally cached file path for the attachment, if one
+     * already exists. Nothing is ever downloaded here - this only points at files
+     * that are already sitting in the app cache, so revoked photos can still be
+     * rendered after the message row is wiped.
+     */
+    public static void saveDeleted(SQLiteDatabase database, long dialogId, int mid, int date, TLRPC.Message message, String attachPath) {
         if (database == null || message == null || mid == 0) {
             return;
         }
         SQLitePreparedStatement state = null;
         try {
             state = database.executeFast(
-                    "INSERT OR REPLACE INTO " + TABLE + " (dialog_id, mid, date, data) VALUES (?, ?, ?, ?)");
+                    "INSERT OR REPLACE INTO " + TABLE + " (dialog_id, mid, date, data, path) VALUES (?, ?, ?, ?, ?)");
             state.requery();
             state.bindLong(1, dialogId);
             state.bindInteger(2, mid);
             state.bindInteger(3, date);
             state.bindTlObject(4, message);
+            if (attachPath != null && !attachPath.isEmpty()) {
+                state.bindString(5, attachPath);
+            } else {
+                state.bindNull(5);
+            }
             state.step();
         } catch (Throwable e) {
             FileLog.e(e);
@@ -144,6 +198,41 @@ public class AiqiyiSaveDeleted {
                 }
             }
         }
+    }
+
+    /**
+     * [Aiqiyi] Resolve the already-cached local file for a media attachment.
+     *
+     * Strictly read-only: it asks FileLoader where the file would be and only
+     * returns a path when that exact file exists on disk. It never triggers a
+     * download and never copies anything into the user's storage, so a revoked
+     * photo whose cache entry was already evicted simply yields null and falls
+     * back to the normal "file unavailable" placeholder.
+     */
+    public static String resolveCachedPath(int account, TLRPC.Message message) {
+        if (message == null || !(message.media instanceof TLRPC.TL_messageMediaPhoto)) {
+            return null;
+        }
+        try {
+            TLRPC.Photo photo = message.media.photo;
+            if (photo == null || photo instanceof TLRPC.TL_photoEmpty) {
+                return null;
+            }
+            // The size actually used for display is the largest available one;
+            // FileLoader keys cache files by photo id + dc, so querying either the
+            // photo object or its largest size lands on the same cache file.
+            TLRPC.PhotoSize size = FileLoader.getClosestPhotoSizeWithSize(photo.sizes, AndroidUtilities.getPhotoSize());
+            if (size == null || size instanceof TLRPC.TL_photoSizeEmpty) {
+                return null;
+            }
+            java.io.File f = FileLoader.getInstance(account).getPathToAttach(size, null, true);
+            if (f != null && f.exists() && f.length() > 0) {
+                return f.getAbsolutePath();
+            }
+        } catch (Throwable e) {
+            FileLog.e(e);
+        }
+        return null;
     }
 
     /**
@@ -185,11 +274,12 @@ public class AiqiyiSaveDeleted {
             } catch (Throwable ignored) {
             }
             cursor = database.queryFinalized(String.format(Locale.US,
-                    "SELECT data, mid, date FROM " + TABLE + " WHERE dialog_id = %d", dialogId));
+                    "SELECT data, mid, date, path FROM " + TABLE + " WHERE dialog_id = %d", dialogId));
             while (cursor.next()) {
                 NativeByteBuffer data = cursor.byteBufferValue(0);
                 int colMid = cursor.intValue(1);
                 int colDate = cursor.intValue(2);
+                String colPath = cursor.stringValue(3);
                 if (data != null) {
                     TLRPC.Message message = TLRPC.Message.TLdeserialize(data, data.readInt32(false), false);
                     message.readAttachPath(data, 0);
@@ -202,6 +292,19 @@ public class AiqiyiSaveDeleted {
                         }
                         if (colDate != 0) {
                             message.date = colDate;
+                        }
+                        // [Aiqiyi] Re-point the attachment at the cache file that was
+                        // already on disk when the message got revoked. ImageLoader
+                        // prefers attachPath, so the photo keeps rendering without any
+                        // network access. If the cache entry is gone by now we simply
+                        // leave it unset and the normal placeholder shows up.
+                        if (colPath != null && !colPath.isEmpty()) {
+                            try {
+                                if (new java.io.File(colPath).exists()) {
+                                    message.attachPath = colPath;
+                                }
+                            } catch (Throwable ignored) {
+                            }
                         }
                         if (result == null) {
                             result = new ArrayList<>();
@@ -497,7 +600,19 @@ public class AiqiyiSaveDeleted {
                         if (message.date == 0 && date != 0) {
                             message.date = date;
                         }
-                        saveDeleted(database, uid, mid, date, message);
+                        // [Aiqiyi] B: keep revoked photos visible by pointing at the
+                        // copy that is already in the app cache. resolveCachedPath is
+                        // read-only - it never downloads and never writes to external
+                        // storage, so this cannot leak anything the user did not
+                        // already have on device.
+                        String cached = null;
+                        try {
+                            if (message.media instanceof TLRPC.TL_messageMediaPhoto) {
+                                cached = resolveCachedPath(UserConfig.selectedAccount, message);
+                            }
+                        } catch (Throwable ignored) {
+                        }
+                        saveDeleted(database, uid, mid, date, message, cached);
                         saved++;
                     }
                 } catch (Throwable ignore) {

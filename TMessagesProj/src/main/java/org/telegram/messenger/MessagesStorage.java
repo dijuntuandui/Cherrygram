@@ -384,6 +384,8 @@ public class MessagesStorage extends BaseController {
                 // [Aiqiyi] saved deleted messages storage
                 try {
                     database.executeFast(AiqiyiSaveDeleted.CREATE_SQL).stepThis().dispose();
+                    // Migrate tables created before the `path` column existed.
+                    AiqiyiSaveDeleted.ensurePathColumn(database);
                     // One-shot purge of rows written by the over-eager save path.
                     AiqiyiSaveDeleted.purgeLegacyRowsOnce(database);
                 } catch (Exception e) {
