@@ -846,24 +846,29 @@ public class DialogCell extends BaseCell implements StoriesListPlaceProvider.Ava
                 // 群通话中优先显示通话状态，不叠加在线点
                 return 0;
             }
-            // [Aiqiyi] 优先看群里最近一条消息的发送者：这个数据一定会存在，
-            // 不像成员列表那样要等群资料加载完才有，能保证列表一打开就有反馈。
+            // [Aiqiyi] 群组/频道只看成员汇总，不看最后一条消息的发送者。
+            // 之前的写法会踩这个坑：群里最后发言的往往是客服机器人 / 频道马甲，
+            // getDotColor 对 bot 一律返回 0，于是整个群就再也不会亮。
+            final int onlineCount = uz.unnarsx.cherrygram.aiqiyi.AiqiyiOnlineDot
+                    .getChatOnlineCount(currentAccount, chat.id);
+            final int countColor = uz.unnarsx.cherrygram.aiqiyi.AiqiyiOnlineDot
+                    .getChatDotColor(onlineCount);
+            if (countColor != 0) {
+                return countColor;
+            }
+            // 成员列表还没缓存时，退一步看最近发言者是不是在线（人而非机器人才有意义）
             if (message != null && message.messageOwner != null) {
                 final long fromId = message.getFromChatId();
                 if (fromId > 0) {
                     final TLRPC.User sender = MessagesController.getInstance(currentAccount)
                             .getUser(fromId);
-                    final int senderColor = uz.unnarsx.cherrygram.aiqiyi.AiqiyiOnlineDot
-                            .getDotColor(currentAccount, sender);
-                    if (senderColor != 0) {
-                        return senderColor;
+                    if (sender != null && !sender.bot && !sender.self) {
+                        return uz.unnarsx.cherrygram.aiqiyi.AiqiyiOnlineDot
+                                .getDotColor(currentAccount, sender);
                     }
                 }
             }
-            // 最近发言者不在线（或拿不到），退回到群成员汇总
-            final int onlineCount = uz.unnarsx.cherrygram.aiqiyi.AiqiyiOnlineDot
-                    .getChatOnlineCount(currentAccount, chat.id);
-            return uz.unnarsx.cherrygram.aiqiyi.AiqiyiOnlineDot.getChatDotColor(onlineCount);
+            return 0;
         }
         // [Aiqiyi] 单聊：走个人状态判定（五档色）
         return uz.unnarsx.cherrygram.aiqiyi.AiqiyiOnlineDot.getDotColor(currentAccount, user);
