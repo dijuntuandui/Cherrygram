@@ -685,8 +685,8 @@
     <string name="AQY_Comeback_Title">Comeback System</string>
     <string name="AQY_Comeback_Header">Comeback System</string>
     <string name="AQY_Comeback_Enabled">Enable Comeback System</string>
-    <string name="AQY_Comeback_Enabled_Desc">Auto-send corpus content when you send the trigger word in a private chat</string>
-    <string name="AQY_Comeback_Note">Only your own messages in private chats are detected. Groups and channels are ignored. All corpora are stored on this device only.</string>
+    <string name="AQY_Comeback_Enabled_Desc">Auto-send corpus content when you send the trigger word in private chats, groups or channels</string>
+    <string name="AQY_Comeback_Note">Only messages you send are detected. Messages from other people never start this feature, so spamming the trigger word in a group has no effect. All corpora are stored on this device only.</string>
     <string name="AQY_Comeback_Trigger_Header">Trigger</string>
     <string name="AQY_Comeback_Trigger">Trigger Word</string>
     <string name="AQY_Comeback_StopTrigger">Stop Word</string>

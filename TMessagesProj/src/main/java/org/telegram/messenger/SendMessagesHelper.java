@@ -4281,7 +4281,7 @@ public class SendMessagesHelper extends BaseController implements NotificationCe
                         ? sendMessageParams.params.get("aiqiyi_comeback_auto") : null;
                 boolean _cmAutoTag = "1".equals(_cmAuto);
                 comeback.onBeforeSend(sendMessageParams.peer, sendMessageParams.message,
-                        currentAccount, _cmAutoTag);
+                        currentAccount, _cmAutoTag, sendMessageParams.replyToTopMsg);
             }
         } catch (Throwable _cmE) {
             org.telegram.messenger.FileLog.e(_cmE);

@@ -2,9 +2,13 @@
  * 爱琦艺客户端 - 回怼系统 核心引擎
  *
  * 行为说明：
- * 1. 监听本人在私聊里发出的消息，命中触发词后开始循环发送词库内容。
+ * 1. 监听本人在私聊、群聊、频道里发出的消息，命中触发词后开始循环发送词库内容。
  * 2. 遇到关闭词立即停止。
  * 3. 发送间隔按「发送速度」倍率缩放，越界有下限保护。
+ *
+ * 安全约束：触发判定只挂在 SendMessagesHelper.sendMessage（本机发送出口）上，
+ * 别人发到群里的消息不会进入判定，因此群里有人刷触发词无法启动本引擎。
+ * 引擎自身发出的消息带 aiqiyi_comeback_auto 标记，不会自触发。
  *
  * 注意：本功能会持续自动发消息，受 Telegram 服务端频率限制约束。
  *
@@ -50,6 +54,8 @@ public class AiqiyiComebackHelper {
     private long activePeer = 0;
     /** 当前循环所在账号 */
     private int activeAccount = 0;
+    /** [Aiqiyi] 触发时所在 Topic 的根消息，非 Topic 会话为 null */
+    private org.telegram.messenger.MessageObject activeTopicRoot = null;
 
     private AiqiyiComebackHelper() {
         prefs = ApplicationLoader.applicationContext
@@ -325,6 +331,16 @@ public class AiqiyiComebackHelper {
      * @param autoTag  是否为引擎自身发出的消息（防止自触发）
      */
     public boolean onBeforeSend(long peer, String message, int account, boolean autoTag) {
+        return onBeforeSend(peer, message, account, autoTag, null);
+    }
+
+    /**
+     * [Aiqiyi] 带 Topic 上下文的触发判定。群聊里的 Forum/Topic 会话由
+     * replyToTopMsg 标识，触发时记下来，循环里每条都发回同一个 Topic，
+     * 避免消息全部掉进 General。
+     */
+    public boolean onBeforeSend(long peer, String message, int account, boolean autoTag,
+                                org.telegram.messenger.MessageObject replyToTopMsg) {
         if (autoTag) {
             return false;
         }
@@ -337,18 +353,18 @@ public class AiqiyiComebackHelper {
         final String trimmed = message.trim();
 
         // 关闭词优先判定，命中即停（归一化比较，容忍不可见字符差异）
-        // 注意：关闭词判定不受私聊限制，任何会话都能停
+        // 注意：关闭词判定不受会话类型限制，任何会话都能停
         String stop = getStopTrigger();
         if (!TextUtils.isEmpty(stop) && sameText(trimmed, stop)) {
             stopPendingMessages();
             return true;
         }
-
-        // 仅私聊：peer > 0 表示用户会话（群组/频道为负）
-        if (peer <= 0) {
+        // [Aiqiyi] 群聊/频道也支持：这里不再按 peer 正负拦截。
+        // 触发判定只发生在本机发送路径上，别人发到群里的消息不会走到这里，
+        // 所以放开负数 peer 不会让别人刷触发词就能启动引擎。
+        if (peer == 0) {
             return false;
         }
-
         String trigger = getTrigger();
         if (TextUtils.isEmpty(trigger)) {
             return false;
@@ -360,16 +376,20 @@ public class AiqiyiComebackHelper {
             return false;
         }
 
-        startLoop(peer, account);
+        startLoop(peer, account, replyToTopMsg);
         return true;
     }
 
     // ==================== 发送循环 ====================
-
     private synchronized void startLoop(long peer, int account) {
+        startLoop(peer, account, null);
+    }
+
+    private synchronized void startLoop(long peer, int account, org.telegram.messenger.MessageObject topicRoot) {
         stopPendingMessages();
         activePeer = peer;
         activeAccount = account;
+        activeTopicRoot = topicRoot;
         final int generation = ++queueGeneration;
         sendNext(peer, account, generation, 0);
     }
@@ -378,6 +398,7 @@ public class AiqiyiComebackHelper {
         queueGeneration++;
         activePeer = 0;
         activeAccount = 0;
+        activeTopicRoot = null;
     }
 
     public boolean isRunning() {
@@ -413,6 +434,11 @@ public class AiqiyiComebackHelper {
                 SendMessagesHelper.SendMessageParams params = new SendMessagesHelper.SendMessageParams();
                 params.peer = peer;
                 params.message = content;
+                // [Aiqiyi] 群聊里的 Forum/Topic 会话：沿着触发时所在的 Topic 发送，
+                // 否则消息会掉进 General，看起来像发错了地方。
+                if (activeTopicRoot != null) {
+                    params.replyToTopMsg = activeTopicRoot;
+                }
                 if (params.params == null) {
                     params.params = new java.util.HashMap<>();
                 }
