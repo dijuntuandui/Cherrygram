@@ -832,46 +832,42 @@ public class DialogCell extends BaseCell implements StoriesListPlaceProvider.Ava
     }
 
     /**
-     * [Aiqiyi] 返回状态圆点颜色（三色），返回 0 表示不显示圆点。
-     * 判定逻辑已统一收敛到 AiqiyiOnlineDot，此处只保留列表项专属的前置条件。
+     * [Aiqiyi] 在线状态圆点：判定入口。返回 0 表示不画。
+     *
+     * 私聊：看对方个人状态（五档色）。
+     * 群组 / 频道：看群内是否有人在线（成员汇总），拿不到成员列表时退回看最近发言者。
+     *
+     * 这里只做判定，不做绘制；绘制在 draw() 里独立完成。
      */
     private int getStatusDotColor() {
         if (isForumCell() || storyParams.drawnLive) {
             return 0;
         }
-        // [Aiqiyi] 群组 / 频道：头像代表的是群本身，画「群内是否有人在线」的汇总色，
-        // 不画某个成员的个人状态，避免群头像配个人绿点的语义错位。
+        final int chatColor = uz.unnarsx.cherrygram.aiqiyi.AiqiyiOnlineDot
+                .getChatStatusColor(currentAccount, chat, message);
         if (chat != null) {
-            if (hasCall) {
-                // 群通话中优先显示通话状态，不叠加在线点
-                return 0;
-            }
-            // [Aiqiyi] 群组/频道只看成员汇总，不看最后一条消息的发送者。
-            // 之前的写法会踩这个坑：群里最后发言的往往是客服机器人 / 频道马甲，
-            // getDotColor 对 bot 一律返回 0，于是整个群就再也不会亮。
-            final int onlineCount = uz.unnarsx.cherrygram.aiqiyi.AiqiyiOnlineDot
-                    .getChatOnlineCount(currentAccount, chat.id);
-            final int countColor = uz.unnarsx.cherrygram.aiqiyi.AiqiyiOnlineDot
-                    .getChatDotColor(onlineCount);
-            if (countColor != 0) {
-                return countColor;
-            }
-            // 成员列表还没缓存时，退一步看最近发言者是不是在线（人而非机器人才有意义）
-            if (message != null && message.messageOwner != null) {
-                final long fromId = message.getFromChatId();
-                if (fromId > 0) {
-                    final TLRPC.User sender = MessagesController.getInstance(currentAccount)
-                            .getUser(fromId);
-                    if (sender != null && !sender.bot && !sender.self) {
-                        return uz.unnarsx.cherrygram.aiqiyi.AiqiyiOnlineDot
-                                .getDotColor(currentAccount, sender);
-                    }
-                }
-            }
-            return 0;
+            return chatColor;
         }
-        // [Aiqiyi] 单聊：走个人状态判定（五档色）
         return uz.unnarsx.cherrygram.aiqiyi.AiqiyiOnlineDot.getDotColor(currentAccount, user);
+    }
+
+    /**
+     * [Aiqiyi] 在头像圆弧上画状态圆点。
+     *
+     * 位置：圆心沿 45°（RTL 为左下 135°）走一个半径，再往内收 2dp，
+     * 让白边压在头像边缘内侧，和聊天页保持一致。
+     */
+    private void drawAiqiyiStatusDot(Canvas canvas, int dotColor) {
+        final float cx = storyParams.originalAvatarRect.centerX();
+        final float cy = storyParams.originalAvatarRect.centerY();
+        final float radius = storyParams.originalAvatarRect.width() / 2f;
+        final float diag = radius * 0.7071f - dp(2f);
+        final float left = LocaleController.isRTL ? cx - diag : cx + diag;
+        final float top = cy + diag;
+        Theme.dialogs_onlineCirclePaint.setColor(0xFFFFFFFF);
+        canvas.drawCircle(left, top, dp(7.5f), Theme.dialogs_onlineCirclePaint);
+        Theme.dialogs_onlineCirclePaint.setColor(dotColor);
+        canvas.drawCircle(left, top, dp(6f), Theme.dialogs_onlineCirclePaint);
     }
 
     private void checkGroupCall() {
@@ -883,7 +879,7 @@ public class DialogCell extends BaseCell implements StoriesListPlaceProvider.Ava
         // [Aiqiyi] 与在线圆点互斥：两者都画在头像右下角同一点，同时出现会叠成一团
         final boolean onlineDotShown = CherrygramAppearanceConfig.INSTANCE.getAiqiyiShowOnlineStatus()
                 && (user != null || chat != null)
-                && (user == null || (!MessagesController.isSupportUser(user) && !user.bot && !user.self))
+                && (user == null || !user.self)
                 && getStatusDotColor() != 0;
         showTtl = ttlPeriod > 0 && !hasCall && !onlineDotShown && !isOnline() && !(checkBox != null && checkBox.isChecked()) && !storyParams.drawnLive;
         ttlProgress = showTtl ? 1.0f : 0.0f;
@@ -5188,32 +5184,18 @@ public class DialogCell extends BaseCell implements StoriesListPlaceProvider.Ava
                 canvas.restore();
                 canvas.restore();
             }
-            // [Aiqiyi] 单聊按个人状态、群组/频道按群内在线汇总，统一走 getStatusDotColor。
-            // 这里不能再用 user != null 当前置：群聊/频道的 user 恒为 null，
-            // 会被直接挡掉，这正是群和频道一直没圆点的原因。
-            // 判定结果先算一次存起来，供下面的通话图标分支复用，避免重复扫描群成员。
-            final boolean showOnlineDot = CherrygramAppearanceConfig.INSTANCE.getAiqiyiShowOnlineStatus()
+            // [Aiqiyi] 在线状态圆点。
+            // 前置条件只判断「会话类型 + 开关」：私聊看 user，群/频道看 chat，
+            // 不能用 user != null 当前置——群聊 user 恒为 null，会被整段挡掉。
+            final boolean onlineDotEnabled = CherrygramAppearanceConfig.INSTANCE.getAiqiyiShowOnlineStatus()
                     && (user != null || chat != null)
-                    && (user == null || (!MessagesController.isSupportUser(user) && !user.bot && !user.self));
-            final int dotColor = showOnlineDot ? getStatusDotColor() : 0;
-            if (showOnlineDot) {
+                    && (user == null || !user.self);
+            final int dotColor = onlineDotEnabled ? getStatusDotColor() : 0;
+            if (dotColor != 0) {
                 lastDrawnDotColor = dotColor;
-                if (dotColor != 0) {
-                    // [Aiqiyi] 圆点要贴在头像圆弧上（与 ChatMessageCell 一致），
-                    // 不能再取矩形右下角——那是外接方框的角点，落点会偏到头像外面，
-                    // 看起来像挂了个坠子。这里从圆心沿 45° 走一个半径，落在圆周上，
-                    // 再往圆心方向收 2dp 让白边压在头像边缘内侧。
-                    final float cx = storyParams.originalAvatarRect.centerX();
-                    final float cy = storyParams.originalAvatarRect.centerY();
-                    final float radius = storyParams.originalAvatarRect.width() / 2f;
-                    final float diag = radius * 0.7071f - dp(2f);
-                    final float left = LocaleController.isRTL ? cx - diag : cx + diag;
-                    final float top = cy + diag;
-                    Theme.dialogs_onlineCirclePaint.setColor(0xFFFFFFFF);
-                    canvas.drawCircle(left, top, dp(7.5f), Theme.dialogs_onlineCirclePaint);
-                    Theme.dialogs_onlineCirclePaint.setColor(dotColor);
-                    canvas.drawCircle(left, top, dp(6f), Theme.dialogs_onlineCirclePaint);
-                }
+                drawAiqiyiStatusDot(canvas, dotColor);
+            } else if (onlineDotEnabled) {
+                lastDrawnDotColor = 0;
             }
             // [Aiqiyi] 通话图标独立判定：两者共用同一个位置，只画一个，谁有内容谁画。
             if (chat != null && dotColor == 0) {
