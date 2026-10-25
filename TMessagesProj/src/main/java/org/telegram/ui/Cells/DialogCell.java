@@ -846,6 +846,21 @@ public class DialogCell extends BaseCell implements StoriesListPlaceProvider.Ava
                 // 群通话中优先显示通话状态，不叠加在线点
                 return 0;
             }
+            // [Aiqiyi] 优先看群里最近一条消息的发送者：这个数据一定会存在，
+            // 不像成员列表那样要等群资料加载完才有，能保证列表一打开就有反馈。
+            if (message != null && message.messageOwner != null) {
+                final long fromId = message.getFromChatId();
+                if (fromId > 0) {
+                    final TLRPC.User sender = MessagesController.getInstance(currentAccount)
+                            .getUser(fromId);
+                    final int senderColor = uz.unnarsx.cherrygram.aiqiyi.AiqiyiOnlineDot
+                            .getDotColor(currentAccount, sender);
+                    if (senderColor != 0) {
+                        return senderColor;
+                    }
+                }
+            }
+            // 最近发言者不在线（或拿不到），退回到群成员汇总
             final int onlineCount = uz.unnarsx.cherrygram.aiqiyi.AiqiyiOnlineDot
                     .getChatOnlineCount(currentAccount, chat.id);
             return uz.unnarsx.cherrygram.aiqiyi.AiqiyiOnlineDot.getChatDotColor(onlineCount);
@@ -3399,6 +3414,18 @@ public class DialogCell extends BaseCell implements StoriesListPlaceProvider.Ava
                 boolean continueUpdate = false;
                 if (user != null && !MessagesController.isSupportUser(user) && !user.bot && (mask & MessagesController.UPDATE_MASK_STATUS) != 0) {
                     user = MessagesController.getInstance(currentAccount).getUser(user.id);
+                    final int newDot = getStatusDotColor();
+                    if (lastDrawnDotColor != newDot) {
+                        lastDrawnDotColor = newDot;
+                        invalidate = true;
+                    }
+                }
+                // [Aiqiyi] 群组/频道：最近发言者变化或成员状态刷新时，在线点也要跟着重算，
+                // 否则群消息进来后圆点会一直停在旧颜色上。
+                if (chat != null && (mask & (MessagesController.UPDATE_MASK_STATUS
+                        | MessagesController.UPDATE_MASK_READ_DIALOG_MESSAGE
+                        | MessagesController.UPDATE_MASK_AVATAR
+                        | MessagesController.UPDATE_MASK_SEND_STATE)) != 0) {
                     final int newDot = getStatusDotColor();
                     if (lastDrawnDotColor != newDot) {
                         lastDrawnDotColor = newDot;
