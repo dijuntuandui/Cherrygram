@@ -187,6 +187,10 @@ public class AiqiyiSaveDeleted {
                 }
             }
             database.executeFast("DELETE FROM " + TABLE).stepThis().dispose();
+            // [Aiqiyi] the in-memory sets describe rows that no longer exist
+            REVOKED_IDS.clear();
+            MEMBERSHIP_CACHE.clear();
+            MEMBERSHIP_CACHE_STAMP.clear();
             database.executeFast("INSERT OR REPLACE INTO " + META_TABLE + " (k, v) VALUES ('purge_v3', 1)")
                     .stepThis().dispose();
             FileLog.d("AiqiyiSaveDeleted: purged legacy rows written by over-eager save path");
@@ -229,6 +233,18 @@ public class AiqiyiSaveDeleted {
                 state.bindNull(5);
             }
             state.step();
+            // [Aiqiyi] A freshly revoked message must be flagged immediately, and
+            // the session-wide set is the only thing isDeletedMessageCached
+            // trusts on the UI thread.
+            try {
+                java.util.HashSet<Integer> all = REVOKED_IDS.get(dialogId);
+                if (all == null) {
+                    all = new java.util.HashSet<>();
+                    REVOKED_IDS.put(dialogId, all);
+                }
+                all.add(mid);
+            } catch (Throwable ignored) {
+            }
         } catch (Throwable e) {
             FileLog.e(e);
         } finally {
@@ -287,6 +303,18 @@ public class AiqiyiSaveDeleted {
             database.executeFast(String.format(Locale.US,
                     "DELETE FROM " + TABLE + " WHERE dialog_id = %d AND mid = %d", dialogId, mid))
                     .stepThis().dispose();
+            // [Aiqiyi] keep the in-memory sets in sync with the table
+            try {
+                java.util.HashSet<Integer> all = REVOKED_IDS.get(dialogId);
+                if (all != null) {
+                    all.remove(mid);
+                }
+                java.util.HashSet<Integer> window = MEMBERSHIP_CACHE.get(dialogId);
+                if (window != null) {
+                    window.remove(mid);
+                }
+            } catch (Throwable ignored) {
+            }
         } catch (Throwable e) {
             FileLog.e(e);
         }
@@ -409,8 +437,11 @@ public class AiqiyiSaveDeleted {
                 where += " AND mid >= " + minMid;
             }
             cursor = database.queryFinalized("SELECT data, mid FROM " + TABLE + " WHERE " + where + " ORDER BY mid ASC");
-
             ArrayList<TLRPC.Message> merged = null;
+            // [Aiqiyi] ids that really came from saved_deleted_cherry. Kept apart
+            // from `merged` because that list also gets the whole live page
+            // appended for sorting purposes.
+            java.util.HashSet<Integer> revokedIds = new java.util.HashSet<>();
             while (cursor.next()) {
                 int mid = 0;
                 try {
@@ -439,6 +470,12 @@ public class AiqiyiSaveDeleted {
                         merged = new ArrayList<>();
                     }
                     merged.add(message);
+                    // [Aiqiyi] remember the real revoked id for the membership cache
+                    if (mid != 0) {
+                        revokedIds.add(mid);
+                    } else if (message.id != 0) {
+                        revokedIds.add(message.id);
+                    }
                 } catch (Throwable ignored) {
                 } finally {
                     if (data != null) {
@@ -458,6 +495,11 @@ public class AiqiyiSaveDeleted {
                 // page in one consistent order instead (newest first, matching
                 // messages.v2 ordering), keeping the merged entries in place.
                 merged.addAll(target.messages);
+                // [Aiqiyi] Only messages that actually came out of
+                // saved_deleted_cherry are revoked. `merged` at this point also
+                // contains every live message of the page, so the cache must be
+                // built from `revokedIds` alone - seeding it with the whole page
+                // made healthy messages render as deleted.
                 Collections.sort(merged, (a, b) -> {
                     if (a == null || b == null) {
                         return 0;
@@ -469,16 +511,20 @@ public class AiqiyiSaveDeleted {
                 });
                 target.messages.clear();
                 target.messages.addAll(merged);
-                // Warm the membership cache with everything we just learned, so
+                // Warm the membership cache with the revoked ids only, so
                 // processLoadedMessages (UI thread) can flag the MessageObjects
                 // without touching SQLite.
                 try {
-                    java.util.HashSet<Integer> warm = new java.util.HashSet<>();
-                    for (int i = 0; i < merged.size(); i++) {
-                        warm.add(merged.get(i).id);
-                    }
-                    MEMBERSHIP_CACHE.put(dialogId, warm);
+                    MEMBERSHIP_CACHE.put(dialogId, revokedIds);
                     MEMBERSHIP_CACHE_STAMP.put(dialogId, android.os.SystemClock.elapsedRealtime());
+                    // [Aiqiyi] merge is the only place that knows the truth for a
+                    // dialog, so it also refreshes the session-wide set.
+                    java.util.HashSet<Integer> all = REVOKED_IDS.get(dialogId);
+                    if (all == null) {
+                        all = new java.util.HashSet<>();
+                        REVOKED_IDS.put(dialogId, all);
+                    }
+                    all.addAll(revokedIds);
                 } catch (Throwable ignored) {
                 }
             }
@@ -507,6 +553,13 @@ public class AiqiyiSaveDeleted {
      */
     private static final LongSparseArray<Long> MEMBERSHIP_CACHE_STAMP = new LongSparseArray<>();
     private static final LongSparseArray<java.util.HashSet<Integer>> MEMBERSHIP_CACHE = new LongSparseArray<>();
+    /**
+     * [Aiqiyi] The authoritative set. `mergeIntoResult` puts the revoked ids of a
+     * dialog here and never removes them within a session, so the flag does not
+     * depend on how fast processLoadedMessages happens to run after the merge.
+     * Rebuilt from SQLite the first time a dialog is merged.
+     */
+    private static final LongSparseArray<java.util.HashSet<Integer>> REVOKED_IDS = new LongSparseArray<>();
     private static final long MEMBERSHIP_TTL_MS = 3000L;
 
     /**
@@ -521,8 +574,26 @@ public class AiqiyiSaveDeleted {
             return false;
         }
         try {
+            // [Aiqiyi] Prefer the session-wide set: it is only ever filled from
+            // saved_deleted_cherry and never seeded with live page ids, so it
+            // cannot flag a message that was never revoked.
+            java.util.HashSet<Integer> all = REVOKED_IDS.get(dialogId);
+            if (all != null && all.contains(mid)) {
+                return true;
+            }
+            // Fall back to the freshly merged window for dialogs that have not
+            // been merged yet in this process.
             java.util.HashSet<Integer> ids = MEMBERSHIP_CACHE.get(dialogId);
-            return ids != null && ids.contains(mid);
+            if (ids == null) {
+                return false;
+            }
+            Long stamp = MEMBERSHIP_CACHE_STAMP.get(dialogId);
+            if (stamp == null || android.os.SystemClock.elapsedRealtime() - stamp > MEMBERSHIP_TTL_MS) {
+                MEMBERSHIP_CACHE.remove(dialogId);
+                MEMBERSHIP_CACHE_STAMP.remove(dialogId);
+                return false;
+            }
+            return ids.contains(mid);
         } catch (Throwable ignored) {
             return false;
         }
@@ -676,11 +747,13 @@ public class AiqiyiSaveDeleted {
         }
         try {
             database.executeFast("DELETE FROM " + TABLE).stepThis().dispose();
+            REVOKED_IDS.clear();
+            MEMBERSHIP_CACHE.clear();
+            MEMBERSHIP_CACHE_STAMP.clear();
         } catch (Throwable e) {
             FileLog.e(e);
         }
     }
-
     private AiqiyiSaveDeleted() {
     }
 }
