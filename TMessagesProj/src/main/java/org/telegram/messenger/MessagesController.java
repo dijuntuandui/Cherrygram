@@ -145,6 +145,7 @@ import okhttp3.Call;
 import okhttp3.Callback;
 import okhttp3.Response;
 import uz.unnarsx.cherrygram.core.configs.CherrygramChatsConfig;
+import uz.unnarsx.cherrygram.aiqiyi.AiqiyiSaveDeleted;
 import uz.unnarsx.cherrygram.core.configs.CherrygramCoreConfig;
 import uz.unnarsx.cherrygram.core.configs.CherrygramCameraConfig;
 import uz.unnarsx.cherrygram.core.configs.CherrygramFirebaseConfig;
@@ -17694,6 +17695,18 @@ public class MessagesController extends BaseController implements NotificationCe
                 }
             });
             getMessagesStorage().deletePushMessages(dialogId, ids);
+            // [Aiqiyi] anti-revoke: this method is the TL_updateDeleteMessages handler,
+            // i.e. the only server-pushed delete path. Save the bodies *here* rather
+            // than inside markMessagesAsDeletedInternal, otherwise every local delete
+            // (clear history, manual delete, send failure cleanup) would be retained
+            // too and the whole chat would look deleted.
+            if (AiqiyiSaveDeleted.isEnabled()) {
+                try {
+                    AiqiyiSaveDeleted.preSaveBeforeDelete(getMessagesStorage().getDatabase(),
+                            getUserConfig().getClientUserId(), dialogId, ids);
+                } catch (Throwable ignored) {
+                }
+            }
             ArrayList<Long> dialogIds = getMessagesStorage().markMessagesAsDeleted(dialogId, ids, false, true, 0, 0);
             getMessagesStorage().updateDialogsWithDeletedMessages(dialogId, channelId, ids, dialogIds);
         });
@@ -21285,6 +21298,15 @@ public class MessagesController extends BaseController implements NotificationCe
                 long key = deletedMessages.keyAt(a);
                 ArrayList<Integer> arrayList = deletedMessages.valueAt(a);
                 getMessagesStorage().getStorageQueue().postRunnable(() -> {
+                    // [Aiqiyi] anti-revoke: TL_updateDeleteChannelMessages handler - save
+                    // before the rows are wiped, scoped to exactly these ids.
+                    if (AiqiyiSaveDeleted.isEnabled()) {
+                        try {
+                            AiqiyiSaveDeleted.preSaveBeforeDelete(getMessagesStorage().getDatabase(),
+                                    getUserConfig().getClientUserId(), key, arrayList);
+                        } catch (Throwable ignored) {
+                        }
+                    }
                     ArrayList<Long> dialogIds = getMessagesStorage().markMessagesAsDeleted(key, arrayList, false, true, 0, 0);
                     getMessagesStorage().updateDialogsWithDeletedMessages(key, -key, arrayList, dialogIds);
                 });

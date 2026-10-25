@@ -34,6 +34,8 @@ import uz.unnarsx.cherrygram.core.configs.CherrygramMessagesConfig;
 public class AiqiyiSaveDeleted {
 
     public static final String TABLE = "saved_deleted_cherry";
+    /** [Aiqiyi] key/value side table used for one-shot migration markers. */
+    public static final String META_TABLE = "aiqiyi_meta";
     public static final String CREATE_SQL =
             "CREATE TABLE IF NOT EXISTS " + TABLE +
             "(dialog_id INTEGER, mid INTEGER, date INTEGER, data BLOB, " +
@@ -76,6 +78,42 @@ public class AiqiyiSaveDeleted {
         } catch (Throwable ignored) {
         }
         return "已删除";
+    }
+
+    /**
+     * [Aiqiyi] One-shot purge of rows written by builds that saved on *every*
+     * delete path instead of only on server-pushed revokes. Those rows are
+     * indistinguishable from real ones by inspection, so the only safe move is
+     * to drop the whole table once and let it rebuild from genuine revokes.
+     *
+     * Guarded by a marker row so it runs exactly once per installation.
+     * Never throws.
+     */
+    public static void purgeLegacyRowsOnce(SQLiteDatabase database) {
+        if (database == null) {
+            return;
+        }
+        try {
+            database.executeFast("CREATE TABLE IF NOT EXISTS " + META_TABLE +
+                    "(k TEXT, v INTEGER, PRIMARY KEY(k))").stepThis().dispose();
+            SQLiteCursor c = null;
+            try {
+                c = database.queryFinalized("SELECT v FROM " + META_TABLE + " WHERE k = 'purge_v3'");
+                if (c.next()) {
+                    return;
+                }
+            } finally {
+                if (c != null) {
+                    c.dispose();
+                }
+            }
+            database.executeFast("DELETE FROM " + TABLE).stepThis().dispose();
+            database.executeFast("INSERT OR REPLACE INTO " + META_TABLE + " (k, v) VALUES ('purge_v3', 1)")
+                    .stepThis().dispose();
+            FileLog.d("AiqiyiSaveDeleted: purged legacy rows written by over-eager save path");
+        } catch (Throwable e) {
+            FileLog.e(e);
+        }
     }
 
     /**

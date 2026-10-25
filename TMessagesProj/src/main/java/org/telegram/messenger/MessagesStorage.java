@@ -384,6 +384,8 @@ public class MessagesStorage extends BaseController {
                 // [Aiqiyi] saved deleted messages storage
                 try {
                     database.executeFast(AiqiyiSaveDeleted.CREATE_SQL).stepThis().dispose();
+                    // One-shot purge of rows written by the over-eager save path.
+                    AiqiyiSaveDeleted.purgeLegacyRowsOnce(database);
                 } catch (Exception e) {
                     FileLog.e(e);
                 }
@@ -14764,29 +14766,6 @@ public class MessagesStorage extends BaseController {
                             if (deletedMessages != null) {
                                 deletedMessages.add(message);
                             }
-                            // [Aiqiyi] keep a copy before the message is wiped.
-                            // IMPORTANT: never use message.id here - messages_v2 stores
-                            // it inside `data`, and Telegram always overwrites that field
-                            // with the `mid` column on read (see getMessagesInternal),
-                            // which means the serialized copy can legitimately carry a
-                            // stale or zero id. The real id is the 6th column (index 5).
-                            if (AiqiyiSaveDeleted.isEnabled() && did != currentUser && !DialogObject.isEncryptedDialog(did)) {
-                                long realMid = 0;
-                                try {
-                                    realMid = cursor.longValue(5);
-                                } catch (Throwable ignored) {
-                                }
-                                int savedMid = (int) realMid;
-                                if (savedMid == 0) {
-                                    savedMid = message.id;
-                                }
-                                if (savedMid != 0) {
-                                    if (message.id == 0) {
-                                        message.id = savedMid;
-                                    }
-                                    AiqiyiSaveDeleted.saveDeleted(database, did, savedMid, message.date, message);
-                                }
-                            }
                             data.reuse();
                             if (DialogObject.isEncryptedDialog(did) || deleteFiles) {
                                 addFilesToDelete(message, filesToDelete, idsToDelete, namesToDelete, false);
@@ -15471,23 +15450,6 @@ public class MessagesStorage extends BaseController {
     }
 
     private ArrayList<Long> markMessagesAsDeletedInternal(long channelId, int mid, boolean deleteFiles) {
-        // [Aiqiyi] anti-revoke: the channel delete path lives in this separate overload
-        // and previously had no pre-save hook at all, which is why revokes inside
-        // channels were never retained. Mirror the row set that this method is about
-        // to wipe (mid <= beforeMid) into saved_deleted_cherry first.
-        try {
-            ArrayList<Integer> aiqiyiIds = new ArrayList<>();
-            SQLiteCursor aiqiyiCursor = database.queryFinalized(String.format(Locale.US,
-                    "SELECT mid FROM messages_v2 WHERE uid = %d AND mid <= %d", -channelId, mid));
-            while (aiqiyiCursor.next()) {
-                aiqiyiIds.add(aiqiyiCursor.intValue(0));
-            }
-            aiqiyiCursor.dispose();
-            if (!aiqiyiIds.isEmpty()) {
-                AiqiyiSaveDeleted.preSaveBeforeDelete(database, getUserConfig().getClientUserId(), -channelId, aiqiyiIds);
-            }
-        } catch (Throwable ignore) {
-        }
         SQLiteCursor cursor = null;
         SQLitePreparedStatement state = null;
         try {
