@@ -1371,17 +1371,12 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                 paint.setColor(currentColor);
                 updateBackgroundPaint();
                 final float progressToGradient = (playProfileAnimation == 0 ? 1f : avatarAnimationProgress) * hasColorAnimated.set(hasColorById);
-                // [Aiqiyi] 有壁纸时头部不铺色块，直接露出壁纸
-                if (Theme.getCachedWallpaper() != null) {
-                    // skip whole header scrim
-                } else {
                 if (progressToGradient < 1) {
                     canvas.drawRect(0, 0, getMeasuredWidth(), y1, paint);
                 }
                 if (progressToGradient > 0) {
                     backgroundPaint.setAlpha((int) (0xFF * progressToGradient));
                     canvas.drawRect(0, 0, getMeasuredWidth(), y1, backgroundPaint);
-                }
                 }
                 if (hasEmoji) {
                     final float loadedScale = emojiLoadedT.set(isEmojiLoaded());
@@ -1407,7 +1402,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                     }
                 }
             }
-            if (y1 != v && !openAnimationInProgress && Theme.getCachedWallpaper() == null) {
+            if (y1 != v && !openAnimationInProgress) {
                 int color = getThemedColor(Theme.key_windowBackgroundWhite);
                 paint.setColor(color);
                 blurBounds.set(0, y1, getMeasuredWidth(), (int) v);
@@ -3340,8 +3335,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                     if (iBlur3SourceGlass != null && !iBlur3SourceGlass.inRecording()) {
                         //if (iBlur3SourceGlass.needUpdateDisplayList(width, height) || iBlur3Invalidated) {
                         final Canvas c = iBlur3SourceGlass.beginRecording(width, height);
-                        // [Aiqiyi] 有壁纸时录制底色透明，让玻璃折射到真实背景
-                        c.drawColor(Theme.getCachedWallpaper() != null ? 0 : getThemedColor(Theme.key_windowBackgroundGray));
+                        c.drawColor(getThemedColor(Theme.key_windowBackgroundGray));
                         if (SharedConfig.chatBlurEnabled()) {
                             scrollableViewNoiseSuppressor.draw(c, DownscaleScrollableNoiseSuppressor.DRAW_GLASS);
                         }
@@ -3775,10 +3769,6 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
 
             @Override
             protected void drawBackgroundWithBlur(Canvas canvas, float y, Rect rectTmp2, Paint backgroundPaint) {
-                // [Aiqiyi] 有壁纸时分组区不做模糊底色，直接露出壁纸
-                if (Theme.getCachedWallpaper() != null) {
-                    return;
-                }
                 contentView.drawBlurRect(canvas, listView.getY() + getY() + y, rectTmp2, backgroundPaint, true);
             }
 
@@ -4144,11 +4134,6 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
         fragmentView.setWillNotDraw(false);
         contentView = ((NestedFrameLayout) fragmentView);
         contentView.needBlur = true;
-        // [Aiqiyi] 个人资料页挂壁纸，否则顶部顶栏区域没有东西可透
-        if (Theme.getCachedWallpaper() != null) {
-            contentView.setBackgroundImage(Theme.getCachedWallpaper(), Theme.isWallpaperMotion());
-            contentView.setBackgroundColor(0);
-        }
 
         listView = new ClippedListView(context, resourcesProvider) {
 
@@ -4282,8 +4267,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
         };
         listView.setSections();
         listView.applyPaddingToSections = false;
-        // [Aiqiyi] 列表透明，露出壁纸
-        listView.setBackgroundColor(Theme.getCachedWallpaper() != null ? 0 : getThemedColor(Theme.key_windowBackgroundGray));
+        listView.setBackgroundColor(getThemedColor(Theme.key_windowBackgroundGray));
         listView.setVerticalScrollBarEnabled(false);
         final IBlur3Capture listViewCapture = new ViewGroupPartRenderer(listView, (ViewGroup) fragmentView, (canvas, child, drawingTime) -> {
             if (child == sharedMediaLayout) {
@@ -5193,8 +5177,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
             searchListView.setItemAnimator(null);
             searchListView.setVisibility(View.GONE);
             searchListView.setLayoutAnimation(null);
-            // [Aiqiyi] 搜索列表透明，露出壁纸
-            searchListView.setBackgroundColor(Theme.getCachedWallpaper() != null ? 0 : getThemedColor(Theme.key_windowBackgroundWhite));
+            searchListView.setBackgroundColor(getThemedColor(Theme.key_windowBackgroundWhite));
             frameLayout.addView(searchListView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT, Gravity.TOP | Gravity.LEFT));
             searchListView.setOnItemClickListener((view, position) -> {
                 if (position < 0) {
@@ -5341,8 +5324,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
 
         topView = new TopView(context);
         topView.setBackgroundColorId(peerColor, false);
-        // [Aiqiyi] 头部透明，露出壁纸
-        topView.setBackgroundColor(Theme.getCachedWallpaper() != null ? 0 : getThemedColor(Theme.key_windowBackgroundGray));
+        topView.setBackgroundColor(getThemedColor(Theme.key_windowBackgroundGray));
         frameLayout.addView(topView);
         contentView.blurBehindViews.add(topView);
 
@@ -8756,8 +8738,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                         } else {
                             expandAnimator.setDuration(0);
                         }
-                        // [Aiqiyi] 主题切换时顶部保持透明
-                        topView.setBackgroundColor(Theme.getCachedWallpaper() != null ? 0 : getThemedColor(Theme.key_windowBackgroundGray));
+                        topView.setBackgroundColor(getThemedColor(Theme.key_windowBackgroundGray));
 
                         if (!doNotSetForeground) {
                             BackupImageView imageView = avatarsViewPager.getCurrentItemView();
@@ -15832,8 +15813,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                         ((UserCell) child).update(0);
                     }
                 }
-                // [Aiqiyi] 主题切换时保持透明
-                listView.setBackgroundColor(Theme.getCachedWallpaper() != null ? 0 : getThemedColor(Theme.key_windowBackgroundGray));
+                listView.setBackgroundColor(getThemedColor(Theme.key_windowBackgroundGray));
             }
             if (!isPulledDown) {
                 if (onlineTextView[1] != null) {
@@ -15891,10 +15871,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
             arrayList.add(new ThemeDescription(mediaCounterTextView.getNextTextView(), ThemeDescription.FLAG_TEXTCOLOR, null, null, null, themeDelegate, Theme.key_player_actionBarSubtitle));
         }
 
-        // [Aiqiyi] 有壁纸时 topView 不再被主题刷成灰底（原来会强制覆盖成 key_windowBackgroundGray）
-        if (Theme.getCachedWallpaper() == null) {
-            arrayList.add(new ThemeDescription(topView, ThemeDescription.FLAG_BACKGROUND, null, null, null, null, Theme.key_windowBackgroundGray));
-        }
+        arrayList.add(new ThemeDescription(topView, ThemeDescription.FLAG_BACKGROUND, null, null, null, null, Theme.key_windowBackgroundGray));
         arrayList.add(new ThemeDescription(listView, ThemeDescription.FLAG_SELECTOR, null, null, null, null, Theme.key_listSelector));
         arrayList.add(new ThemeDescription(listView, 0, new Class[]{View.class}, Theme.dividerPaint, null, null, Theme.key_divider));
 

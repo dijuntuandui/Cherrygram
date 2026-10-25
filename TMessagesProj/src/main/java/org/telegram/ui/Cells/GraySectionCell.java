@@ -51,8 +51,7 @@ public class GraySectionCell extends FrameLayout implements Theme.Colorable {
         super(context);
         this.resourcesProvider = resourcesProvider;
 
-        // [Aiqiyi] 有壁纸时分组标题透明
-        setBackgroundColor(Theme.getCachedWallpaper() != null ? 0 : getThemedColor(Theme.key_graySection));
+        setBackgroundColor(getThemedColor(Theme.key_graySection));
 
         textView = new AnimatedEmojiSpan.TextViewEmojis(getContext());
         textView.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 14);
@@ -84,9 +83,7 @@ public class GraySectionCell extends FrameLayout implements Theme.Colorable {
     }
 
     public void updateColors() {
-        // [Aiqiyi] 有壁纸时分组标题透明，跟聊天页一样直接贴壁纸
-        final boolean wp = Theme.getCachedWallpaper() != null;
-        setBackgroundColor(noBackground || wp ? 0 : getThemedColor(Theme.key_graySection));
+        setBackgroundColor(noBackground ? 0 : getThemedColor(Theme.key_graySection));
         textView.setTextColor(getThemedColor(Theme.key_graySectionText));
         rightTextView.setTextColor(getThemedColor(Theme.key_graySectionText));
     }

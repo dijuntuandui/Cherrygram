@@ -410,10 +410,6 @@ public class SettingsActivity extends BaseFragment implements NotificationCenter
             private final Paint blurScrimPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
             @Override
             protected void onDraw(@NonNull Canvas canvas) {
-                // [Aiqiyi] 有壁纸时顶栏不做模糊遮罩，直接露出壁纸
-                if (Theme.getCachedWallpaper() != null) {
-                    return;
-                }
                 int top = actionBar.getHeight();
                 AndroidUtilities.rectTmp2.set(0, 0, getMeasuredWidth(), top);
                 blurScrimPaint.setColor(Theme.getColor(Theme.key_actionBarDefault, resourceProvider));
@@ -552,29 +548,7 @@ public class SettingsActivity extends BaseFragment implements NotificationCenter
         telegramSettingsHelper.checkAvatarActions();
 
         ViewCompat.setOnApplyWindowInsetsListener(contentView, this::onApplyWindowInsets);
-
-        // [Aiqiyi] 设置页显示用户壁纸：只有底栏玻璃透出壁纸才有意义
-        applyWallpaperBackground();
-
         return fragmentView = contentView;
-    }
-
-    // [Aiqiyi] 给页面根容器挂壁纸，并让列表自身透明以露出壁纸
-    private void applyWallpaperBackground() {
-        if (contentView == null) {
-            return;
-        }
-        final android.graphics.drawable.Drawable wallpaper = Theme.getCachedWallpaper();
-        if (wallpaper == null) {
-            contentView.setBackgroundColor(getThemedColor(Theme.key_windowBackgroundGray));
-            return;
-        }
-        contentView.setBackgroundImage(wallpaper, Theme.isWallpaperMotion());
-        contentView.setBackgroundColor(0);
-        if (listView != null) {
-            listView.setBackground(null);
-            listView.setBackgroundColor(0);
-        }
     }
 
     @Override
@@ -636,10 +610,7 @@ public class SettingsActivity extends BaseFragment implements NotificationCenter
     public void updateColors() {
         actionBar.setTitleColor(getThemedColor(Theme.key_windowBackgroundWhiteBlackText));
         actionBar.setItemsColor(getThemedColor(Theme.key_windowBackgroundWhiteBlackText), false);
-        // [Aiqiyi] 保持壁纸，不再刷纯色
-        if (Theme.getCachedWallpaper() == null) {
-            contentView.setBackgroundColor(getThemedColor(Theme.key_windowBackgroundGray));
-        }
+        contentView.setBackgroundColor(getThemedColor(Theme.key_windowBackgroundGray));
         titleView.setTextColor(getThemedColor(Theme.key_windowBackgroundWhiteBlackText));
         subtitleView.setTextColor(getThemedColor(Theme.key_windowBackgroundWhiteGrayText));
         searchItem.updateColor();

@@ -1047,10 +1047,7 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
                     }
                 }
             } else if (!inPreviewMode) {
-                // [Aiqiyi] 有壁纸时顶栏不做模糊遮罩，直接露出壁纸
-                if (Theme.getCachedWallpaper() != null) {
-                    // skip actionbar blur scrim
-                } else if (progressToActionMode > 0) {
+                if (progressToActionMode > 0) {
                     actionBarSearchPaint.setColor(getThemedColor(Theme.key_windowBackgroundWhite));
                     blurBounds.set(0, Math.max(0, top), getMeasuredWidth(), top + actionBarHeight - dp(2 * searchAnimationProgress));
                     drawBlurRect(canvas, 0, blurBounds, actionBarSearchPaint, true);
@@ -3571,8 +3568,7 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
             } else {
                 actionBar.setTitle(actionBarDefaultTitle = getString(R.string.SelectChat));
             }
-            // [Aiqiyi] 顶栏透明，让壁纸顶到状态栏
-        actionBar.setBackgroundColor(Theme.getCachedWallpaper() != null ? 0 : getThemedColor(Theme.key_windowBackgroundWhite));
+            actionBar.setBackgroundColor(getThemedColor(Theme.key_windowBackgroundWhite));
         } else {
             if (searchString != null || folderId != 0 || communityId != 0) {
                 actionBar.setBackButtonDrawable(backDrawable = new BackDrawable(false));
@@ -4135,11 +4131,6 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
 
         ContentView contentView = new ContentView(context);
         fragmentView = contentView;
-
-        // [Aiqiyi] 聊天列表页显示用户壁纸，让底栏玻璃有内容可透
-        if (Theme.getCachedWallpaper() != null) {
-            contentView.setBackgroundImage(Theme.getCachedWallpaper(), Theme.isWallpaperMotion());
-        }
 
         viewPositionWatcher = new ViewPositionWatcher(contentView);
         iBlur3FactoryFrostedLiquidGlass.setSourceRootView(viewPositionWatcher, contentView);
@@ -5545,8 +5536,7 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
             actionBar.addView(avatarContainer, 0, LayoutHelper.createFrame(LayoutHelper.WRAP_CONTENT, LayoutHelper.MATCH_PARENT, Gravity.TOP | Gravity.LEFT, 0, 0, 40, 0));
             floatingButton3.imageView.setVisibility(View.INVISIBLE);
             actionBar.setOccupyStatusBar(false);
-            // [Aiqiyi] 顶栏透明，让壁纸顶到状态栏
-            actionBar.setBackgroundColor(Theme.getCachedWallpaper() != null ? 0 : getThemedColor(Theme.key_windowBackgroundWhite));
+            actionBar.setBackgroundColor(getThemedColor(Theme.key_windowBackgroundWhite));
             if (fragmentContextViewWrapper != null) {
                 AndroidUtilities.removeFromParent(fragmentContextViewWrapper);
             }
@@ -7732,8 +7722,7 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
             setDialogsListFrozen(true);
             viewPages[0].listView.setVerticalScrollBarEnabled(false);
             if (searchViewPager != null) {
-                // [Aiqiyi] 搜索页透明，露出壁纸
-                searchViewPager.setBackgroundColor(Theme.getCachedWallpaper() != null ? 0 : getThemedColor(Theme.key_windowBackgroundWhite));
+                searchViewPager.setBackgroundColor(getThemedColor(Theme.key_windowBackgroundWhite));
             }
             searchAnimator = new AnimatorSet();
             ArrayList<Animator> animators = new ArrayList<>();
@@ -13585,8 +13574,6 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
         searchViewPager.setScaleX(1.05f);
         searchViewPager.setScaleY(1.05f);
         searchViewPager.setVisibility(View.GONE);
-        // [Aiqiyi] 搜索页创建时就透明，露出壁纸（原来只在动画里设，首次展示会露出不透明底）
-        searchViewPager.setBackgroundColor(Theme.getCachedWallpaper() != null ? 0 : getThemedColor(Theme.key_windowBackgroundWhite));
         searchViewPager.setBlurredBackgroundDrawableFactory(iBlur3FactoryBlur);
     }
 
