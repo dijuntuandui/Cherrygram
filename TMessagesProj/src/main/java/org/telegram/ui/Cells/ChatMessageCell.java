@@ -15286,17 +15286,20 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
             if (!uz.unnarsx.cherrygram.core.configs.CherrygramAppearanceConfig.INSTANCE.getAiqiyiShowOnlineStatus()) {
                 return;
             }
+            // 注意：avatarImage 是 ImageReceiver，getCenterX()/getImageWidth() 返回的是 0~1 的归一化比例，
+            // 不能当像素用。这里走 getImageX/Y/Width() 拿真实像素矩形。
             final float avatarW = avatarImage.getImageWidth();
-            if (avatarW <= 0) {
+            final float avatarH = avatarImage.getImageHeight();
+            if (avatarW <= 0 || avatarH <= 0) {
                 return;
             }
             final int dotColor = uz.unnarsx.cherrygram.aiqiyi.AiqiyiOnlineDot.getDotColor(currentAccount, currentUser);
             if (dotColor == 0) {
                 return;
             }
-            final float cx0 = avatarImage.getCenterX();
-            final float cy0 = avatarImage.getCenterY();
-            final float radius = avatarW / 2f;
+            final float cx0 = avatarImage.getImageX() + avatarW / 2f;
+            final float cy0 = avatarImage.getImageY() + avatarH / 2f;
+            final float radius = Math.min(avatarW, avatarH) / 2f;
             // 圆心沿 45° 走一个半径，再往内收 2dp，白边压在头像边缘内侧
             final float diag = radius * 0.7071f - dp(2f);
             final float cx = org.telegram.messenger.LocaleController.isRTL ? cx0 - diag : cx0 + diag;
