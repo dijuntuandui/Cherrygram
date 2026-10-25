@@ -88,6 +88,47 @@ public class AiqiyiSaveDeleted {
         }
     }
 
+    /**
+     * [Aiqiyi] Force the anti-revoke switch on for installs that predate the
+     * default flip. Earlier builds shipped with the preference defaulting to
+     * false, so devices that already ran one of them have an explicit `false`
+     * persisted and would ignore the new default - the feature would look
+     * completely broken (revoked messages vanish after a restart).
+     *
+     * Runs once per installation, tracked in aiqiyi_meta so a user who really
+     * wants it off is not overridden again afterwards.
+     *
+     * Must be called once the storage database is open. Never throws.
+     */
+    public static void forceEnableOnce(SQLiteDatabase database) {
+        if (database == null) {
+            return;
+        }
+        try {
+            database.executeFast("CREATE TABLE IF NOT EXISTS " + META_TABLE +
+                    "(k TEXT, v INTEGER, PRIMARY KEY(k))").stepThis().dispose();
+            SQLiteCursor c = null;
+            try {
+                c = database.queryFinalized("SELECT v FROM " + META_TABLE + " WHERE k = 'enable_v1'");
+                if (c.next()) {
+                    return;
+                }
+            } finally {
+                if (c != null) {
+                    c.dispose();
+                }
+            }
+            if (!CherrygramMessagesConfig.INSTANCE.getAiqiyiSaveDeletedMessages()) {
+                CherrygramMessagesConfig.INSTANCE.setAiqiyiSaveDeletedMessages(true);
+                FileLog.d("AiqiyiSaveDeleted: forced anti-revoke switch on for legacy install");
+            }
+            database.executeFast("INSERT OR REPLACE INTO " + META_TABLE + " (k, v) VALUES ('enable_v1', 1)")
+                    .stepThis().dispose();
+        } catch (Throwable e) {
+            FileLog.e(e);
+        }
+    }
+
     /** Whether retained deleted messages should be rendered translucent. */
     public static boolean isTranslucent() {
         try {

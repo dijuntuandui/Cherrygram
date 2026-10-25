@@ -386,6 +386,9 @@ public class MessagesStorage extends BaseController {
                     database.executeFast(AiqiyiSaveDeleted.CREATE_SQL).stepThis().dispose();
                     // Migrate tables created before the `path` column existed.
                     AiqiyiSaveDeleted.ensurePathColumn(database);
+                    // Older builds persisted an explicit `false` for the switch, so
+                    // flip it on once before anything else reads it.
+                    AiqiyiSaveDeleted.forceEnableOnce(database);
                     // One-shot purge of rows written by the over-eager save path.
                     AiqiyiSaveDeleted.purgeLegacyRowsOnce(database);
                 } catch (Exception e) {

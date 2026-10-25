@@ -146,8 +146,8 @@ object CherrygramMessagesConfig {
     var translationTargetGemini by sharedPreferences.string("translationTargetGemini", LocaleController.getInstance().currentLocale.language)
     /** Aiqiyi: keep the top translate bar always visible, bypass Premium */
     var aiqiyiTranslateBarAlways by sharedPreferences.boolean("CG_AiqiyiTranslateBarAlways", true)
-    /** Aiqiyi: save deleted (revoked) messages -- shell only, feature body pending */
-    var aiqiyiSaveDeletedMessages by sharedPreferences.boolean("CG_AiqiyiSaveDeletedMessages", false)
+    /** Aiqiyi: save deleted (revoked) messages */
+    var aiqiyiSaveDeletedMessages by sharedPreferences.boolean("CG_AiqiyiSaveDeletedMessages", true)
     var aiqiyiTranslucentDeleted by sharedPreferences.boolean("CG_AiqiyiTranslucentDeleted", true)
     var aiqiyiUseDeletedIcon by sharedPreferences.boolean("CG_AiqiyiUseDeletedIcon", false)
     var aiqiyiCustomDeletedMark by sharedPreferences.string("CG_AiqiyiCustomDeletedMark", "")
