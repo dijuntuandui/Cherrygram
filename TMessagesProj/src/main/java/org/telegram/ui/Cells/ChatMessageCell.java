@@ -15301,15 +15301,17 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
             }
             final float cx0 = avatarImage.getImageX() + avatarW / 2f;
             final float cy0 = avatarImage.getImageY() + avatarH / 2f;
-            final float radius = Math.min(avatarW, avatarH) / 2f;
-            // 圆心沿 45° 走一个半径，再往内收 2dp，白边压在头像边缘内侧
-            final float diag = radius * 0.7071f - dp(2f);
+            final float half = Math.min(avatarW, avatarH) / 2f;
+            // [Aiqiyi] 先把半径扣掉圆点自身半径，再乘 0.7071 定圆心，
+            // 这样圆点外缘恰好切在头像圆周上，不会溢出。
+            final float dotR = dp(6.5f);
+            final float diag = (half - dotR) * 0.7071f;
             final float cx = org.telegram.messenger.LocaleController.isRTL ? cx0 - diag : cx0 + diag;
             final float cy = cy0 + diag;
             aiqiyiDotPaint.setColor(0xFFFFFFFF);
-            canvas.drawCircle(cx, cy, dp(7.5f), aiqiyiDotPaint);
+            canvas.drawCircle(cx, cy, dotR, aiqiyiDotPaint);
             aiqiyiDotPaint.setColor(dotColor);
-            canvas.drawCircle(cx, cy, dp(6f), aiqiyiDotPaint);
+            canvas.drawCircle(cx, cy, dp(5.2f), aiqiyiDotPaint);
         } catch (Throwable e) {
             FileLog.e(e);
         }
