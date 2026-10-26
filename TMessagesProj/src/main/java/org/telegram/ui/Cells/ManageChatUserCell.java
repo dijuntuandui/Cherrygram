@@ -10,6 +10,7 @@ package org.telegram.ui.Cells;
 
 import android.content.Context;
 import android.graphics.Canvas;
+import android.graphics.Paint;
 import android.graphics.PorterDuff;
 import android.graphics.PorterDuffColorFilter;
 import android.text.TextUtils;
@@ -99,6 +100,7 @@ public class ManageChatUserCell extends FrameLayout {
                 } else {
                     super.onDraw(canvas);
                 }
+                drawAiqiyiOnlineDot(canvas);
             }
         };
         avatarImageView.setRoundRadius(AndroidUtilities.dp(23));
@@ -402,4 +404,43 @@ public class ManageChatUserCell extends FrameLayout {
             canvas.drawLine(LocaleController.isRTL ? 0 : AndroidUtilities.dp(68), getMeasuredHeight() - 1, getMeasuredWidth() - (LocaleController.isRTL ? AndroidUtilities.dp(68) : 0), getMeasuredHeight() - 1, dividerColor >= 0 ? Theme.dividerExtraPaint : Theme.dividerPaint);
         }
     }
+    /** [Aiqiyi] 管理成员页头像在线状态点，与 UserCell 同一套几何。 */
+    private void drawAiqiyiOnlineDot(Canvas canvas) {
+        try {
+            if (!uz.unnarsx.cherrygram.core.configs.CherrygramAppearanceConfig.INSTANCE.getAiqiyiShowOnlineStatus()) {
+                return;
+            }
+            if (!(currentObject instanceof TLRPC.User)) {
+                return;
+            }
+            final TLRPC.User user = (TLRPC.User) currentObject;
+            final int dotColor = uz.unnarsx.cherrygram.aiqiyi.AiqiyiOnlineDot.getDotColor(currentAccount, user);
+            if (dotColor == 0) {
+                return;
+            }
+            final float w = avatarImageView.getMeasuredWidth();
+            final float h = avatarImageView.getMeasuredHeight();
+            if (w <= 0 || h <= 0) {
+                return;
+            }
+            final float half = Math.min(w, h) / 2f;
+            if (half < AndroidUtilities.dp(4f)) {
+                return;
+            }
+            final float dotR = half * 0.31f;
+            final float diag = (half - dotR) * 0.7071f;
+            final float cx = LocaleController.isRTL ? half - diag : half + diag;
+            final float cy = half + diag;
+            if (aiqiyiDotPaint == null) {
+                aiqiyiDotPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+            }
+            aiqiyiDotPaint.setColor(0xFFFFFFFF);
+            canvas.drawCircle(cx, cy, dotR, aiqiyiDotPaint);
+            aiqiyiDotPaint.setColor(dotColor);
+            canvas.drawCircle(cx, cy, dotR * 0.8f, aiqiyiDotPaint);
+        } catch (Throwable ignore) {
+        }
+    }
+
+    private Paint aiqiyiDotPaint;
 }
