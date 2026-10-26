@@ -517,14 +517,9 @@ public class AiqiyiSaveDeleted {
                 try {
                     MEMBERSHIP_CACHE.put(dialogId, revokedIds);
                     MEMBERSHIP_CACHE_STAMP.put(dialogId, android.os.SystemClock.elapsedRealtime());
-                    // [Aiqiyi] merge is the only place that knows the truth for a
-                    // dialog, so it also refreshes the session-wide set.
-                    java.util.HashSet<Integer> all = REVOKED_IDS.get(dialogId);
-                    if (all == null) {
-                        all = new java.util.HashSet<>();
-                        REVOKED_IDS.put(dialogId, all);
-                    }
-                    all.addAll(revokedIds);
+                    // [Aiqiyi] REVOKED_IDS itself is rebuilt in full by
+                    // refreshRevokedIds() at the end of this method - doing an
+                    // addAll here would only ever see the windowed subset.
                 } catch (Throwable ignored) {
                 }
             }
@@ -536,6 +531,42 @@ public class AiqiyiSaveDeleted {
                     cursor.dispose();
                 } catch (Throwable ignored) {
                 }
+            }
+        }
+        // [Aiqiyi] The page window above exists only to keep very old revoked
+        // messages from being dragged into the first screen. The *membership*
+        // cache must not inherit that window: a freshly revoked id is always
+        // outside the range built from the page's live ids, so the flag would
+        // never be set and the bubble would render as a normal message.
+        refreshRevokedIds(database, dialogId);
+    }
+
+    /**
+     * [Aiqiyi] Rebuild REVOKED_IDS for one dialog from saved_deleted_cherry,
+     * unconditionally (no id window). Storage thread only. Never throws.
+     */
+    private static void refreshRevokedIds(SQLiteDatabase database, long dialogId) {
+        if (database == null) {
+            return;
+        }
+        SQLiteCursor c = null;
+        try {
+            java.util.HashSet<Integer> all = new java.util.HashSet<>();
+            c = database.queryFinalized("SELECT mid FROM " + TABLE + " WHERE dialog_id = " + dialogId);
+            while (c.next()) {
+                try {
+                    all.add(c.intValue(0));
+                } catch (Throwable ignored) {
+                }
+            }
+            if (!all.isEmpty()) {
+                REVOKED_IDS.put(dialogId, all);
+            }
+        } catch (Throwable e) {
+            FileLog.e(e);
+        } finally {
+            if (c != null) {
+                try { c.dispose(); } catch (Throwable ignored) {}
             }
         }
     }
