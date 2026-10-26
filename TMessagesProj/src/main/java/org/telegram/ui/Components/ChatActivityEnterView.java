@@ -2847,7 +2847,7 @@ public class ChatActivityEnterView extends FrameLayout implements
                 notifyButton.setColorFilter(new PorterDuffColorFilter(getThemedColor(Theme.key_glass_defaultIcon), PorterDuff.Mode.MULTIPLY));
                 notifyButton.setScaleType(ImageView.ScaleType.CENTER);
                 notifyButton.setBackgroundDrawable(Theme.createSelectorDrawable(getThemedColor(Theme.key_listSelector)));
-                notifyButton.setVisibility(canWriteToChannel && (delegate == null || !delegate.hasScheduledMessages()) ? VISIBLE : GONE);
+                notifyButton.setVisibility(canWriteToChannel && (delegate == null || !aiqiyiHasScheduledOrDeleted()) ? VISIBLE : GONE);
                 if (iOSMessageInputFieldAvailable()) {
                     attachLayout.addView(notifyButton, LayoutHelper.createFrame(DEFAULT_HEIGHT, DEFAULT_HEIGHT, Gravity.BOTTOM | Gravity.RIGHT, 0, 0, 30, 0));
                 } else {
@@ -3811,6 +3811,18 @@ public class ChatActivityEnterView extends FrameLayout implements
         captionLimitView.setTypeface(AndroidUtilities.bold());
         captionLimitView.setCenterAlign(true);
         addView(captionLimitView, Math.min(2, getChildCount()), LayoutHelper.createFrame(DEFAULT_HEIGHT, 20, Gravity.BOTTOM | Gravity.RIGHT, 3, 0, 0, DEFAULT_HEIGHT));
+    }
+
+    // [Aiqiyi] 定时消息按钮常驻：有定时消息或有已撤回记录都显示
+    private boolean aiqiyiHasScheduledOrDeleted() {
+        if (delegate == null || isInScheduleMode()) {
+            return false;
+        }
+        // [Aiqiyi] 开关开着时，按钮常驻
+        if (uz.unnarsx.cherrygram.aiqiyi.AiqiyiSaveDeleted.isEnabled()) {
+            return true;
+        }
+        return delegate.hasScheduledMessages();
     }
 
     private void createScheduledButton() {
@@ -8366,7 +8378,7 @@ public class ChatActivityEnterView extends FrameLayout implements
                         animators.add(ObjectAnimator.ofFloat(attachLayout, ATTACH_LAYOUT_ALPHA, 0.0f));
                         animators.add(ObjectAnimator.ofFloat(attachLayout, View.SCALE_X, 0.5f));
                         scheduleButtonHidden = false;
-                        boolean hasScheduled = delegate != null && delegate.hasScheduledMessages();
+                        boolean hasScheduled = delegate != null && aiqiyiHasScheduledOrDeleted();
                         if (hasScheduled) {
                             createScheduledButton();
                         }
@@ -8530,7 +8542,7 @@ public class ChatActivityEnterView extends FrameLayout implements
                         }
                     }
                     scheduleButtonHidden = false;
-                    final boolean hasScheduled = delegate != null && delegate.hasScheduledMessages();
+                    final boolean hasScheduled = delegate != null && aiqiyiHasScheduledOrDeleted();
                     if (hasScheduled) {
                         createScheduledButton();
                     }
@@ -8602,7 +8614,7 @@ public class ChatActivityEnterView extends FrameLayout implements
                             animators.add(ObjectAnimator.ofFloat(attachButton, View.SCALE_X, 0.0f));
                             animators.add(ObjectAnimator.ofFloat(attachButton, View.SCALE_Y, 0.0f));
                         }
-                        boolean hasScheduled = delegate != null && delegate.hasScheduledMessages();
+                        boolean hasScheduled = delegate != null && aiqiyiHasScheduledOrDeleted();
                         scheduleButtonHidden = true;
                         if (scheduledButton != null) {
                             scheduledButton.setScaleY(1.0f);
@@ -8772,7 +8784,7 @@ public class ChatActivityEnterView extends FrameLayout implements
                     }
                     scheduleButtonHidden = true;
                     if (scheduledButton != null) {
-                        if (delegate != null && delegate.hasScheduledMessages()) {
+                        if (delegate != null && aiqiyiHasScheduledOrDeleted()) {
                             scheduledButton.setVisibility(GONE);
                             scheduledButton.setTag(null);
                         }
@@ -8833,7 +8845,7 @@ public class ChatActivityEnterView extends FrameLayout implements
                         animators.add(ObjectAnimator.ofFloat(attachButton, View.SCALE_X, 1.0f));
                         animators.add(ObjectAnimator.ofFloat(attachButton, View.SCALE_Y, 1.0f));
                     }
-                    boolean hasScheduled = delegate != null && delegate.hasScheduledMessages();
+                    boolean hasScheduled = delegate != null && aiqiyiHasScheduledOrDeleted();
                     scheduleButtonHidden = false;
                     if (hasScheduled) {
                         createScheduledButton();
@@ -8958,7 +8970,7 @@ public class ChatActivityEnterView extends FrameLayout implements
                     updateFieldRight(1);
                 }
                 scheduleButtonHidden = false;
-                final boolean hasScheduled = delegate != null && delegate.hasScheduledMessages();
+                final boolean hasScheduled = delegate != null && aiqiyiHasScheduledOrDeleted();
                 if (hasScheduled) {
                     createScheduledButton();
                 }
@@ -9016,7 +9028,7 @@ public class ChatActivityEnterView extends FrameLayout implements
                         animators.add(ObjectAnimator.ofFloat(attachButton, View.SCALE_X, 1.0f));
                         animators.add(ObjectAnimator.ofFloat(attachButton, View.SCALE_Y, 1.0f));
                     }
-                    boolean hasScheduled = delegate != null && delegate.hasScheduledMessages();
+                    boolean hasScheduled = delegate != null && aiqiyiHasScheduledOrDeleted();
                     scheduleButtonHidden = false;
                     if (hasScheduled) {
                         createScheduledButton();
@@ -9181,12 +9193,12 @@ public class ChatActivityEnterView extends FrameLayout implements
                     attachButton.setScaleY(1.0f);
                 }
                 scheduleButtonHidden = false;
-                final boolean hasScheduled = delegate != null && delegate.hasScheduledMessages();
+                final boolean hasScheduled = delegate != null && aiqiyiHasScheduledOrDeleted();
                 if (hasScheduled) {
                     createScheduledButton();
                 }
                 if (scheduledButton != null) {
-                    if (delegate != null && delegate.hasScheduledMessages()) {
+                    if (delegate != null && aiqiyiHasScheduledOrDeleted()) {
                         scheduledButton.setVisibility(VISIBLE);
                         scheduledButton.setTag(1);
                     }
@@ -11582,7 +11594,7 @@ public class ChatActivityEnterView extends FrameLayout implements
                 updateFieldRight(attachLayout.getVisibility() == VISIBLE ? 1 : 0);
             }
         }
-        boolean hasScheduled = delegate != null && !isInScheduleMode() && delegate.hasScheduledMessages();
+        boolean hasScheduled = delegate != null && !isInScheduleMode() && aiqiyiHasScheduledOrDeleted();
         boolean visible = hasScheduled && !scheduleButtonHidden && !recordingAudioVideo;
         if (visible) {
             createScheduledButton();
