@@ -15276,42 +15276,45 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
      */
     private void drawAiqiyiOnlineDot(Canvas canvas) {
         try {
-            if (!isAvatarVisible || currentUser == null) {
+            // 只要本次消息真的要画头像，就显示状态点。用 needDrawAvatar() 而不是
+            // isAvatarVisible：后者是画布尺寸里的布局标记，与头像真正绘制时机不完全对齐。
+            if (currentUser == null || currentMessageObject == null) {
                 return;
             }
-            if (currentMessageObject == null || currentMessageObject.isOutOwner()) {
+            if (currentMessageObject.isOutOwner() || currentMessageObject.isSponsored()) {
                 return;
             }
-            if (currentMessageObject.isSponsored()) {
+            if (!needDrawAvatar()) {
                 return;
             }
             if (!uz.unnarsx.cherrygram.core.configs.CherrygramAppearanceConfig.INSTANCE.getAiqiyiShowOnlineStatus()) {
                 return;
             }
-            // 注意：avatarImage 是 ImageReceiver，getCenterX()/getImageWidth() 返回的是 0~1 的归一化比例，
-            // 不能当像素用。这里走 getImageX/Y/Width() 拿真实像素矩形。
+            final int dotColor = uz.unnarsx.cherrygram.aiqiyi.AiqiyiOnlineDot.getDotColor(currentAccount, currentUser);
+            if (dotColor == 0) {
+                return;   // 隐身 / 不展示 状态：完全不画
+            }
             final float avatarW = avatarImage.getImageWidth();
             final float avatarH = avatarImage.getImageHeight();
             if (avatarW <= 0 || avatarH <= 0) {
                 return;
             }
-            final int dotColor = uz.unnarsx.cherrygram.aiqiyi.AiqiyiOnlineDot.getDotColor(currentAccount, currentUser);
-            if (dotColor == 0) {
-                return;
-            }
             final float cx0 = avatarImage.getImageX() + avatarW / 2f;
             final float cy0 = avatarImage.getImageY() + avatarH / 2f;
             final float half = Math.min(avatarW, avatarH) / 2f;
-            // [Aiqiyi] 先把半径扣掉圆点自身半径，再乘 0.7071 定圆心，
-            // 这样圆点外缘恰好切在头像圆周上，不会溢出。
-            final float dotR = dp(6.5f);
+            if (half < dp(4f)) {
+                return;   // 头像太小，画出来也是糊，不画
+            }
+            // 圆点半径按头像自适应：42dp 头像 -> 白圈 6.5dp / 彩芯 5.2dp
+            final float dotR = half * 0.31f;
+            // 先把半径扣掉圆点自身半径，再乘 0.7071 定圆心，外缘恰好切在头像周上
             final float diag = (half - dotR) * 0.7071f;
             final float cx = org.telegram.messenger.LocaleController.isRTL ? cx0 - diag : cx0 + diag;
             final float cy = cy0 + diag;
             aiqiyiDotPaint.setColor(0xFFFFFFFF);
             canvas.drawCircle(cx, cy, dotR, aiqiyiDotPaint);
             aiqiyiDotPaint.setColor(dotColor);
-            canvas.drawCircle(cx, cy, dp(5.2f), aiqiyiDotPaint);
+            canvas.drawCircle(cx, cy, dotR * 0.8f, aiqiyiDotPaint);
         } catch (Throwable e) {
             FileLog.e(e);
         }
