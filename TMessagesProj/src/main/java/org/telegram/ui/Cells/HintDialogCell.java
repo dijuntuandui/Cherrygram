@@ -279,7 +279,7 @@ public class HintDialogCell extends FrameLayout {
                 lockDrawable.setAlpha((int) (0xFF * lockT));
                 lockDrawable.draw(canvas);
                 canvas.restore();
-            } else if (showOnlineProgress != 0 && CherrygramAppearanceConfig.INSTANCE.getAiqiyiShowOnlineStatus()) {
+            } else if (showOnlineProgress != 0) {
                 int top = AndroidUtilities.dp(53);
                 int left = AndroidUtilities.dp(59);
                 canvas.save();
