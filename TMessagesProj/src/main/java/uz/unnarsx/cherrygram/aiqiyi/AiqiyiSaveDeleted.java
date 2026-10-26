@@ -725,7 +725,9 @@ public class AiqiyiSaveDeleted {
                     "SELECT uid, data, mid, date FROM messages_v2 WHERE mid IN(%s) AND uid = %d",
                     sb.toString(), dialogId));
             int saved = 0;
+            int scanned = 0;
             while (cursor.next()) {
+                scanned++;
                 long uid = cursor.longValue(0);
                 NativeByteBuffer data = cursor.byteBufferValue(1);
                 int mid = cursor.intValue(2);
