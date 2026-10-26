@@ -416,6 +416,7 @@ public class AiqiyiSaveDeleted {
             return;
         }
         SQLiteCursor cursor = null;
+        int diagMerged = 0;
         try {
             LongSparseArray<Boolean> present = null;
             for (int i = 0; i < target.messages.size(); i++) {
@@ -487,6 +488,9 @@ public class AiqiyiSaveDeleted {
                 }
             }
 
+            diagMerged = merged == null ? 0 : merged.size();
+            FileLog.d("AiqiyiSaveDeleted/merge: dialog=" + dialogId + " win=[" + minMid + "," + maxMid
+                    + "] live=" + target.messages.size() + " hit=" + diagMerged);
             if (merged != null && !merged.isEmpty()) {
                 // [Aiqiyi] The page assembled by getMessagesInternal is NOT a single
                 // monotonic list: the hole logic UNIONs a "date DESC" half with a
@@ -562,6 +566,7 @@ public class AiqiyiSaveDeleted {
             if (!all.isEmpty()) {
                 REVOKED_IDS.put(dialogId, all);
             }
+            FileLog.d("AiqiyiSaveDeleted/refresh: dialog=" + dialogId + " revokedTotal=" + all.size());
         } catch (Throwable e) {
             FileLog.e(e);
         } finally {
@@ -737,11 +742,28 @@ public class AiqiyiSaveDeleted {
                         // the real id into the snapshot before it is persisted,
                         // otherwise the merged copy comes back with id 0 and the
                         // page ordering collapses.
+                        // [Aiqiyi] messages_v2.mid can be NULL/0 for rows that were
+                        // never backfilled (and the `data` blob then carries the
+                        // only real id). Both directions must be covered: fill
+                        // message.id from mid, and fill mid from message.id.
+                        // Missing the second direction used to feed mid == 0 into
+                        // saveDeleted, which silently drops the row - that is why
+                        // revoked messages were never persisted at all.
                         if (mid != 0 && message.id == 0) {
                             message.id = mid;
                         }
+                        if (mid == 0 && message.id != 0) {
+                            mid = message.id;
+                        }
                         if (message.date == 0 && date != 0) {
                             message.date = date;
+                        }
+                        if (date == 0 && message.date != 0) {
+                            date = message.date;
+                        }
+                        if (mid == 0) {
+                            FileLog.d("AiqiyiSaveDeleted: skip id-less row dialog=" + dialogId);
+                            continue;
                         }
                         // [Aiqiyi] B: keep revoked photos visible by pointing at the
                         // copy that is already in the app cache. resolveCachedPath is
@@ -763,6 +785,8 @@ public class AiqiyiSaveDeleted {
                     data.reuse();
                 }
             }
+            FileLog.d("AiqiyiSaveDeleted/preSave: dialog=" + dialogId
+                    + " ids=" + ids.size() + " scanned=" + scanned + " saved=" + saved);
         } catch (Throwable e) {
             FileLog.e(e);
         } finally {
