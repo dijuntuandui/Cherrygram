@@ -613,6 +613,13 @@ public class AiqiyiSaveDeleted {
             return false;
         }
         try {
+            java.util.HashSet<Integer> probe = REVOKED_IDS.get(dialogId);
+            android.util.Log.d("AQYDBG", "isCached dialog=" + dialogId + " mid=" + mid
+                    + " revokedSet=" + (probe == null ? "null" : probe.size())
+                    + " hit=" + (probe != null && probe.contains(mid)));
+        } catch (Throwable ignored) {
+        }
+        try {
             // [Aiqiyi] Prefer the session-wide set: it is only ever filled from
             // saved_deleted_cherry and never seeded with live page ids, so it
             // cannot flag a message that was never revoked.
@@ -718,7 +725,14 @@ public class AiqiyiSaveDeleted {
             android.util.Log.d("AQYDBG", "preSave EARLY-out disabled");
             return;
         }
-        if (dialogId == currentUser) {
+        if (dialogId == 0) {
+            // [Aiqiyi] TL_updateDeleteMessages carries no peer, so the controller
+            // stacks it under dialogId 0 and resolves the real dialog later from
+            // each message id. Querying "WHERE mid IN(...) AND uid = 0" therefore
+            // matches nothing and every revoked body was dropped. Resolve the row
+            // by mid alone and keep whatever uid the row already has.
+            android.util.Log.d("AQYDBG", "preSave dialog=0 -> resolve by mid only");
+        } else if (dialogId == currentUser) {
             android.util.Log.d("AQYDBG", "preSave EARLY-out self-dialog");
             return;
         }
@@ -729,10 +743,17 @@ public class AiqiyiSaveDeleted {
                 if (i > 0) sb.append(',');
                 sb.append(ids.get(i));
             }
-            android.util.Log.d("AQYDBG", "preSave SQL mid IN(" + sb + ") uid=" + dialogId);
-            cursor = database.queryFinalized(String.format(Locale.US,
-                    "SELECT uid, data, mid, date FROM messages_v2 WHERE mid IN(%s) AND uid = %d",
-                    sb.toString(), dialogId));
+            if (dialogId == 0) {
+                android.util.Log.d("AQYDBG", "preSave SQL mid IN(" + sb + ") no-uid");
+                cursor = database.queryFinalized(String.format(Locale.US,
+                        "SELECT uid, data, mid, date FROM messages_v2 WHERE mid IN(%s)",
+                        sb.toString()));
+            } else {
+                android.util.Log.d("AQYDBG", "preSave SQL mid IN(" + sb + ") uid=" + dialogId);
+                cursor = database.queryFinalized(String.format(Locale.US,
+                        "SELECT uid, data, mid, date FROM messages_v2 WHERE mid IN(%s) AND uid = %d",
+                        sb.toString(), dialogId));
+            }
             int saved = 0;
             int scanned = 0;
             while (cursor.next()) {
