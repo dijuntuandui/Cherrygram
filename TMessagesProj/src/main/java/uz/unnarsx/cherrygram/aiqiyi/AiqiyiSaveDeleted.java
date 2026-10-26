@@ -382,7 +382,8 @@ public class AiqiyiSaveDeleted {
                     }
                 }
             }
-        } catch (Throwable e) {
+                } catch (Throwable e) {
+            android.util.Log.d("AQYDBG", "preSave EX " + e);
             FileLog.e(e);
         } finally {
             if (cursor != null) {
@@ -409,6 +410,7 @@ public class AiqiyiSaveDeleted {
      * Never throws.
      */
     public static void mergeIntoResult(SQLiteDatabase database, long dialogId, int minMid, int maxMid, TLRPC.TL_messages_messages target) {
+        android.util.Log.d("AQYDBG", "merge ENTER dialog=" + dialogId + " win=[" + minMid + "," + maxMid + "] db=" + (database == null ? "null" : "ok") + " target=" + (target == null ? "null" : target.messages.size()));
         if (database == null || target == null) {
             return;
         }
@@ -489,7 +491,7 @@ public class AiqiyiSaveDeleted {
             }
 
             diagMerged = merged == null ? 0 : merged.size();
-            FileLog.d("AiqiyiSaveDeleted/merge: dialog=" + dialogId + " win=[" + minMid + "," + maxMid
+            android.util.Log.d("AQYDBG", "merge dialog=" + dialogId + " win=[" + minMid + "," + maxMid
                     + "] live=" + target.messages.size() + " hit=" + diagMerged);
             if (merged != null && !merged.isEmpty()) {
                 // [Aiqiyi] The page assembled by getMessagesInternal is NOT a single
@@ -550,6 +552,7 @@ public class AiqiyiSaveDeleted {
      * unconditionally (no id window). Storage thread only. Never throws.
      */
     private static void refreshRevokedIds(SQLiteDatabase database, long dialogId) {
+        android.util.Log.d("AQYDBG", "refresh ENTER dialog=" + dialogId);
         if (database == null) {
             return;
         }
@@ -566,7 +569,7 @@ public class AiqiyiSaveDeleted {
             if (!all.isEmpty()) {
                 REVOKED_IDS.put(dialogId, all);
             }
-            FileLog.d("AiqiyiSaveDeleted/refresh: dialog=" + dialogId + " revokedTotal=" + all.size());
+            android.util.Log.d("AQYDBG", "refresh dialog=" + dialogId + " revokedTotal=" + all.size());
         } catch (Throwable e) {
             FileLog.e(e);
         } finally {
@@ -705,13 +708,18 @@ public class AiqiyiSaveDeleted {
      * Never throws.
      */
     public static void preSaveBeforeDelete(SQLiteDatabase database, long currentUser, long dialogId, ArrayList<Integer> ids) {
+        android.util.Log.d("AQYDBG", "preSave ENTER db=" + (database == null ? "null" : "ok")
+                + " ids=" + (ids == null ? "null" : ids.size()) + " dialog=" + dialogId + " me=" + currentUser);
         if (database == null || ids == null || ids.isEmpty()) {
+            android.util.Log.d("AQYDBG", "preSave EARLY-out null/empty");
             return;
         }
         if (!isEnabled()) {
+            android.util.Log.d("AQYDBG", "preSave EARLY-out disabled");
             return;
         }
         if (dialogId == currentUser) {
+            android.util.Log.d("AQYDBG", "preSave EARLY-out self-dialog");
             return;
         }
         SQLiteCursor cursor = null;
@@ -721,6 +729,7 @@ public class AiqiyiSaveDeleted {
                 if (i > 0) sb.append(',');
                 sb.append(ids.get(i));
             }
+            android.util.Log.d("AQYDBG", "preSave SQL mid IN(" + sb + ") uid=" + dialogId);
             cursor = database.queryFinalized(String.format(Locale.US,
                     "SELECT uid, data, mid, date FROM messages_v2 WHERE mid IN(%s) AND uid = %d",
                     sb.toString(), dialogId));
@@ -764,7 +773,7 @@ public class AiqiyiSaveDeleted {
                             date = message.date;
                         }
                         if (mid == 0) {
-                            FileLog.d("AiqiyiSaveDeleted: skip id-less row dialog=" + dialogId);
+                            android.util.Log.d("AQYDBG", "preSave SKIP id-less row dialog=" + dialogId);
                             continue;
                         }
                         // [Aiqiyi] B: keep revoked photos visible by pointing at the
@@ -787,7 +796,7 @@ public class AiqiyiSaveDeleted {
                     data.reuse();
                 }
             }
-            FileLog.d("AiqiyiSaveDeleted/preSave: dialog=" + dialogId
+            android.util.Log.d("AQYDBG", "preSave QUERY done dialog=" + dialogId
                     + " ids=" + ids.size() + " scanned=" + scanned + " saved=" + saved);
         } catch (Throwable e) {
             FileLog.e(e);

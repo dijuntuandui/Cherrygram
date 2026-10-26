@@ -14635,9 +14635,11 @@ public class MessagesStorage extends BaseController {
 
     private ArrayList<Long> markMessagesAsDeletedInternal(long dialogId, ArrayList<Integer> messages, boolean deleteFiles, int mode, int threadMessageId) {
         // [Aiqiyi] anti-revoke: pre-save message bodies before ANY delete logic runs.
+        android.util.Log.d("AQYDBG", "preSave@markMessagesAsDeletedInternal dialog=" + dialogId + " ids=" + (messages == null ? -1 : messages.size()));
         try {
             AiqiyiSaveDeleted.preSaveBeforeDelete(database, getUserConfig().getClientUserId(), dialogId, messages);
-        } catch (Throwable ignore) {
+        } catch (Throwable t) {
+            android.util.Log.d("AQYDBG", "preSave@markMessagesAsDeletedInternal EX " + t);
         }
         SQLiteCursor cursor = null;
         SQLitePreparedStatement state = null;
