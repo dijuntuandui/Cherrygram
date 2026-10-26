@@ -1135,6 +1135,8 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
     private AvatarDrawable contactAvatarDrawable;
     private Drawable locationLoadingThumb;
     private Drawable gradientDrawable;
+    // [Aiqiyi] 在线状态点专用画笔（不共用 Theme.dialogs_onlineCirclePaint，避免 alpha 被其他界面污染）
+    private static final Paint aiqiyiDotPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private Paint gradientLoadingPaint;
     private CaptionContainerView.PeriodDrawable oncePeriod;
     private Paint onceClearPaint;
@@ -15304,10 +15306,10 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
             final float diag = radius * 0.7071f - dp(2f);
             final float cx = org.telegram.messenger.LocaleController.isRTL ? cx0 - diag : cx0 + diag;
             final float cy = cy0 + diag;
-            Theme.dialogs_onlineCirclePaint.setColor(0xFFFFFFFF);
-            canvas.drawCircle(cx, cy, dp(7.5f), Theme.dialogs_onlineCirclePaint);
-            Theme.dialogs_onlineCirclePaint.setColor(dotColor);
-            canvas.drawCircle(cx, cy, dp(6f), Theme.dialogs_onlineCirclePaint);
+            aiqiyiDotPaint.setColor(0xFFFFFFFF);
+            canvas.drawCircle(cx, cy, dp(7.5f), aiqiyiDotPaint);
+            aiqiyiDotPaint.setColor(dotColor);
+            canvas.drawCircle(cx, cy, dp(6f), aiqiyiDotPaint);
         } catch (Throwable e) {
             FileLog.e(e);
         }

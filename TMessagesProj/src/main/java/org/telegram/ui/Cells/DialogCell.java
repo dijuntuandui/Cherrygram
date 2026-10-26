@@ -462,6 +462,8 @@ public class DialogCell extends BaseCell implements StoriesListPlaceProvider.Ava
 
     private boolean openBot;
     private final ButtonBounce openButtonBounce = new ButtonBounce(this);
+    // [Aiqiyi] 在线状态点专用画笔（不共用 Theme.dialogs_onlineCirclePaint）
+    private static final Paint aiqiyiDotPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint openButtonBackgroundPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final RectF openButtonRect = new RectF();
     private Text openButtonText;
@@ -864,10 +866,10 @@ public class DialogCell extends BaseCell implements StoriesListPlaceProvider.Ava
         final float diag = radius * 0.7071f - dp(2f);
         final float left = LocaleController.isRTL ? cx - diag : cx + diag;
         final float top = cy + diag;
-        Theme.dialogs_onlineCirclePaint.setColor(0xFFFFFFFF);
-        canvas.drawCircle(left, top, dp(7.5f), Theme.dialogs_onlineCirclePaint);
-        Theme.dialogs_onlineCirclePaint.setColor(dotColor);
-        canvas.drawCircle(left, top, dp(6f), Theme.dialogs_onlineCirclePaint);
+        aiqiyiDotPaint.setColor(0xFFFFFFFF);
+        canvas.drawCircle(left, top, dp(7.5f), aiqiyiDotPaint);
+        aiqiyiDotPaint.setColor(dotColor);
+        canvas.drawCircle(left, top, dp(6f), aiqiyiDotPaint);
     }
 
     private void checkGroupCall() {
