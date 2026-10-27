@@ -2631,6 +2631,36 @@ public class MessagesController extends BaseController implements NotificationCe
             TLRPC.User user = getUserConfig().getCurrentUser();
             if (user != null) {
                 user.emoji_status = new_emoji_status;
+                // [Aiqiyi local] 佩戴礼物时，把礼物的图案（pattern）写进资料背景 emoji，
+                // 这样主页上半部分会铺出该礼物的底图。摘掉礼物时清空。
+                if (new_emoji_status instanceof TLRPC.TL_emojiStatusCollectible) {
+                    final long patternDocId = ((TLRPC.TL_emojiStatusCollectible) new_emoji_status).pattern_document_id;
+                    if (patternDocId != 0) {
+                        if (user.profile_color == null) {
+                            user.profile_color = new TLRPC.TL_peerColor();
+                        }
+                        user.profile_color.flags |= 2;
+                        user.profile_color.background_emoji_id = patternDocId;
+                        user.flags2 |= 512;
+                        try {
+                            final uz.unnarsx.cherrygram.core.configs.AiqiyiLocalDataConfig localCfg =
+                                    uz.unnarsx.cherrygram.core.configs.AiqiyiLocalDataConfig.INSTANCE;
+                            localCfg.setLocalProfileColorEmojiId(patternDocId);
+                            localCfg.setLocalProfileColorOverride(true);
+                            localCfg.setLocalProfileEmojiFromGift(true);
+                        } catch (Throwable ignore) {
+                        }
+                    }
+                } else if (user.profile_color != null
+                        && (user.profile_color.flags & 2) != 0
+                        && uz.unnarsx.cherrygram.core.configs.AiqiyiLocalDataConfig.INSTANCE.getLocalProfileColorOverride()) {
+                    user.profile_color.flags &= ~2;
+                    user.profile_color.background_emoji_id = 0;
+                    try {
+                        uz.unnarsx.cherrygram.core.configs.AiqiyiLocalDataConfig.INSTANCE.setLocalProfileColorEmojiId(0L);
+                    } catch (Throwable ignore) {
+                    }
+                }
                 getNotificationCenter().postNotificationName(NotificationCenter.userEmojiStatusUpdated, user);
             }
         } else {
@@ -6938,6 +6968,60 @@ public class MessagesController extends BaseController implements NotificationCe
             if (!fromCache) {
                 users.put(user.id, user);
                 if (user.id == getUserConfig().getClientUserId()) {
+                    // [Aiqiyi local] 本地高级版：服务端返回的 user 会把 currentUser 整个换掉，
+                    // 本地改过的资料颜色/背景 emoji 在这里盖回去，否则重启就丢。
+                    try {
+                        final uz.unnarsx.cherrygram.core.configs.AiqiyiLocalDataConfig localCfg =
+                                uz.unnarsx.cherrygram.core.configs.AiqiyiLocalDataConfig.INSTANCE;
+                        if (localCfg.getLocalZoneEnabled() && localCfg.getLocalPremiumOverride()
+                                && localCfg.getLocalProfileColorOverride()) {
+                            final int colorId = localCfg.getLocalProfileColorId();
+                            // 礼物接管时，背景图案跟着当前佩戴的礼物走；否则用用户手动选的值
+                            long emojiId = localCfg.getLocalProfileColorEmojiId();
+                            if (localCfg.getLocalProfileEmojiFromGift()) {
+                                final TLRPC.User cur = getUserConfig().getCurrentUser();
+                                if (cur != null && cur.emoji_status instanceof TLRPC.TL_emojiStatusCollectible) {
+                                    emojiId = ((TLRPC.TL_emojiStatusCollectible) cur.emoji_status).pattern_document_id;
+                                }
+                            }
+                            if (user.profile_color == null) {
+                                user.profile_color = new TLRPC.TL_peerColor();
+                            }
+                            if (colorId >= 0) {
+                                user.profile_color.flags |= 1;
+                                user.profile_color.color = colorId;
+                            } else {
+                                user.profile_color.flags &= ~1;
+                            }
+                            if (emojiId != 0) {
+                                user.profile_color.flags |= 2;
+                                user.profile_color.background_emoji_id = emojiId;
+                            } else {
+                                user.profile_color.flags &= ~2;
+                                user.profile_color.background_emoji_id = 0;
+                            }
+                            user.flags2 |= 512;
+
+                            final int nameColorId = localCfg.getLocalNameColorId();
+                            final long nameEmojiId = localCfg.getLocalNameColorEmojiId();
+                            if (nameColorId >= 0 || nameEmojiId != 0) {
+                                if (user.color == null) {
+                                    user.color = new TLRPC.TL_peerColor();
+                                }
+                                if (nameColorId >= 0) {
+                                    user.color.flags |= 1;
+                                    user.color.color = nameColorId;
+                                }
+                                if (nameEmojiId != 0) {
+                                    user.color.flags |= 2;
+                                    user.color.background_emoji_id = nameEmojiId;
+                                } else {
+                                    user.color.flags &= ~2;
+                                }
+                            }
+                        }
+                    } catch (Throwable ignore) {
+                    }
                     getUserConfig().setCurrentUser(user);
                     getUserConfig().saveConfig(true);
                 }

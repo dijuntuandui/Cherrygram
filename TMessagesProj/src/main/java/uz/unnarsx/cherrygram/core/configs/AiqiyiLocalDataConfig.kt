@@ -143,4 +143,40 @@ object AiqiyiLocalDataConfig {
     fun clearLocalGifts() {
         localGiftCount = 0
     }
+
+    // ============ 本地资料颜色 / 背景图案 覆盖 ============
+    // 说明：本地高级版打开时，用户在「资料颜色」页改的颜色/背景 emoji 只写到本地 currentUser，
+    // 服务端会拒绝（账号非真会员），下次拉取 user 时会被覆盖。这里把本地改动单独存一份，
+    // putUser 收到服务端数据时再盖回来，保证重启后不丢。
+
+    /** 是否有本地资料颜色覆盖 */
+    var localProfileColorOverride by sharedPreferences.boolean("AQY_LocalProfileColor_Override", false)
+
+    /**
+     * 当前背景图案是否由「佩戴的礼物」接管。
+     * true 时 profile_color.background_emoji_id 跟随佩戴礼物变化，用户手动选的背景 emoji 不生效；
+     * false 时用 localProfileColorEmojiId（用户手动选的值）。
+     */
+    var localProfileEmojiFromGift by sharedPreferences.boolean("AQY_LocalProfileEmoji_FromGift", false)
+
+    /** 资料颜色 id，-1 表示未设置 */
+    var localProfileColorId by sharedPreferences.int("AQY_LocalProfileColor_Id", -1)
+
+    /** 资料背景 emoji（图案文档 id），0 表示未设置 */
+    var localProfileColorEmojiId by sharedPreferences.long("AQY_LocalProfileColor_EmojiId", 0L)
+
+    /** 名字颜色 id（资料页「名字」那一栏），-1 表示未设置 */
+    var localNameColorId by sharedPreferences.int("AQY_LocalNameColor_Id", -1)
+
+    /** 名字背景 emoji，0 表示未设置 */
+    var localNameColorEmojiId by sharedPreferences.long("AQY_LocalNameColor_EmojiId", 0L)
+
+    /** 清掉本地资料颜色覆盖 */
+    fun clearLocalProfileColorOverride() {
+        localProfileColorOverride = false
+        localProfileColorId = -1
+        localProfileColorEmojiId = 0L
+        localNameColorId = -1
+        localNameColorEmojiId = 0L
+    }
 }

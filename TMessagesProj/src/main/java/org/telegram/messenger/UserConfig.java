@@ -374,6 +374,51 @@ public class UserConfig extends BaseController {
             if (currentUser != null) {
                 checkPremiumSelf(null, currentUser);
                 clientUserId = currentUser.id;
+                // [Aiqiyi local] 启动加载完 currentUser 后，把本地存的资料颜色/背景 emoji 盖回去，
+                // 否则首屏还是服务端旧值。
+                try {
+                    final uz.unnarsx.cherrygram.core.configs.AiqiyiLocalDataConfig localCfg =
+                            uz.unnarsx.cherrygram.core.configs.AiqiyiLocalDataConfig.INSTANCE;
+                    if (localCfg.getLocalZoneEnabled() && localCfg.getLocalPremiumOverride()
+                            && localCfg.getLocalProfileColorOverride()) {
+                        final int colorId = localCfg.getLocalProfileColorId();
+                        // 礼物接管时，背景图案跟着当前佩戴的礼物走；否则用用户手动选的值
+                        long emojiId = localCfg.getLocalProfileColorEmojiId();
+                        if (localCfg.getLocalProfileEmojiFromGift()
+                                && currentUser.emoji_status instanceof TLRPC.TL_emojiStatusCollectible) {
+                            emojiId = ((TLRPC.TL_emojiStatusCollectible) currentUser.emoji_status).pattern_document_id;
+                        }
+                        if (currentUser.profile_color == null) {
+                            currentUser.profile_color = new TLRPC.TL_peerColor();
+                        }
+                        if (colorId >= 0) {
+                            currentUser.profile_color.flags |= 1;
+                            currentUser.profile_color.color = colorId;
+                        }
+                        if (emojiId != 0) {
+                            currentUser.profile_color.flags |= 2;
+                            currentUser.profile_color.background_emoji_id = emojiId;
+                        }
+                        currentUser.flags2 |= 512;
+
+                        final int nameColorId = localCfg.getLocalNameColorId();
+                        final long nameEmojiId = localCfg.getLocalNameColorEmojiId();
+                        if (nameColorId >= 0 || nameEmojiId != 0) {
+                            if (currentUser.color == null) {
+                                currentUser.color = new TLRPC.TL_peerColor();
+                            }
+                            if (nameColorId >= 0) {
+                                currentUser.color.flags |= 1;
+                                currentUser.color.color = nameColorId;
+                            }
+                            if (nameEmojiId != 0) {
+                                currentUser.color.flags |= 2;
+                                currentUser.color.background_emoji_id = nameEmojiId;
+                            }
+                        }
+                    }
+                } catch (Throwable ignore) {
+                }
             }
             configLoaded = true;
         }

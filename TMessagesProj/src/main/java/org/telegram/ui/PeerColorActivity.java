@@ -2104,6 +2104,25 @@ public class PeerColorActivity extends BaseFragment implements NotificationCente
             }
             getMessagesController().putUser(me, false);
             getUserConfig().saveConfig(true);
+            // [Aiqiyi local] 本地高级版：把本地改的颜色/背景 emoji 存一份，
+            // 服务端会拒绝（账号非真会员），下次拉 user 会把 currentUser 整个换掉，
+            // 存下这份后由 putUser 盖回来，保证重启不丢。
+            if (uz.unnarsx.cherrygram.core.configs.AiqiyiLocalDataConfig.INSTANCE.getLocalZoneEnabled()
+                    && uz.unnarsx.cherrygram.core.configs.AiqiyiLocalDataConfig.INSTANCE.getLocalPremiumOverride()) {
+                final uz.unnarsx.cherrygram.core.configs.AiqiyiLocalDataConfig localCfg =
+                        uz.unnarsx.cherrygram.core.configs.AiqiyiLocalDataConfig.INSTANCE;
+                if (applyingProfile) {
+                    localCfg.setLocalProfileColorId(profilePage.selectedColor);
+                    localCfg.setLocalProfileColorEmojiId(profilePage.selectedEmoji);
+                    // 用户在资料颜色页手动选了背景 emoji，取消「礼物接管」，以手动选择为准
+                    localCfg.setLocalProfileEmojiFromGift(false);
+                }
+                if (applyingName) {
+                    localCfg.setLocalNameColorId(namePage.selectedColor);
+                    localCfg.setLocalNameColorEmojiId(namePage.selectedEmoji);
+                }
+                localCfg.setLocalProfileColorOverride(true);
+            }
             finishFragment();
             showBulletin();
         }
