@@ -4594,6 +4594,26 @@ public class NotificationsController extends BaseController implements Notificat
                 ledColor = 0;
                 soundPath = null;
             }
+            // [Aiqiyi] 特别关注：被关注会话使用独立震动模式，便于在通知流里一眼分辨
+            // 注意：不改 importance，因为它会参与通知渠道 ID 计算（validateChannelId），
+            // 改了会导致系统新建渠道、丢失用户已调好的音量与免打扰设置
+            // 静音优先：手机处于静音/震动模式时不强行震动，尊重系统级用户意图
+            if (!notifyDisabled && lastMessageObject != null) {
+                try {
+                    final long attentionChatId = lastMessageObject.getDialogId();
+                    if (uz.unnarsx.cherrygram.core.configs.CherrygramAppearanceConfig.INSTANCE.isAttention(attentionChatId)) {
+                        int ringerMode = audioManager.getRingerMode();
+                        boolean systemSilent = ringerMode == AudioManager.RINGER_MODE_SILENT;
+                        if (!systemSilent) {
+                            vibrate = 1; // 双短震（0,100,0,100），与普通消息的默认震动区分
+                        }
+                        ledColor = 0xff33bbff; // 独立提示色，不影响渠道
+                        isDefault = false;
+                    }
+                } catch (Throwable t) {
+                    FileLog.e(t);
+                }
+            }
 
             Intent intent = new Intent(ApplicationLoader.applicationContext, LaunchActivity.class);
             intent.setAction("com.tmessages.openchat" + Math.random() + Integer.MAX_VALUE);

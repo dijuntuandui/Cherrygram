@@ -219,9 +219,132 @@ public class CodeHighlighting {
         SpannableString result;
     }
 
+    // ===== [Aiqiyi] 语法高亮：无语言标记时的自动推断 =====
+    /** 开关状态，失败时静默关闭，绝不抛异常影响消息渲染 */
+    private static boolean guessEnabled() {
+        try {
+            return uz.unnarsx.cherrygram.core.configs.CherrygramAppearanceConfig.INSTANCE.getAiqiyiSyntaxHighlight();
+        } catch (Throwable t) {
+            return false;
+        }
+    }
+
+    /** 按打分选最可能的语言；分不够则返回 null，交由上层按纯文本渲染 */
+    private static String guessLanguage(CharSequence text) {
+        try {
+            if (text == null) return null;
+            final String s = text.toString();
+            final int len = s.length();
+            // 太短的代码推断不可靠，直接放弃
+            if (len < 12) return null;
+
+            final int[] score = new int[GUESS_LANGS.length];
+            final String lower = s.toLowerCase();
+
+            // --- 强特征：出现即高置信 ---
+            if (lower.contains("<?php")) bump(score, "php", 12);
+            if (lower.contains("<!doctype html") || lower.contains("<html")) bump(score, "markup", 12);
+            if (s.contains("package ") && s.contains(";") && s.contains("import ")) bump(score, "java", 6);
+            if (lower.contains("function ") && lower.contains("const ") && lower.contains("=>")) bump(score, "javascript", 8);
+            if (lower.contains("interface ") && lower.contains(": string")) bump(score, "typescript", 7);
+            if (s.contains("fn ") && s.contains("let mut ")) bump(score, "rust", 12);
+            if (s.contains("fn ") && s.contains("->") && s.contains("println!")) bump(score, "rust", 10);
+            if (s.contains("func ") && s.contains("package ")) bump(score, "go", 10);
+            if (s.contains("def ") && s.contains("self") && s.contains(":")) bump(score, "python", 7);
+            if (s.contains("fun ") && s.contains("val ") && s.contains("var ")) bump(score, "kotlin", 9);
+            if (s.contains("#include") && s.contains("<") && s.contains(">")) bump(score, "cpp", 8);
+            if (s.contains("using System") || s.contains("namespace ") && s.contains("class ")) bump(score, "csharp", 6);
+            if (s.contains("SELECT ") && s.contains("FROM ") || lower.contains("select ") && lower.contains("from ")) bump(score, "sql", 10);
+            if (lower.contains("#!/bin/bash") || lower.contains("#!/bin/sh")) bump(score, "bash", 14);
+            if (s.startsWith("<?xml") || s.startsWith("<resources")) bump(score, "markup", 12);
+            if (s.contains("{\"") && s.contains("\":") && s.trim().endsWith("}")) bump(score, "json", 7);
+            if (lower.contains("---\n") && lower.contains(": ")) bump(score, "yaml", 4);
+            if (lower.contains("import swiftui") || s.contains("func ") && s.contains("let ") && s.contains("guard let ")) bump(score, "swift", 8);
+            if (s.contains("@implementation") || s.contains("#import <")) bump(score, "objectivec", 12);
+            if (s.contains(".class") && s.contains(".method") && s.contains(".end method")) bump(score, "smali", 14);
+            if (s.contains("pragma solidity")) bump(score, "solidity", 14);
+
+            // --- 通用语法特征（弱信号，累加） ---
+            if (s.contains("{") && s.contains("}")) {
+                for (int i = 0; i < GUESS_LANGS.length; i++) score[i] += 1;
+            }
+            if (s.contains("//")) {
+                bump(score, "java", 2); bump(score, "cpp", 2); bump(score, "javascript", 2);
+                bump(score, "kotlin", 1); bump(score, "go", 2); bump(score, "rust", 2);
+            }
+            if (s.contains("#")) {
+                bump(score, "python", 2); bump(score, "bash", 2); bump(score, "yaml", 1);
+            }
+            if (s.contains(";")) {
+                bump(score, "java", 1); bump(score, "cpp", 1); bump(score, "javascript", 1);
+                bump(score, "csharp", 1); bump(score, "php", 1);
+            }
+            if (s.contains("def ") || s.contains("elif ") || s.contains("None")) bump(score, "python", 3);
+            if (s.contains("public ") || s.contains("private ") || s.contains("static ")) {
+                bump(score, "java", 3); bump(score, "csharp", 2); bump(score, "cpp", 1);
+            }
+            if (s.contains("val ") || s.contains("var ")) { bump(score, "kotlin", 3); }
+            if (s.contains("console.log")) bump(score, "javascript", 6);
+            if (s.contains("System.out.print")) bump(score, "java", 9);
+            if (s.contains("printf(")) { bump(score, "c", 4); bump(score, "cpp", 4); }
+            if (s.contains("std::")) bump(score, "cpp", 8);
+            if (s.contains("echo ") && s.contains("$")) bump(score, "bash", 4);
+            if (s.contains("<?php")) bump(score, "php", 12);
+            if (s.contains("=>") && s.contains("$")) bump(score, "php", 4);
+            if (s.contains("::") && s.contains("end")) bump(score, "ruby", 3);
+            if (s.contains("puts ")) bump(score, "ruby", 6);
+            if (s.contains("fn ") || s.contains("impl ")) bump(score, "rust", 4);
+            if (s.contains("mut ")) bump(score, "rust", 5);
+            if (s.contains("package main") || s.contains(":= ")) bump(score, "go", 8);
+            if (s.contains("fmt.")) bump(score, "go", 6);
+
+            // --- 取最高分，需超过阈值且领先次高 ---
+            int best = -1, bestScore = 0, secondScore = 0;
+            for (int i = 0; i < GUESS_LANGS.length; i++) {
+                if (score[i] > bestScore) {
+                    secondScore = bestScore;
+                    bestScore = score[i];
+                    best = i;
+                } else if (score[i] > secondScore) {
+                    secondScore = score[i];
+                }
+            }
+            // 阈值：至少 6 分，且要领先第二名 2 分，避免瞎猜
+            if (best < 0 || bestScore < 6 || bestScore - secondScore < 2) {
+                return null;
+            }
+            return GUESS_LANGS[best];
+        } catch (Throwable t) {
+            return null;
+        }
+    }
+
+    private static void bump(int[] score, String lang, int delta) {
+        for (int i = 0; i < GUESS_LANGS.length; i++) {
+            if (GUESS_LANGS[i].equals(lang)) {
+                score[i] += delta;
+                return;
+            }
+        }
+    }
+
+    /** 推断目标语言白名单，必须是 codelng 里真实存在的键 */
+    private static final String[] GUESS_LANGS = {
+        "java", "kotlin", "cpp", "c", "csharp", "javascript", "typescript",
+        "python", "go", "rust", "php", "ruby", "bash", "sql", "json",
+        "markup", "yaml", "swift", "objectivec", "smali", "solidity"
+    };
+
     public static SpannableString getHighlighted(CharSequence text, String language) {
         if (TextUtils.isEmpty(language)) {
-            return new SpannableString(text);
+            // [Aiqiyi] 语法高亮：未标注语言的代码块自动推断语言
+            if (!guessEnabled()) {
+                return new SpannableString(text);
+            }
+            language = guessLanguage(text);
+            if (language == null) {
+                return new SpannableString(text);
+            }
         }
         final String key = language + "`" + text;
         Highlighting process = processedHighlighting.get(key);

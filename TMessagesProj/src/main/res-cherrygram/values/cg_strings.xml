@@ -638,6 +638,10 @@
     <!-- 第一批：黄昏迁移 -->
     <string name="AQY_SpecialAttention">Special Attention</string>
     <string name="AQY_SpecialAttention_Desc">Get a separate alert when a specially-watched person messages you</string>
+    <string name="AQY_AttentionAdded">Added to special attention</string>
+    <string name="AQY_AttentionRemoved">Removed from special attention</string>
+    <string name="AQY_AttentionAddAction">Add to special attention</string>
+    <string name="AQY_AttentionRemoveAction">Remove from special attention</string>
     <string name="AQY_HourlyChime">Hourly Chime</string>
     <string name="AQY_HourlyChime_Desc">Automatically send a chime message every hour on the hour</string>
     <string name="AQY_Bookmarks">Message Bookmarks</string>

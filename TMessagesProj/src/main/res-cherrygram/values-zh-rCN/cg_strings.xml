@@ -501,6 +501,10 @@
     <!-- 第一批：黄昏迁移 -->
     <string name="AQY_SpecialAttention">特别关注</string>
     <string name="AQY_SpecialAttention_Desc">被特别关注的人发消息时单独提醒，不混在普通消息里</string>
+    <string name="AQY_AttentionAdded">已加入特别关注</string>
+    <string name="AQY_AttentionRemoved">已移出特别关注</string>
+    <string name="AQY_AttentionAddAction">加入特别关注</string>
+    <string name="AQY_AttentionRemoveAction">移出特别关注</string>
     <string name="AQY_HourlyChime">整点报时</string>
     <string name="AQY_HourlyChime_Desc">每到整点自动发出一条报时消息</string>
     <string name="AQY_Bookmarks">消息书签</string>

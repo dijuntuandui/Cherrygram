@@ -604,6 +604,9 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
     private ActionBarMenuSubItem readItem;
     @Nullable
     private ActionBarMenuSubItem blockItem;
+    // [Aiqiyi] 特别关注菜单项
+    @Nullable
+    private ActionBarMenuSubItem aiqiyiAttentionItem;
 
     public float additionalFloatingTranslation;
     public float floatingButtonPanOffset;
@@ -724,6 +727,8 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
     private final static int add_to_folder = 109;
     private final static int remove_from_folder = 110;
     private final static int community_ungroup = 111;
+    // [Aiqiyi] 特别关注：会话长按菜单项
+    private final static int aiqiyi_attention = 112;
 
     private final static int ARCHIVE_ITEM_STATE_PINNED = 0;
     private final static int ARCHIVE_ITEM_STATE_SHOWED = 1;
@@ -4123,6 +4128,22 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
                         undoView.showWithAction(did, UndoView.ACTION_REMOVED_FROM_FOLDER, neverShow.size(), filter, null, null);
                     }
                     hideActionMode(false);
+                } else if (id == aiqiyi_attention) {
+                    // [Aiqiyi] 特别关注：对选中会话批量切换关注状态
+                    try {
+                        final java.util.Set<Long> snapshot = new HashSet<>(selectedDialogs);
+                        boolean anyAdded = false;
+                        for (Long did : snapshot) {
+                            if (did == null) continue;
+                            anyAdded |= uz.unnarsx.cherrygram.core.configs.CherrygramAppearanceConfig.INSTANCE.toggleAttention(did);
+                        }
+                        if (getParentActivity() != null) {
+                            AndroidUtilities.showToast(getString(anyAdded ? R.string.AQY_AttentionAdded : R.string.AQY_AttentionRemoved));
+                        }
+                    } catch (Throwable t) {
+                        FileLog.e(t);
+                    }
+                    hideActionMode(false);
                 } else if (id == pin || id == read || id == delete || id == clear || id == mute || id == archive || id == block || id == archive2 || id == pin2) {
                     performSelectedDialogsAction(selectedDialogs, id, true, false);
                 }
@@ -6909,6 +6930,20 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
         addToFolderItem = otherItem.addSubItem(add_to_folder, R.drawable.msg_addfolder, LocaleController.getString(R.string.FilterAddTo));
         removeFromFolderItem = otherItem.addSubItem(remove_from_folder, R.drawable.msg_removefolder, LocaleController.getString(R.string.FilterRemoveFrom));
         readItem = otherItem.addSubItem(read, R.drawable.msg_markread, LocaleController.getString(R.string.MarkAsRead));
+        // [Aiqiyi] 特别关注：加入/移出关注名单
+        aiqiyiAttentionItem = otherItem.addSubItem(aiqiyi_attention, R.drawable.msg_permissions, getString(R.string.AQY_SpecialAttention));
+        try {
+            // 单会话长按时，按当前状态显示「加入」或「移出」
+            if (selectedDialogs.size() == 1) {
+                final long only = selectedDialogs.get(0);
+                final boolean watched = uz.unnarsx.cherrygram.core.configs.CherrygramAppearanceConfig.INSTANCE.isAttention(only);
+                aiqiyiAttentionItem.setText(getString(watched ? R.string.AQY_AttentionRemoveAction : R.string.AQY_AttentionAddAction));
+            } else {
+                aiqiyiAttentionItem.setText(getString(R.string.AQY_SpecialAttention));
+            }
+        } catch (Throwable t) {
+            FileLog.e(t);
+        }
         clearItem = otherItem.addSubItem(clear, R.drawable.msg_clear, LocaleController.getString(R.string.ClearHistory));
         blockItem = otherItem.addSubItem(block, R.drawable.msg_block, LocaleController.getString(R.string.BlockUser));
 

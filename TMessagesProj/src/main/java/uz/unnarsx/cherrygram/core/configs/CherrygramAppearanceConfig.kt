@@ -44,6 +44,47 @@ object CherrygramAppearanceConfig {
     // ===== 第一批（黄昏迁移）=====
     /** 爱琦艺插件 - 特别关注 */
     var aiqiyiSpecialAttention by sharedPreferences.boolean("AP_AiqiyiSpecialAttention", true)
+
+    // ===== 特别关注名单（存 dialogId，逗号分隔）=====
+    private var _attentionCache: MutableSet<Long>? = null
+
+    /** 读取关注名单（带缓存） */
+    fun getAttentionIds(): Set<Long> {
+        _attentionCache?.let { return it }
+        val raw = sharedPreferences.getString("AP_AiqiyiAttentionIds", "") ?: ""
+        val set = mutableSetOf<Long>()
+        if (raw.isNotEmpty()) {
+            for (part in raw.split(",")) {
+                part.trim().toLongOrNull()?.let { set.add(it) }
+            }
+        }
+        _attentionCache = set
+        return set
+    }
+
+    /** 某会话是否被特别关注 */
+    fun isAttention(dialogId: Long): Boolean {
+        if (!aiqiyiSpecialAttention) return false
+        return getAttentionIds().contains(dialogId)
+    }
+
+    /** 加入/移出关注名单，返回操作后是否在名单中 */
+    fun toggleAttention(dialogId: Long): Boolean {
+        val cur = getAttentionIds().toMutableSet()
+        val added = if (cur.contains(dialogId)) {
+            cur.remove(dialogId)
+            false
+        } else {
+            cur.add(dialogId)
+            true
+        }
+        _attentionCache = cur
+        sharedPreferences.edit()
+            .putString("AP_AiqiyiAttentionIds", cur.joinToString(","))
+            .apply()
+        return added
+    }
+
     /** 爱琦艺插件 - 整点报时 */
     var aiqiyiHourlyChime by sharedPreferences.boolean("AP_AiqiyiHourlyChime", false)
     /** 爱琦艺插件 - 消息书签 */
