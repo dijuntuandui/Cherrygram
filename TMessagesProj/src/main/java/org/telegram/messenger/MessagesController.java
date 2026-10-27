@@ -17785,11 +17785,15 @@ public class MessagesController extends BaseController implements NotificationCe
             // (clear history, manual delete, send failure cleanup) would be retained
             // too and the whole chat would look deleted.
             if (AiqiyiSaveDeleted.isEnabled()) {
+                android.util.Log.d("AQYDBG", "preSave@updateDeleteMessages dialog=" + dialogId + " ids=" + ids.size() + " " + ids);
                 try {
                     AiqiyiSaveDeleted.preSaveBeforeDelete(getMessagesStorage().getDatabase(),
                             getUserConfig().getClientUserId(), dialogId, ids);
-                } catch (Throwable ignored) {
+                } catch (Throwable t) {
+                    android.util.Log.d("AQYDBG", "preSave@updateDeleteMessages EX " + t);
                 }
+            } else {
+                android.util.Log.d("AQYDBG", "preSave@updateDeleteMessages SKIP disabled");
             }
             ArrayList<Long> dialogIds = getMessagesStorage().markMessagesAsDeleted(dialogId, ids, false, true, 0, 0);
             getMessagesStorage().updateDialogsWithDeletedMessages(dialogId, channelId, ids, dialogIds);
@@ -21385,11 +21389,15 @@ public class MessagesController extends BaseController implements NotificationCe
                     // [Aiqiyi] anti-revoke: TL_updateDeleteChannelMessages handler - save
                     // before the rows are wiped, scoped to exactly these ids.
                     if (AiqiyiSaveDeleted.isEnabled()) {
+                        android.util.Log.d("AQYDBG", "preSave@updateDeleteChannelMessages dialog=" + key + " ids=" + arrayList.size() + " " + arrayList);
                         try {
                             AiqiyiSaveDeleted.preSaveBeforeDelete(getMessagesStorage().getDatabase(),
                                     getUserConfig().getClientUserId(), key, arrayList);
-                        } catch (Throwable ignored) {
+                        } catch (Throwable t) {
+                            android.util.Log.d("AQYDBG", "preSave@updateDeleteChannelMessages EX " + t);
                         }
+                    } else {
+                        android.util.Log.d("AQYDBG", "preSave@updateDeleteChannelMessages SKIP disabled");
                     }
                     ArrayList<Long> dialogIds = getMessagesStorage().markMessagesAsDeleted(key, arrayList, false, true, 0, 0);
                     getMessagesStorage().updateDialogsWithDeletedMessages(key, -key, arrayList, dialogIds);

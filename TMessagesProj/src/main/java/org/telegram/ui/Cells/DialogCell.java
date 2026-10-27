@@ -461,6 +461,7 @@ public class DialogCell extends BaseCell implements StoriesListPlaceProvider.Ava
 
     private boolean openBot;
     private final ButtonBounce openButtonBounce = new ButtonBounce(this);
+    // [Aiqiyi] 在线状态点专用画笔（不共用 Theme.dialogs_onlineCirclePaint）
     private final Paint openButtonBackgroundPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final RectF openButtonRect = new RectF();
     private Text openButtonText;

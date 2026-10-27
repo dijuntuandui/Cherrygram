@@ -382,7 +382,8 @@ public class AiqiyiSaveDeleted {
                     }
                 }
             }
-        } catch (Throwable e) {
+                } catch (Throwable e) {
+            android.util.Log.d("AQYDBG", "preSave EX " + e);
             FileLog.e(e);
         } finally {
             if (cursor != null) {
@@ -409,6 +410,7 @@ public class AiqiyiSaveDeleted {
      * Never throws.
      */
     public static void mergeIntoResult(SQLiteDatabase database, long dialogId, int minMid, int maxMid, TLRPC.TL_messages_messages target) {
+        android.util.Log.d("AQYDBG", "merge ENTER dialog=" + dialogId + " win=[" + minMid + "," + maxMid + "] db=" + (database == null ? "null" : "ok") + " target=" + (target == null ? "null" : target.messages.size()));
         if (database == null || target == null) {
             return;
         }
@@ -416,6 +418,7 @@ public class AiqiyiSaveDeleted {
             return;
         }
         SQLiteCursor cursor = null;
+        int diagMerged = 0;
         try {
             LongSparseArray<Boolean> present = null;
             for (int i = 0; i < target.messages.size(); i++) {
@@ -487,6 +490,9 @@ public class AiqiyiSaveDeleted {
                 }
             }
 
+            diagMerged = merged == null ? 0 : merged.size();
+            android.util.Log.d("AQYDBG", "merge dialog=" + dialogId + " win=[" + minMid + "," + maxMid
+                    + "] live=" + target.messages.size() + " hit=" + diagMerged);
             if (merged != null && !merged.isEmpty()) {
                 // [Aiqiyi] The page assembled by getMessagesInternal is NOT a single
                 // monotonic list: the hole logic UNIONs a "date DESC" half with a
@@ -517,14 +523,9 @@ public class AiqiyiSaveDeleted {
                 try {
                     MEMBERSHIP_CACHE.put(dialogId, revokedIds);
                     MEMBERSHIP_CACHE_STAMP.put(dialogId, android.os.SystemClock.elapsedRealtime());
-                    // [Aiqiyi] merge is the only place that knows the truth for a
-                    // dialog, so it also refreshes the session-wide set.
-                    java.util.HashSet<Integer> all = REVOKED_IDS.get(dialogId);
-                    if (all == null) {
-                        all = new java.util.HashSet<>();
-                        REVOKED_IDS.put(dialogId, all);
-                    }
-                    all.addAll(revokedIds);
+                    // [Aiqiyi] REVOKED_IDS itself is rebuilt in full by
+                    // refreshRevokedIds() at the end of this method - doing an
+                    // addAll here would only ever see the windowed subset.
                 } catch (Throwable ignored) {
                 }
             }
@@ -536,6 +537,44 @@ public class AiqiyiSaveDeleted {
                     cursor.dispose();
                 } catch (Throwable ignored) {
                 }
+            }
+        }
+        // [Aiqiyi] The page window above exists only to keep very old revoked
+        // messages from being dragged into the first screen. The *membership*
+        // cache must not inherit that window: a freshly revoked id is always
+        // outside the range built from the page's live ids, so the flag would
+        // never be set and the bubble would render as a normal message.
+        refreshRevokedIds(database, dialogId);
+    }
+
+    /**
+     * [Aiqiyi] Rebuild REVOKED_IDS for one dialog from saved_deleted_cherry,
+     * unconditionally (no id window). Storage thread only. Never throws.
+     */
+    private static void refreshRevokedIds(SQLiteDatabase database, long dialogId) {
+        android.util.Log.d("AQYDBG", "refresh ENTER dialog=" + dialogId);
+        if (database == null) {
+            return;
+        }
+        SQLiteCursor c = null;
+        try {
+            java.util.HashSet<Integer> all = new java.util.HashSet<>();
+            c = database.queryFinalized("SELECT mid FROM " + TABLE + " WHERE dialog_id = " + dialogId);
+            while (c.next()) {
+                try {
+                    all.add(c.intValue(0));
+                } catch (Throwable ignored) {
+                }
+            }
+            if (!all.isEmpty()) {
+                REVOKED_IDS.put(dialogId, all);
+            }
+            android.util.Log.d("AQYDBG", "refresh dialog=" + dialogId + " revokedTotal=" + all.size());
+        } catch (Throwable e) {
+            FileLog.e(e);
+        } finally {
+            if (c != null) {
+                try { c.dispose(); } catch (Throwable ignored) {}
             }
         }
     }
@@ -572,6 +611,13 @@ public class AiqiyiSaveDeleted {
     public static boolean isDeletedMessageCached(long dialogId, int mid) {
         if (mid == 0 || !isEnabled()) {
             return false;
+        }
+        try {
+            java.util.HashSet<Integer> probe = REVOKED_IDS.get(dialogId);
+            android.util.Log.d("AQYDBG", "isCached dialog=" + dialogId + " mid=" + mid
+                    + " revokedSet=" + (probe == null ? "null" : probe.size())
+                    + " hit=" + (probe != null && probe.contains(mid)));
+        } catch (Throwable ignored) {
         }
         try {
             // [Aiqiyi] Prefer the session-wide set: it is only ever filled from
@@ -669,13 +715,25 @@ public class AiqiyiSaveDeleted {
      * Never throws.
      */
     public static void preSaveBeforeDelete(SQLiteDatabase database, long currentUser, long dialogId, ArrayList<Integer> ids) {
+        android.util.Log.d("AQYDBG", "preSave ENTER db=" + (database == null ? "null" : "ok")
+                + " ids=" + (ids == null ? "null" : ids.size()) + " dialog=" + dialogId + " me=" + currentUser);
         if (database == null || ids == null || ids.isEmpty()) {
+            android.util.Log.d("AQYDBG", "preSave EARLY-out null/empty");
             return;
         }
         if (!isEnabled()) {
+            android.util.Log.d("AQYDBG", "preSave EARLY-out disabled");
             return;
         }
-        if (dialogId == currentUser) {
+        if (dialogId == 0) {
+            // [Aiqiyi] TL_updateDeleteMessages carries no peer, so the controller
+            // stacks it under dialogId 0 and resolves the real dialog later from
+            // each message id. Querying "WHERE mid IN(...) AND uid = 0" therefore
+            // matches nothing and every revoked body was dropped. Resolve the row
+            // by mid alone and keep whatever uid the row already has.
+            android.util.Log.d("AQYDBG", "preSave dialog=0 -> resolve by mid only");
+        } else if (dialogId == currentUser) {
+            android.util.Log.d("AQYDBG", "preSave EARLY-out self-dialog");
             return;
         }
         SQLiteCursor cursor = null;
@@ -685,11 +743,21 @@ public class AiqiyiSaveDeleted {
                 if (i > 0) sb.append(',');
                 sb.append(ids.get(i));
             }
-            cursor = database.queryFinalized(String.format(Locale.US,
-                    "SELECT uid, data, mid, date FROM messages_v2 WHERE mid IN(%s) AND uid = %d",
-                    sb.toString(), dialogId));
+            if (dialogId == 0) {
+                android.util.Log.d("AQYDBG", "preSave SQL mid IN(" + sb + ") no-uid");
+                cursor = database.queryFinalized(String.format(Locale.US,
+                        "SELECT uid, data, mid, date FROM messages_v2 WHERE mid IN(%s)",
+                        sb.toString()));
+            } else {
+                android.util.Log.d("AQYDBG", "preSave SQL mid IN(" + sb + ") uid=" + dialogId);
+                cursor = database.queryFinalized(String.format(Locale.US,
+                        "SELECT uid, data, mid, date FROM messages_v2 WHERE mid IN(%s) AND uid = %d",
+                        sb.toString(), dialogId));
+            }
             int saved = 0;
+            int scanned = 0;
             while (cursor.next()) {
+                scanned++;
                 long uid = cursor.longValue(0);
                 NativeByteBuffer data = cursor.byteBufferValue(1);
                 int mid = cursor.intValue(2);
@@ -706,11 +774,28 @@ public class AiqiyiSaveDeleted {
                         // the real id into the snapshot before it is persisted,
                         // otherwise the merged copy comes back with id 0 and the
                         // page ordering collapses.
+                        // [Aiqiyi] messages_v2.mid can be NULL/0 for rows that were
+                        // never backfilled (and the `data` blob then carries the
+                        // only real id). Both directions must be covered: fill
+                        // message.id from mid, and fill mid from message.id.
+                        // Missing the second direction used to feed mid == 0 into
+                        // saveDeleted, which silently drops the row - that is why
+                        // revoked messages were never persisted at all.
                         if (mid != 0 && message.id == 0) {
                             message.id = mid;
                         }
+                        if (mid == 0 && message.id != 0) {
+                            mid = message.id;
+                        }
                         if (message.date == 0 && date != 0) {
                             message.date = date;
+                        }
+                        if (date == 0 && message.date != 0) {
+                            date = message.date;
+                        }
+                        if (mid == 0) {
+                            android.util.Log.d("AQYDBG", "preSave SKIP id-less row dialog=" + dialogId);
+                            continue;
                         }
                         // [Aiqiyi] B: keep revoked photos visible by pointing at the
                         // copy that is already in the app cache. resolveCachedPath is
@@ -732,6 +817,8 @@ public class AiqiyiSaveDeleted {
                     data.reuse();
                 }
             }
+            android.util.Log.d("AQYDBG", "preSave QUERY done dialog=" + dialogId
+                    + " ids=" + ids.size() + " scanned=" + scanned + " saved=" + saved);
         } catch (Throwable e) {
             FileLog.e(e);
         } finally {
