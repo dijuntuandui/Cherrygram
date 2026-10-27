@@ -149,6 +149,8 @@ public class ProfileGiftsView extends View implements NotificationCenter.Notific
         // Aiqiyi: update() 里才生成 localGifts，必须在此之后补挂图片，否则只剩色块。
         for (Gift gift : localGifts) {
             if (gift.emojiDrawable != null) gift.emojiDrawable.addView(this);
+            // Aiqiyi: pattern 层是 SwapAnimatedEmojiDrawable（Drawable），挂载走 attach()
+            if (gift.patternDrawable != null) gift.patternDrawable.attach();
         }
     }
 
@@ -163,9 +165,12 @@ public class ProfileGiftsView extends View implements NotificationCenter.Notific
         // Aiqiyi: 同步解绑本地礼物 emojiDrawable
         for (Gift gift : localGifts) {
             if (gift.emojiDrawable != null) gift.emojiDrawable.removeView(this);
+            // Aiqiyi: pattern 层解绑走 detach()，避免继续跑动画
+            if (gift.patternDrawable != null) gift.patternDrawable.detach();
         }
         for (Gift gift : gifts) {
             if (gift.emojiDrawable != null) gift.emojiDrawable.removeView(this);
+            if (gift.patternDrawable != null) gift.patternDrawable.detach();
         }
     }
 
@@ -194,12 +199,28 @@ public class ProfileGiftsView extends View implements NotificationCenter.Notific
 
         public int position = -1;
 
+        /**
+         * Aiqiyi: 礼物图案（pattern）文档与染色。
+         *
+         * 官方 StarGiftDrawableIcon 画一份立体礼物是三层：
+         *   gradient（backdrop 径向渐变） + pattern（图案纹路，染 pattern_color） + model（立体本体）
+         * 我们这里只补第二层，立体本体仍走 emojiDrawable 贴纸，保持现状不动。
+         *
+         * patternDoc 为 null 时 draw() 会跳过这一层，表现与改动前完全一致。
+         */
+        public TLRPC.Document patternDoc;
+        public int patternColor;
+        public AnimatedEmojiDrawable.SwapAnimatedEmojiDrawable patternDrawable;
+
         public Gift(TL_stars.TL_starGiftUnique gift) {
             id = gift.id;
             document = gift.getDocument();
             documentId = document == null ? 0 : document.id;
             final TL_stars.starGiftAttributeBackdrop backdrop = findAttribute(gift.attributes, TL_stars.starGiftAttributeBackdrop.class);
             color = backdrop.center_color | 0xFF000000;
+            patternColor = backdrop.pattern_color | 0xFF000000;
+            final TL_stars.starGiftAttributePattern attrPattern = findAttribute(gift.attributes, TL_stars.starGiftAttributePattern.class);
+            patternDoc = attrPattern != null ? attrPattern.document : null;
             slug = gift.slug;
             initParticles();
         }
@@ -209,6 +230,7 @@ public class ProfileGiftsView extends View implements NotificationCenter.Notific
             document = null;
             documentId = status.document_id;
             color = status.center_color | 0xFF000000;
+            patternColor = status.pattern_color | 0xFF000000;
             slug = status.slug;
             initParticles();
         }
@@ -222,6 +244,7 @@ public class ProfileGiftsView extends View implements NotificationCenter.Notific
             document = doc;
             documentId = doc != null ? doc.id : status.document_id;
             color = status.center_color | 0xFF000000;
+            patternColor = status.pattern_color | 0xFF000000;
             slug = status.slug;
             initParticles();
         }
@@ -252,6 +275,10 @@ public class ProfileGiftsView extends View implements NotificationCenter.Notific
             animatedFloat = b.animatedFloat;
             particles = b.particles;
             position = b.position;
+            // Aiqiyi: pattern 三件套跟着复制，否则同 id 礼物复用时纹路层丢失
+            patternDoc = b.patternDoc;
+            patternColor = b.patternColor;
+            patternDrawable = b.patternDrawable;
         }
 
         public void draw(
@@ -274,6 +301,20 @@ public class ProfileGiftsView extends View implements NotificationCenter.Notific
             if (gradientPaint != null) {
                 gradientPaint.setAlpha((int) (0xFF * alpha * gradientAlpha));
                 canvas.drawRect(-gsz / 2.0f, -gsz / 2.0f, gsz / 2.0f, gsz / 2.0f, gradientPaint);
+            }
+            // Aiqiyi: 补礼物图案（pattern）层。
+            // 官方 StarGiftDrawableIcon 的画法是 gradient -> pattern -> model 三层，
+            // 我们原来只有 gradient + emojiDrawable，中间那层纹路缺失，所以佩戴后
+            // 名字旁只剩一块光秃秃的渐变底 + 一个贴纸，跟官方的立体质感差一截。
+            // 这里只补 pattern，立体本体仍然走下面的 emojiDrawable，不改变现状。
+            //   scale 0.25f 对齐官方同尺寸用法（StarsIntroActivity 46dp 用 .25f，
+            //   我们这格是 45dp，肉眼无差）。
+            //   patternDrawable 为 null（礼物没有 pattern 属性 / 文档没缓存）时整层跳过，
+            //   表现与改动前完全一致，不会画成空白。
+            if (patternDrawable != null) {
+                patternDrawable.setBounds(-(int) (gsz / 2.0f), -(int) (gsz / 2.0f), (int) (gsz / 2.0f), (int) (gsz / 2.0f));
+                patternDrawable.setAlpha((int) (0xFF * alpha * gradientAlpha));
+                StarGiftPatterns.drawPattern(canvas, StarGiftPatterns.TYPE_DEFAULT, patternDrawable, gsz, gsz, alpha * gradientAlpha, 0.25f);
             }
             if (emojiDrawable != null) {
                 final int sz = dp(24);
@@ -429,6 +470,12 @@ public class ProfileGiftsView extends View implements NotificationCenter.Notific
                 g.emojiDrawable.removeView(this);
                 g.emojiDrawable = null;
                 g.gradient = null;
+                // Aiqiyi: 礼物被移除时 pattern 层同步解绑置空，防止残留动画
+                if (g.patternDrawable != null) {
+                    g.patternDrawable.detach();
+                    g.patternDrawable = null;
+                }
+                g.patternDoc = null;
             } else {
                 positions.remove((Object) g.position);
             }
@@ -644,6 +691,14 @@ public class ProfileGiftsView extends View implements NotificationCenter.Notific
                     doc = LocalGiftConverter.findDocument(data.getDocumentId());
                 }
                 final Gift gift = new Gift((TLRPC.TL_emojiStatusCollectible) status, doc);
+                // Aiqiyi: 取图案文档（pattern）。
+                // 走 LocalGiftConverter 已有的兜底链：缓存 -> 磁盘 -> base64 -> 目录。
+                // 取不到就留 null，draw() 跳过 pattern 层，表现等同改动前。
+                try {
+                    gift.patternDoc = LocalGiftConverter.resolvePatternDocument(data);
+                } catch (Throwable ignore) {
+                    gift.patternDoc = null;
+                }
                 // Aiqiyi: 本地礼物与官方佩戴礼物共用同一套 0..maxCount-1 环绕坐标。
                 // 分配顺序：先让官方礼物吃满自己的槽位，本地礼物再取剩下的空位，
                 // 这样本地礼物出现在头像周围那六个点上，样式/动画/点击全部复用官方逻辑。
@@ -670,6 +725,26 @@ public class ProfileGiftsView extends View implements NotificationCenter.Notific
                     }
                     if (gift.emojiDrawable != null && isAttachedToWindow()) {
                         gift.emojiDrawable.addView(this);
+                    }
+                }
+                // Aiqiyi: 本地礼物的图案（pattern）层。
+                // 数据侧 LocalGiftConverter.resolvePatternDocument 已有四层兜底
+                // （内存缓存 -> 磁盘文件 -> base64 还原 -> 目录属性），这里只管取和建壳。
+                // pattern 文档缺失时 patternDrawable 保持 null，draw() 会跳过该层，
+                // 表现与改动前完全一致，绝不会因为这条改动画成空白。
+                if (gift.patternDrawable == null && gift.patternDoc != null) {
+                    try {
+                        gift.patternDrawable = new AnimatedEmojiDrawable.SwapAnimatedEmojiDrawable(this, false, dp(18));
+                        gift.patternDrawable.set(gift.patternDoc, false);
+                        gift.patternDrawable.setColor(gift.patternColor);
+                        // SwapAnimatedEmojiDrawable 是 Drawable，不是 AnimatedEmojiDrawable，
+                        // 没有 preload()，挂载走 attach()/detach()，不是 addView/removeView。
+                        if (isAttachedToWindow()) {
+                            gift.patternDrawable.attach();
+                        }
+                    } catch (Throwable t) {
+                        org.telegram.messenger.FileLog.e("Aiqiyi patternDrawable init failed", t);
+                        gift.patternDrawable = null;
                     }
                 }
                 if (gift.animatedFloat == null) {
