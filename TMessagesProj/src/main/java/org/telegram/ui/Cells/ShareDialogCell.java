@@ -410,7 +410,7 @@ public class ShareDialogCell extends FrameLayout implements NotificationCenter.N
                     canvas.restore();
                 }
 
-                boolean isOnline = !premiumBlocked && !user.self && !user.bot && CherrygramAppearanceConfig.INSTANCE.getAiqiyiShowOnlineStatus() && (user.status != null && user.status.expires > ConnectionsManager.getInstance(currentAccount).getCurrentTime() || MessagesController.getInstance(currentAccount).onlinePrivacy.containsKey(user.id));
+                boolean isOnline = !premiumBlocked && !user.self && !user.bot && (user.status != null && user.status.expires > ConnectionsManager.getInstance(currentAccount).getCurrentTime() || MessagesController.getInstance(currentAccount).onlinePrivacy.containsKey(user.id));
                 if (isOnline || onlineProgress != 0) {
                     int top = imageView.getBottom() - dp(6);
                     int left = imageView.getRight() - dp(10);

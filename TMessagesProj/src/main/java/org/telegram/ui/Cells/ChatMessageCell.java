@@ -15259,58 +15259,6 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
         }
         transitionParams.recordDrawingState();
         checkStakedDice();
-        // [Aiqiyi] 发言人头像在线点（常规群聊 / 私聊都走这里）
-        drawAiqiyiOnlineDot(canvas);
-    }
-
-    /**
-     * [Aiqiyi] 在发言人头像的圆弧上绘制在线状态圆点。
-     *
-     * 由 onDraw 末尾无条件调用，坐标直接读 avatarImage —— layout 阶段已经由
-     * setImageCoords 设好，此时是最准的。
-     *
-     * 不能挂到 drawNameAvatar 分支里：那个分支只在「话题群 + 侧边菜单」时为 true，
-     * 普通群和私聊永远进不去。
-     */
-    private void drawAiqiyiOnlineDot(Canvas canvas) {
-        try {
-            if (!isAvatarVisible || currentUser == null) {
-                return;
-            }
-            if (currentMessageObject == null || currentMessageObject.isOutOwner()) {
-                return;
-            }
-            if (currentMessageObject.isSponsored()) {
-                return;
-            }
-            if (!uz.unnarsx.cherrygram.core.configs.CherrygramAppearanceConfig.INSTANCE.getAiqiyiShowOnlineStatus()) {
-                return;
-            }
-            // 注意：avatarImage 是 ImageReceiver，getCenterX()/getImageWidth() 返回的是 0~1 的归一化比例，
-            // 不能当像素用。这里走 getImageX/Y/Width() 拿真实像素矩形。
-            final float avatarW = avatarImage.getImageWidth();
-            final float avatarH = avatarImage.getImageHeight();
-            if (avatarW <= 0 || avatarH <= 0) {
-                return;
-            }
-            final int dotColor = uz.unnarsx.cherrygram.aiqiyi.AiqiyiOnlineDot.getDotColor(currentAccount, currentUser);
-            if (dotColor == 0) {
-                return;
-            }
-            final float cx0 = avatarImage.getImageX() + avatarW / 2f;
-            final float cy0 = avatarImage.getImageY() + avatarH / 2f;
-            final float radius = Math.min(avatarW, avatarH) / 2f;
-            // 圆心沿 45° 走一个半径，再往内收 2dp，白边压在头像边缘内侧
-            final float diag = radius * 0.7071f - dp(2f);
-            final float cx = org.telegram.messenger.LocaleController.isRTL ? cx0 - diag : cx0 + diag;
-            final float cy = cy0 + diag;
-            Theme.dialogs_onlineCirclePaint.setColor(0xFFFFFFFF);
-            canvas.drawCircle(cx, cy, dp(7.5f), Theme.dialogs_onlineCirclePaint);
-            Theme.dialogs_onlineCirclePaint.setColor(dotColor);
-            canvas.drawCircle(cx, cy, dp(6f), Theme.dialogs_onlineCirclePaint);
-        } catch (Throwable e) {
-            FileLog.e(e);
-        }
     }
 
     private void checkStakedDice() {

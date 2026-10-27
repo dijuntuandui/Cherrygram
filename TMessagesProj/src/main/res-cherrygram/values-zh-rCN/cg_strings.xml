@@ -492,8 +492,6 @@
     <string name="AQY_GhostMode">幽灵模式</string>
     <string name="AQY_GhostMode_Desc">不发送已读回执，隐身在线状态</string>
     <!--Aiqiyi: show online status-->
-    <string name="AQY_ShowOnlineStatus">显示用户在线状态</string>
-    <string name="AQY_ShowOnlineStatus_Desc">在单聊头像右下角显示三色状态点（蓝=在线，黄=刚离开，红=离线）</string>
     <string name="AQY_UnlimitedPins">无限置顶</string>
     <string name="AQY_UnlimitedPins_Desc">解除置顶数量上限，主列表与文件夹内都可随意置顶</string>
     <string name="AQY_UnlimitedFolders">无限文件夹</string>

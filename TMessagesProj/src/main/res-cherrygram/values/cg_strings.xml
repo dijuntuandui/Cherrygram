@@ -629,8 +629,6 @@
     <string name="AQY_GhostMode">Ghost Mode</string>
     <string name="AQY_GhostMode_Desc">Do not send read receipts, stay invisible</string>
     <!--Aiqiyi: show online status-->
-    <string name="AQY_ShowOnlineStatus">Show User Online Status</string>
-    <string name="AQY_ShowOnlineStatus_Desc">Show a three-color status dot at the bottom-right corner of private chat avatars (blue=online, yellow=recently, red=offline)</string>
     <string name="AQY_UnlimitedPins">Unlimited Pins</string>
     <string name="AQY_UnlimitedPins_Desc">Remove the pinned dialogs limit — pin freely in the main list and in folders</string>
     <string name="AQY_UnlimitedFolders">Unlimited Folders</string>
