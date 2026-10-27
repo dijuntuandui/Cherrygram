@@ -4138,7 +4138,9 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
                             anyAdded |= uz.unnarsx.cherrygram.core.configs.CherrygramAppearanceConfig.INSTANCE.toggleAttention(did);
                         }
                         if (getParentActivity() != null) {
-                            AndroidUtilities.showToast(getString(anyAdded ? R.string.AQY_AttentionAdded : R.string.AQY_AttentionRemoved));
+                            android.widget.Toast.makeText(getParentActivity(),
+                                getString(anyAdded ? R.string.AQY_AttentionAdded : R.string.AQY_AttentionRemoved),
+                                android.widget.Toast.LENGTH_SHORT).show();
                         }
                     } catch (Throwable t) {
                         FileLog.e(t);
