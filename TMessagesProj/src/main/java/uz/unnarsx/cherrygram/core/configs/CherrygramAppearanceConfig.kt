@@ -54,8 +54,6 @@ object CherrygramAppearanceConfig {
     var aiqiyiExtensionCleanup by sharedPreferences.boolean("AP_AiqiyiExtensionCleanup", false)
     /** 爱琦艺插件 - 本地坐标伪造 */
     var aiqiyiFakeLocation by sharedPreferences.boolean("AP_AiqiyiFakeLocation", false)
-    /** 爱琦艺插件 - 动态壁纸 */
-    var aiqiyiDynamicWallpaper by sharedPreferences.boolean("AP_AiqiyiDynamicWallpaper", false)
     /** 爱琦艺插件 - 对白气泡 */
     var aiqiyiDialogueBubble by sharedPreferences.boolean("AP_AiqiyiDialogueBubble", false)
     /** 爱琦艺插件 - 活跃专区 */

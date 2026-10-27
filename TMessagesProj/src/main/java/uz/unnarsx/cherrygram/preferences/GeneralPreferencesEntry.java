@@ -92,7 +92,6 @@ public class GeneralPreferencesEntry extends BaseCGPreferencesEntry {
     private final int aiqiyiSyntaxHighlightRow = 41;
     private final int aiqiyiExtensionCleanupRow = 42;
     private final int aiqiyiFakeLocationRow = 43;
-    private final int aiqiyiDynamicWallpaperRow = 44;
     private final int aiqiyiDialogueBubbleRow = 45;
     private final int aiqiyiActiveZoneRow = 46;
 
@@ -314,10 +313,6 @@ public class GeneralPreferencesEntry extends BaseCGPreferencesEntry {
                 .setChecked(CherrygramAppearanceConfig.INSTANCE.getAiqiyiFakeLocation())
                 .slug("aiqiyi_fake_location")
         );
-        items.add(SettingsHelper.asSwitchCG(aiqiyiDynamicWallpaperRow, getString(R.string.AQY_DynamicWallpaper), getString(R.string.AQY_DynamicWallpaper_Desc))
-                .setChecked(CherrygramAppearanceConfig.INSTANCE.getAiqiyiDynamicWallpaper())
-                .slug("aiqiyi_dynamic_wallpaper")
-        );
         items.add(SettingsHelper.asSwitchCG(aiqiyiDialogueBubbleRow, getString(R.string.AQY_DialogueBubble), getString(R.string.AQY_DialogueBubble_Desc))
                 .setChecked(CherrygramAppearanceConfig.INSTANCE.getAiqiyiDialogueBubble())
                 .slug("aiqiyi_dialogue_bubble")
@@ -532,9 +527,6 @@ items.add(SettingsHelper.asTextDetail(aiqiyiAutoSignInRow, 0, getString(R.string
             CherrygramAppearanceConfig.INSTANCE.setAiqiyiFakeLocation(!CherrygramAppearanceConfig.INSTANCE.getAiqiyiFakeLocation());
             SettingsHelper.updateCheckState(view, CherrygramAppearanceConfig.INSTANCE.getAiqiyiFakeLocation());
             showRestartBulletin();
-        } else if (item.id == aiqiyiDynamicWallpaperRow) {
-            CherrygramAppearanceConfig.INSTANCE.setAiqiyiDynamicWallpaper(!CherrygramAppearanceConfig.INSTANCE.getAiqiyiDynamicWallpaper());
-            SettingsHelper.updateCheckState(view, CherrygramAppearanceConfig.INSTANCE.getAiqiyiDynamicWallpaper());
         } else if (item.id == aiqiyiDialogueBubbleRow) {
             CherrygramAppearanceConfig.INSTANCE.setAiqiyiDialogueBubble(!CherrygramAppearanceConfig.INSTANCE.getAiqiyiDialogueBubble());
             SettingsHelper.updateCheckState(view, CherrygramAppearanceConfig.INSTANCE.getAiqiyiDialogueBubble());

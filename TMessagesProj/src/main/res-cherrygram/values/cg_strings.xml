@@ -648,8 +648,6 @@
     <string name="AQY_ExtensionCleanup_Desc">Clean cache, messages and files within a time range</string>
     <string name="AQY_FakeLocation">Local Fake Location</string>
     <string name="AQY_FakeLocation_Desc">Send a custom coordinate when sharing location, local only</string>
-    <string name="AQY_DynamicWallpaper">Dynamic Wallpaper</string>
-    <string name="AQY_DynamicWallpaper_Desc">Set an animated background for chats, per-conversation supported</string>
     <string name="AQY_DialogueBubble">Dialogue Bubbles</string>
     <string name="AQY_DialogueBubble_Desc">Render messages with dialogue effects driven by a txt script</string>
     <string name="AQY_ActiveZone">Active Zone</string>

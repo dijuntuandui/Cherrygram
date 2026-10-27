@@ -511,8 +511,6 @@
     <string name="AQY_ExtensionCleanup_Desc">按时间范围清理缓存、消息与文件</string>
     <string name="AQY_FakeLocation">本地坐标伪造</string>
     <string name="AQY_FakeLocation_Desc">发送位置时使用自定义坐标，仅本机有效</string>
-    <string name="AQY_DynamicWallpaper">动态壁纸</string>
-    <string name="AQY_DynamicWallpaper_Desc">为聊天设置动态背景，可为单个会话单独指定</string>
     <string name="AQY_DialogueBubble">对白气泡</string>
     <string name="AQY_DialogueBubble_Desc">按 txt 剧本让消息带对白效果</string>
     <string name="AQY_ActiveZone">活跃专区</string>
