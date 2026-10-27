@@ -503,8 +503,6 @@
     <string name="AQY_SpecialAttention_Desc">被特别关注的人发消息时单独提醒，不混在普通消息里</string>
     <string name="AQY_HourlyChime">整点报时</string>
     <string name="AQY_HourlyChime_Desc">每到整点自动发出一条报时消息</string>
-    <string name="AQY_BubbleStyle">气泡样式库</string>
-    <string name="AQY_BubbleStyle_Desc">更换聊天气泡外观，多种样式可选</string>
     <string name="AQY_Bookmarks">消息书签</string>
     <string name="AQY_Bookmarks_Desc">收藏任意消息，随时翻回去看</string>
     <string name="AQY_SyntaxHighlight">语法高亮</string>

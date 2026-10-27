@@ -46,8 +46,6 @@ object CherrygramAppearanceConfig {
     var aiqiyiSpecialAttention by sharedPreferences.boolean("AP_AiqiyiSpecialAttention", true)
     /** 爱琦艺插件 - 整点报时 */
     var aiqiyiHourlyChime by sharedPreferences.boolean("AP_AiqiyiHourlyChime", false)
-    /** 爱琦艺插件 - 气泡样式库 */
-    var aiqiyiBubbleStyle by sharedPreferences.boolean("AP_AiqiyiBubbleStyle", false)
     /** 爱琦艺插件 - 消息书签 */
     var aiqiyiBookmarks by sharedPreferences.boolean("AP_AiqiyiBookmarks", true)
     /** 爱琦艺插件 - 语法高亮 */

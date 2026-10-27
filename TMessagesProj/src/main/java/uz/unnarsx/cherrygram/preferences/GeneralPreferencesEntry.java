@@ -88,7 +88,6 @@ public class GeneralPreferencesEntry extends BaseCGPreferencesEntry {
     // ===== 第一批（黄昏迁移）=====
     private final int aiqiyiSpecialAttentionRow = 37;
     private final int aiqiyiHourlyChimeRow = 38;
-    private final int aiqiyiBubbleStyleRow = 39;
     private final int aiqiyiBookmarksRow = 40;
     private final int aiqiyiSyntaxHighlightRow = 41;
     private final int aiqiyiExtensionCleanupRow = 42;
@@ -298,10 +297,6 @@ public class GeneralPreferencesEntry extends BaseCGPreferencesEntry {
         items.add(SettingsHelper.asSwitchCG(aiqiyiHourlyChimeRow, getString(R.string.AQY_HourlyChime), getString(R.string.AQY_HourlyChime_Desc))
                 .setChecked(CherrygramAppearanceConfig.INSTANCE.getAiqiyiHourlyChime())
                 .slug("aiqiyi_hourly_chime")
-        );
-        items.add(SettingsHelper.asSwitchCG(aiqiyiBubbleStyleRow, getString(R.string.AQY_BubbleStyle), getString(R.string.AQY_BubbleStyle_Desc))
-                .setChecked(CherrygramAppearanceConfig.INSTANCE.getAiqiyiBubbleStyle())
-                .slug("aiqiyi_bubble_style")
         );
         items.add(SettingsHelper.asSwitchCG(aiqiyiBookmarksRow, getString(R.string.AQY_Bookmarks), getString(R.string.AQY_Bookmarks_Desc))
                 .setChecked(CherrygramAppearanceConfig.INSTANCE.getAiqiyiBookmarks())
@@ -524,10 +519,6 @@ items.add(SettingsHelper.asTextDetail(aiqiyiAutoSignInRow, 0, getString(R.string
         } else if (item.id == aiqiyiHourlyChimeRow) {
             CherrygramAppearanceConfig.INSTANCE.setAiqiyiHourlyChime(!CherrygramAppearanceConfig.INSTANCE.getAiqiyiHourlyChime());
             SettingsHelper.updateCheckState(view, CherrygramAppearanceConfig.INSTANCE.getAiqiyiHourlyChime());
-        } else if (item.id == aiqiyiBubbleStyleRow) {
-            CherrygramAppearanceConfig.INSTANCE.setAiqiyiBubbleStyle(!CherrygramAppearanceConfig.INSTANCE.getAiqiyiBubbleStyle());
-            SettingsHelper.updateCheckState(view, CherrygramAppearanceConfig.INSTANCE.getAiqiyiBubbleStyle());
-            showRestartBulletin();
         } else if (item.id == aiqiyiBookmarksRow) {
             CherrygramAppearanceConfig.INSTANCE.setAiqiyiBookmarks(!CherrygramAppearanceConfig.INSTANCE.getAiqiyiBookmarks());
             SettingsHelper.updateCheckState(view, CherrygramAppearanceConfig.INSTANCE.getAiqiyiBookmarks());

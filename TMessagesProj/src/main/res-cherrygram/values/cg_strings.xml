@@ -640,8 +640,6 @@
     <string name="AQY_SpecialAttention_Desc">Get a separate alert when a specially-watched person messages you</string>
     <string name="AQY_HourlyChime">Hourly Chime</string>
     <string name="AQY_HourlyChime_Desc">Automatically send a chime message every hour on the hour</string>
-    <string name="AQY_BubbleStyle">Bubble Style Library</string>
-    <string name="AQY_BubbleStyle_Desc">Change chat bubble appearance, multiple styles available</string>
     <string name="AQY_Bookmarks">Message Bookmarks</string>
     <string name="AQY_Bookmarks_Desc">Save any message and jump back to it anytime</string>
     <string name="AQY_SyntaxHighlight">Syntax Highlighting</string>

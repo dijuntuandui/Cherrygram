@@ -11583,7 +11583,8 @@ public class ChatActivityEnterView extends FrameLayout implements
             }
         }
         boolean hasScheduled = delegate != null && !isInScheduleMode() && delegate.hasScheduledMessages();
-        boolean visible = hasScheduled && !scheduleButtonHidden && !recordingAudioVideo;
+        // [Aiqiyi] 定时消息按钮改为常驻，不再依赖是否有定时消息
+        boolean visible = !scheduleButtonHidden && !recordingAudioVideo;
         if (visible) {
             createScheduledButton();
         }
