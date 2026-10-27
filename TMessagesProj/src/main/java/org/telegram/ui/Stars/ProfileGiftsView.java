@@ -311,10 +311,19 @@ public class ProfileGiftsView extends View implements NotificationCenter.Notific
             //   我们这格是 45dp，肉眼无差）。
             //   patternDrawable 为 null（礼物没有 pattern 属性 / 文档没缓存）时整层跳过，
             //   表现与改动前完全一致，不会画成空白。
+            //
+            // 【必须 try-catch 包住】这段在 canvas.save() 之后、emojiDrawable 之前，
+            // 一旦抛异常就会跳过礼物本体绘制，还会让 canvas.restore() 执行不到，
+            // 直接复现「礼物渲染不出来」的老毛病。这里除了异常一律吞掉并继续往下画，
+            // 宁可少一层纹路，也绝不能让礼物本体消失。
             if (patternDrawable != null) {
-                patternDrawable.setBounds(-(int) (gsz / 2.0f), -(int) (gsz / 2.0f), (int) (gsz / 2.0f), (int) (gsz / 2.0f));
-                patternDrawable.setAlpha((int) (0xFF * alpha * gradientAlpha));
-                StarGiftPatterns.drawPattern(canvas, StarGiftPatterns.TYPE_DEFAULT, patternDrawable, gsz, gsz, alpha * gradientAlpha, 0.25f);
+                try {
+                    patternDrawable.setBounds(-(int) (gsz / 2.0f), -(int) (gsz / 2.0f), (int) (gsz / 2.0f), (int) (gsz / 2.0f));
+                    patternDrawable.setAlpha((int) (0xFF * alpha * gradientAlpha));
+                    StarGiftPatterns.drawPattern(canvas, StarGiftPatterns.TYPE_DEFAULT, patternDrawable, gsz, gsz, alpha * gradientAlpha, 0.25f);
+                } catch (Throwable ignore) {
+                    // 纹路画失败不影响礼物本体；下一帧还会再试
+                }
             }
             if (emojiDrawable != null) {
                 final int sz = dp(24);

@@ -550,6 +550,15 @@ object LocalGiftConverter {
             if (fromDisk != null) return fromDisk
         }
         // 3. 目录里同款礼物的 pattern
+        // Aiqiyi: 这里必须和 resolveStickerDocument 保持同一条纪律 ——
+        // 只要能确定「这一只」的 modelName，就绝不允许退回目录里的基础款纹路。
+        // 否则贴纸因为精确匹配失败留空了，pattern 却拿基础款的纹路画上去，
+        // 视觉上就是「这只狗穿着别人的花纹」，等于变相画成了基础款。
+        // 宁可不画这一层（draw() 会整层跳过，退回改动前的表现），也不越界。
+        if (!data.modelName.isNullOrEmpty()) {
+            FileLog.e("Aiqiyi resolvePatternDocument: model=" + data.modelName + " 前三层未命中，不使用目录基础款 pattern")
+            return null
+        }
         try {
             val catalog = findCatalogGift(data.catalogGiftId) ?: findCatalogGiftByTitle(data.title)
             if (catalog != null) {
