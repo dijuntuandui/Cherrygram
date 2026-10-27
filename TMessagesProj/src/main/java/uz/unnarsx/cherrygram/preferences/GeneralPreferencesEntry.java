@@ -77,7 +77,6 @@ public class GeneralPreferencesEntry extends BaseCGPreferencesEntry {
     private final int aiqiyiUseDeletedIconRow = 24;
     private final int aiqiyiCustomDeletedMarkRow = 25;
     private final int aiqiyiGhostModeRow = 26;
-    private final int aiqiyiShowOnlineStatusRow = 29;
     private final int aiqiyiAutoSignInRow = 30;
     private final int aiqiyiSelfCertRow = 31;
     private final int aiqiyiLocalZoneRow = 32;
@@ -85,6 +84,18 @@ public class GeneralPreferencesEntry extends BaseCGPreferencesEntry {
     private final int aiqiyiUnlimitedPinsRow = 33;
     private final int aiqiyiUnlimitedFoldersRow = 34;
     private final int aiqiyiUnlimitedFavedStickersRow = 35;
+
+    // ===== 第一批（黄昏迁移）=====
+    private final int aiqiyiSpecialAttentionRow = 37;
+    private final int aiqiyiHourlyChimeRow = 38;
+    private final int aiqiyiBubbleStyleRow = 39;
+    private final int aiqiyiBookmarksRow = 40;
+    private final int aiqiyiSyntaxHighlightRow = 41;
+    private final int aiqiyiExtensionCleanupRow = 42;
+    private final int aiqiyiFakeLocationRow = 43;
+    private final int aiqiyiDynamicWallpaperRow = 44;
+    private final int aiqiyiDialogueBubbleRow = 45;
+    private final int aiqiyiActiveZoneRow = 46;
 
     private boolean expandedArchiveStoriesSection = false;
 
@@ -267,10 +278,6 @@ public class GeneralPreferencesEntry extends BaseCGPreferencesEntry {
                 .setChecked(CherrygramMessagesConfig.INSTANCE.getAiqiyiGhostMode())
                 .slug("aiqiyi_ghost_mode")
         );
-        items.add(SettingsHelper.asSwitchCG(aiqiyiShowOnlineStatusRow, getString(R.string.AQY_ShowOnlineStatus), getString(R.string.AQY_ShowOnlineStatus_Desc))
-                .setChecked(CherrygramAppearanceConfig.INSTANCE.getAiqiyiShowOnlineStatus())
-                .slug("aiqiyi_show_online_status")
-        );
         items.add(SettingsHelper.asSwitchCG(aiqiyiUnlimitedPinsRow, getString(R.string.AQY_UnlimitedPins), getString(R.string.AQY_UnlimitedPins_Desc))
                 .setChecked(CherrygramAppearanceConfig.INSTANCE.getAiqiyiUnlimitedPins())
                 .slug("aiqiyi_unlimited_pins")
@@ -282,6 +289,47 @@ public class GeneralPreferencesEntry extends BaseCGPreferencesEntry {
         items.add(SettingsHelper.asSwitchCG(aiqiyiUnlimitedFavedStickersRow, getString(R.string.AQY_UnlimitedFavedStickers), getString(R.string.AQY_UnlimitedFavedStickers_Desc))
                 .setChecked(CherrygramAppearanceConfig.INSTANCE.getAiqiyiUnlimitedFavedStickers())
                 .slug("aiqiyi_unlimited_faved_stickers")
+        );
+        // ===== 第一批（黄昏迁移）=====
+        items.add(SettingsHelper.asSwitchCG(aiqiyiSpecialAttentionRow, getString(R.string.AQY_SpecialAttention), getString(R.string.AQY_SpecialAttention_Desc))
+                .setChecked(CherrygramAppearanceConfig.INSTANCE.getAiqiyiSpecialAttention())
+                .slug("aiqiyi_special_attention")
+        );
+        items.add(SettingsHelper.asSwitchCG(aiqiyiHourlyChimeRow, getString(R.string.AQY_HourlyChime), getString(R.string.AQY_HourlyChime_Desc))
+                .setChecked(CherrygramAppearanceConfig.INSTANCE.getAiqiyiHourlyChime())
+                .slug("aiqiyi_hourly_chime")
+        );
+        items.add(SettingsHelper.asSwitchCG(aiqiyiBubbleStyleRow, getString(R.string.AQY_BubbleStyle), getString(R.string.AQY_BubbleStyle_Desc))
+                .setChecked(CherrygramAppearanceConfig.INSTANCE.getAiqiyiBubbleStyle())
+                .slug("aiqiyi_bubble_style")
+        );
+        items.add(SettingsHelper.asSwitchCG(aiqiyiBookmarksRow, getString(R.string.AQY_Bookmarks), getString(R.string.AQY_Bookmarks_Desc))
+                .setChecked(CherrygramAppearanceConfig.INSTANCE.getAiqiyiBookmarks())
+                .slug("aiqiyi_bookmarks")
+        );
+        items.add(SettingsHelper.asSwitchCG(aiqiyiSyntaxHighlightRow, getString(R.string.AQY_SyntaxHighlight), getString(R.string.AQY_SyntaxHighlight_Desc))
+                .setChecked(CherrygramAppearanceConfig.INSTANCE.getAiqiyiSyntaxHighlight())
+                .slug("aiqiyi_syntax_highlight")
+        );
+        items.add(SettingsHelper.asSwitchCG(aiqiyiExtensionCleanupRow, getString(R.string.AQY_ExtensionCleanup), getString(R.string.AQY_ExtensionCleanup_Desc))
+                .setChecked(CherrygramAppearanceConfig.INSTANCE.getAiqiyiExtensionCleanup())
+                .slug("aiqiyi_extension_cleanup")
+        );
+        items.add(SettingsHelper.asSwitchCG(aiqiyiFakeLocationRow, getString(R.string.AQY_FakeLocation), getString(R.string.AQY_FakeLocation_Desc))
+                .setChecked(CherrygramAppearanceConfig.INSTANCE.getAiqiyiFakeLocation())
+                .slug("aiqiyi_fake_location")
+        );
+        items.add(SettingsHelper.asSwitchCG(aiqiyiDynamicWallpaperRow, getString(R.string.AQY_DynamicWallpaper), getString(R.string.AQY_DynamicWallpaper_Desc))
+                .setChecked(CherrygramAppearanceConfig.INSTANCE.getAiqiyiDynamicWallpaper())
+                .slug("aiqiyi_dynamic_wallpaper")
+        );
+        items.add(SettingsHelper.asSwitchCG(aiqiyiDialogueBubbleRow, getString(R.string.AQY_DialogueBubble), getString(R.string.AQY_DialogueBubble_Desc))
+                .setChecked(CherrygramAppearanceConfig.INSTANCE.getAiqiyiDialogueBubble())
+                .slug("aiqiyi_dialogue_bubble")
+        );
+        items.add(SettingsHelper.asSwitchCG(aiqiyiActiveZoneRow, getString(R.string.AQY_ActiveZone), getString(R.string.AQY_ActiveZone_Desc))
+                .setChecked(CherrygramAppearanceConfig.INSTANCE.getAiqiyiActiveZone())
+                .slug("aiqiyi_active_zone")
         );
 items.add(SettingsHelper.asTextDetail(aiqiyiAutoSignInRow, 0, getString(R.string.AQY_AutoSignIn), getAutoSignInSummary())
                 .slug("aiqiyi_auto_sign_in"));
@@ -449,9 +497,6 @@ items.add(SettingsHelper.asTextDetail(aiqiyiAutoSignInRow, 0, getString(R.string
         } else if (item.id == aiqiyiGhostModeRow) {
             CherrygramMessagesConfig.INSTANCE.setAiqiyiGhostMode(!CherrygramMessagesConfig.INSTANCE.getAiqiyiGhostMode());
             SettingsHelper.updateCheckState(view, CherrygramMessagesConfig.INSTANCE.getAiqiyiGhostMode());
-        } else if (item.id == aiqiyiShowOnlineStatusRow) {
-            CherrygramAppearanceConfig.INSTANCE.setAiqiyiShowOnlineStatus(!CherrygramAppearanceConfig.INSTANCE.getAiqiyiShowOnlineStatus());
-            SettingsHelper.updateCheckState(view, CherrygramAppearanceConfig.INSTANCE.getAiqiyiShowOnlineStatus());
         } else if (item.id == aiqiyiUnlimitedPinsRow) {
             CherrygramAppearanceConfig.INSTANCE.setAiqiyiUnlimitedPins(!CherrygramAppearanceConfig.INSTANCE.getAiqiyiUnlimitedPins());
             SettingsHelper.updateCheckState(view, CherrygramAppearanceConfig.INSTANCE.getAiqiyiUnlimitedPins());
@@ -473,6 +518,38 @@ items.add(SettingsHelper.asTextDetail(aiqiyiAutoSignInRow, 0, getString(R.string
             presentFragment(new uz.unnarsx.cherrygram.aiqiyi.local.AiqiyiLocalZoneEntry());
         } else if (item.id == aiqiyiComebackRow) {
             presentFragment(new uz.unnarsx.cherrygram.aiqiyi.comeback.AiqiyiComebackEntry());
+        } else if (item.id == aiqiyiSpecialAttentionRow) {
+            CherrygramAppearanceConfig.INSTANCE.setAiqiyiSpecialAttention(!CherrygramAppearanceConfig.INSTANCE.getAiqiyiSpecialAttention());
+            SettingsHelper.updateCheckState(view, CherrygramAppearanceConfig.INSTANCE.getAiqiyiSpecialAttention());
+        } else if (item.id == aiqiyiHourlyChimeRow) {
+            CherrygramAppearanceConfig.INSTANCE.setAiqiyiHourlyChime(!CherrygramAppearanceConfig.INSTANCE.getAiqiyiHourlyChime());
+            SettingsHelper.updateCheckState(view, CherrygramAppearanceConfig.INSTANCE.getAiqiyiHourlyChime());
+        } else if (item.id == aiqiyiBubbleStyleRow) {
+            CherrygramAppearanceConfig.INSTANCE.setAiqiyiBubbleStyle(!CherrygramAppearanceConfig.INSTANCE.getAiqiyiBubbleStyle());
+            SettingsHelper.updateCheckState(view, CherrygramAppearanceConfig.INSTANCE.getAiqiyiBubbleStyle());
+            showRestartBulletin();
+        } else if (item.id == aiqiyiBookmarksRow) {
+            CherrygramAppearanceConfig.INSTANCE.setAiqiyiBookmarks(!CherrygramAppearanceConfig.INSTANCE.getAiqiyiBookmarks());
+            SettingsHelper.updateCheckState(view, CherrygramAppearanceConfig.INSTANCE.getAiqiyiBookmarks());
+        } else if (item.id == aiqiyiSyntaxHighlightRow) {
+            CherrygramAppearanceConfig.INSTANCE.setAiqiyiSyntaxHighlight(!CherrygramAppearanceConfig.INSTANCE.getAiqiyiSyntaxHighlight());
+            SettingsHelper.updateCheckState(view, CherrygramAppearanceConfig.INSTANCE.getAiqiyiSyntaxHighlight());
+        } else if (item.id == aiqiyiExtensionCleanupRow) {
+            CherrygramAppearanceConfig.INSTANCE.setAiqiyiExtensionCleanup(!CherrygramAppearanceConfig.INSTANCE.getAiqiyiExtensionCleanup());
+            SettingsHelper.updateCheckState(view, CherrygramAppearanceConfig.INSTANCE.getAiqiyiExtensionCleanup());
+        } else if (item.id == aiqiyiFakeLocationRow) {
+            CherrygramAppearanceConfig.INSTANCE.setAiqiyiFakeLocation(!CherrygramAppearanceConfig.INSTANCE.getAiqiyiFakeLocation());
+            SettingsHelper.updateCheckState(view, CherrygramAppearanceConfig.INSTANCE.getAiqiyiFakeLocation());
+            showRestartBulletin();
+        } else if (item.id == aiqiyiDynamicWallpaperRow) {
+            CherrygramAppearanceConfig.INSTANCE.setAiqiyiDynamicWallpaper(!CherrygramAppearanceConfig.INSTANCE.getAiqiyiDynamicWallpaper());
+            SettingsHelper.updateCheckState(view, CherrygramAppearanceConfig.INSTANCE.getAiqiyiDynamicWallpaper());
+        } else if (item.id == aiqiyiDialogueBubbleRow) {
+            CherrygramAppearanceConfig.INSTANCE.setAiqiyiDialogueBubble(!CherrygramAppearanceConfig.INSTANCE.getAiqiyiDialogueBubble());
+            SettingsHelper.updateCheckState(view, CherrygramAppearanceConfig.INSTANCE.getAiqiyiDialogueBubble());
+        } else if (item.id == aiqiyiActiveZoneRow) {
+            CherrygramAppearanceConfig.INSTANCE.setAiqiyiActiveZone(!CherrygramAppearanceConfig.INSTANCE.getAiqiyiActiveZone());
+            SettingsHelper.updateCheckState(view, CherrygramAppearanceConfig.INSTANCE.getAiqiyiActiveZone());
         }
     }
 

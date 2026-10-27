@@ -637,6 +637,27 @@
     <string name="AQY_UnlimitedFolders_Desc">Remove the folders limit — extra folders are no longer locked by the server</string>
     <string name="AQY_UnlimitedFavedStickers">Unlimited Faved Stickers</string>
     <string name="AQY_UnlimitedFavedStickers_Desc">Remove the favorite stickers limit — save as many as you want</string>
+    <!-- 第一批：黄昏迁移 -->
+    <string name="AQY_SpecialAttention">Special Attention</string>
+    <string name="AQY_SpecialAttention_Desc">Get a separate alert when a specially-watched person messages you</string>
+    <string name="AQY_HourlyChime">Hourly Chime</string>
+    <string name="AQY_HourlyChime_Desc">Automatically send a chime message every hour on the hour</string>
+    <string name="AQY_BubbleStyle">Bubble Style Library</string>
+    <string name="AQY_BubbleStyle_Desc">Change chat bubble appearance, multiple styles available</string>
+    <string name="AQY_Bookmarks">Message Bookmarks</string>
+    <string name="AQY_Bookmarks_Desc">Save any message and jump back to it anytime</string>
+    <string name="AQY_SyntaxHighlight">Syntax Highlighting</string>
+    <string name="AQY_SyntaxHighlight_Desc">Automatically colorize code messages by language</string>
+    <string name="AQY_ExtensionCleanup">Extended Cleanup</string>
+    <string name="AQY_ExtensionCleanup_Desc">Clean cache, messages and files within a time range</string>
+    <string name="AQY_FakeLocation">Local Fake Location</string>
+    <string name="AQY_FakeLocation_Desc">Send a custom coordinate when sharing location, local only</string>
+    <string name="AQY_DynamicWallpaper">Dynamic Wallpaper</string>
+    <string name="AQY_DynamicWallpaper_Desc">Set an animated background for chats, per-conversation supported</string>
+    <string name="AQY_DialogueBubble">Dialogue Bubbles</string>
+    <string name="AQY_DialogueBubble_Desc">Render messages with dialogue effects driven by a txt script</string>
+    <string name="AQY_ActiveZone">Active Zone</string>
+    <string name="AQY_ActiveZone_Desc">Statistics of local activity</string>
     <string name="AQY_AutoSignIn">Auto Sign-in</string>
     <string name="AQY_AutoSignIn_Desc">Automatically send a preset message at a scheduled time every day</string>
     <!--Aiqiyi: self cert badge-->

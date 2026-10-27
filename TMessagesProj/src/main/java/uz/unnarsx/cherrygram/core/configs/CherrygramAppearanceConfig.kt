@@ -34,14 +34,34 @@ object CherrygramAppearanceConfig {
     /** 爱琦艺插件 - 输入栏下方提示文字（独立开关 + 自定义文案） */
     var aiqiyiInputHintEnabled by sharedPreferences.boolean("AP_AiqiyiInputHintEnabled", false)
     var aiqiyiInputHintText by sharedPreferences.string("AP_AiqiyiInputHintText", "")
-    /** 爱琦艺插件 - 显示用户在线状态（群组聊天时头像右下角显示在线状态） */
-    var aiqiyiShowOnlineStatus by sharedPreferences.boolean("AP_AiqiyiShowOnlineStatus", true)
     /** 爱琦艺插件 - 无限收起聊天（不限置顶数量） */
     var aiqiyiUnlimitedPins by sharedPreferences.boolean("AP_AiqiyiUnlimitedPins", true)
     /** 爱琦艺插件 - 无限文件夹（不限文件夹数量） */
     var aiqiyiUnlimitedFolders by sharedPreferences.boolean("AP_AiqiyiUnlimitedFolders", true)
     /** 爱琦艺插件 - 无限收藏贴纸（不限收藏贴纸数量） */
     var aiqiyiUnlimitedFavedStickers by sharedPreferences.boolean("AP_AiqiyiUnlimitedFavedStickers", true)
+
+    // ===== 第一批（黄昏迁移）=====
+    /** 爱琦艺插件 - 特别关注 */
+    var aiqiyiSpecialAttention by sharedPreferences.boolean("AP_AiqiyiSpecialAttention", true)
+    /** 爱琦艺插件 - 整点报时 */
+    var aiqiyiHourlyChime by sharedPreferences.boolean("AP_AiqiyiHourlyChime", false)
+    /** 爱琦艺插件 - 气泡样式库 */
+    var aiqiyiBubbleStyle by sharedPreferences.boolean("AP_AiqiyiBubbleStyle", false)
+    /** 爱琦艺插件 - 消息书签 */
+    var aiqiyiBookmarks by sharedPreferences.boolean("AP_AiqiyiBookmarks", true)
+    /** 爱琦艺插件 - 语法高亮 */
+    var aiqiyiSyntaxHighlight by sharedPreferences.boolean("AP_AiqiyiSyntaxHighlight", true)
+    /** 爱琦艺插件 - 扩展清理 */
+    var aiqiyiExtensionCleanup by sharedPreferences.boolean("AP_AiqiyiExtensionCleanup", false)
+    /** 爱琦艺插件 - 本地坐标伪造 */
+    var aiqiyiFakeLocation by sharedPreferences.boolean("AP_AiqiyiFakeLocation", false)
+    /** 爱琦艺插件 - 动态壁纸 */
+    var aiqiyiDynamicWallpaper by sharedPreferences.boolean("AP_AiqiyiDynamicWallpaper", false)
+    /** 爱琦艺插件 - 对白气泡 */
+    var aiqiyiDialogueBubble by sharedPreferences.boolean("AP_AiqiyiDialogueBubble", false)
+    /** 爱琦艺插件 - 活跃专区 */
+    var aiqiyiActiveZone by sharedPreferences.boolean("AP_AiqiyiActiveZone", false)
     /** Header finish */
 
     /** Appearance start */

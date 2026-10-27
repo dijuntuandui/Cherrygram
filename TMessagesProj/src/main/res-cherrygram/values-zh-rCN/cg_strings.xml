@@ -500,6 +500,27 @@
     <string name="AQY_UnlimitedFolders_Desc">解除文件夹数量上限，不再被服务器锁定多余文件夹</string>
     <string name="AQY_UnlimitedFavedStickers">无限收藏贴纸</string>
     <string name="AQY_UnlimitedFavedStickers_Desc">解除收藏贴纸数量上限，想存多少存多少</string>
+    <!-- 第一批：黄昏迁移 -->
+    <string name="AQY_SpecialAttention">特别关注</string>
+    <string name="AQY_SpecialAttention_Desc">被特别关注的人发消息时单独提醒，不混在普通消息里</string>
+    <string name="AQY_HourlyChime">整点报时</string>
+    <string name="AQY_HourlyChime_Desc">每到整点自动发出一条报时消息</string>
+    <string name="AQY_BubbleStyle">气泡样式库</string>
+    <string name="AQY_BubbleStyle_Desc">更换聊天气泡外观，多种样式可选</string>
+    <string name="AQY_Bookmarks">消息书签</string>
+    <string name="AQY_Bookmarks_Desc">收藏任意消息，随时翻回去看</string>
+    <string name="AQY_SyntaxHighlight">语法高亮</string>
+    <string name="AQY_SyntaxHighlight_Desc">代码消息自动上色，按语言高亮关键字</string>
+    <string name="AQY_ExtensionCleanup">扩展清理</string>
+    <string name="AQY_ExtensionCleanup_Desc">按时间范围清理缓存、消息与文件</string>
+    <string name="AQY_FakeLocation">本地坐标伪造</string>
+    <string name="AQY_FakeLocation_Desc">发送位置时使用自定义坐标，仅本机有效</string>
+    <string name="AQY_DynamicWallpaper">动态壁纸</string>
+    <string name="AQY_DynamicWallpaper_Desc">为聊天设置动态背景，可为单个会话单独指定</string>
+    <string name="AQY_DialogueBubble">对白气泡</string>
+    <string name="AQY_DialogueBubble_Desc">按 txt 剧本让消息带对白效果</string>
+    <string name="AQY_ActiveZone">活跃专区</string>
+    <string name="AQY_ActiveZone_Desc">统计本机活跃情况</string>
     <string name="AQY_AutoSignIn">自动签到</string>
     <string name="AQY_AutoSignIn_Desc">每天在指定时间自动发送预设消息</string>
     <!--Aiqiyi: self cert badge-->
