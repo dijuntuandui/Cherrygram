@@ -246,7 +246,8 @@ object CGChatMenuInjector {
 
     fun injectArchived(io: ItemOptions, fragment: BaseFragment) {
         io.addIf(
-            !CherrygramPrivacyConfig.hideArchiveFromChatsList && (CherrygramAppearanceConfig.tabsHideAllChats || !MainTabsManager.hasTab(MainTabsManager.TabType.SETTINGS) || !CherrygramAppearanceConfig.showMainTabs),
+            // [Aiqiyi] 归档入口不再受底部 tabs 配置影响（原本要求 tabs 里无设置页才显示）。
+            !CherrygramPrivacyConfig.hideArchiveFromChatsList,
             R.drawable.msg_archive,
             getString(R.string.ArchivedChats)
         ) {
