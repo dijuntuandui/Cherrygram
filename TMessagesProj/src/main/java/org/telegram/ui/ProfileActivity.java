@@ -1339,6 +1339,28 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                     color2Animated.set(color2, true);
                 }
             } catch (Throwable ignore) {}
+            // [Aiqiyi] B-final override: worn gift color has top priority.
+            try {
+                final uz.unnarsx.cherrygram.core.helpers.localdata.LocalGiftData aiqiyiLW2 =
+                        uz.unnarsx.cherrygram.core.helpers.localdata.LocalGiftStore.getLastWornForUser(getDialogId());
+                if (aiqiyiLW2 != null) {
+                    final int c1 = aiqiyiLW2.getCenterColor() | 0xFF000000;
+                    final int c2 = aiqiyiLW2.getEdgeColor() | 0xFF000000;
+                    color1 = c1;
+                    color2 = (c2 != 0xFF000000) ? c2 : c1;
+                    actionBarBackgroundColor = ColorUtils.blendARGB(color1, color2, 0.25f);
+                    hasColorById = true;
+                    color1Animated.set(color1, true);
+                    color2Animated.set(color2, true);
+                    android.util.Log.d("AQY_LOCAL_GIFT", "B-final override APPLIED "
+                            + Integer.toHexString(color1) + " -> " + Integer.toHexString(color2)
+                            + " did=" + getDialogId() + " animated=" + animated);
+                    invalidate();
+                    return;
+                }
+            } catch (Throwable t) {
+                android.util.Log.d("AQY_LOCAL_GIFT", "B-final override failed: " + t);
+            }
             if (!animated) {
                 color1Animated.set(color1, true);
                 color2Animated.set(color2, true);
