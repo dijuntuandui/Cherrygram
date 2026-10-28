@@ -1266,9 +1266,27 @@ public class StarGiftSheet extends BottomSheetWithRecyclerListView implements No
             // 上一版改成互斥单选是错误理解，已回滚。
             // 头部底纹取哪个礼物的问题，改在展示层按「最后一个佩戴的」取，
             // 不挡用户佩戴多个。
-            uz.unnarsx.cherrygram.core.helpers.localdata.LocalGiftStore.setPinned(did, gift.id, nowPinned);
+            // [Aiqiyi DEBUG] 写入前后都打印，用于定位「点佩戴但读回来还是 0」。
+            int aiqiyiPinnedBefore = -1;
+            try {
+                uz.unnarsx.cherrygram.core.helpers.localdata.LocalGiftData aiqiyiBefore =
+                    uz.unnarsx.cherrygram.core.helpers.localdata.LocalGiftStore.findLocalGift(did, gift.id);
+                if (aiqiyiBefore != null) {
+                    aiqiyiPinnedBefore = aiqiyiBefore.getPinned() ? 1 : 0;
+                }
+            } catch (Throwable ignore) {}
+            boolean aiqiyiWriteOk = uz.unnarsx.cherrygram.core.helpers.localdata.LocalGiftStore.setPinned(did, gift.id, nowPinned);
+            boolean aiqiyiReadBack = false;
+            try {
+                uz.unnarsx.cherrygram.core.helpers.localdata.LocalGiftData aiqiyiAfter =
+                    uz.unnarsx.cherrygram.core.helpers.localdata.LocalGiftStore.findLocalGift(did, gift.id);
+                aiqiyiReadBack = aiqiyiAfter != null && aiqiyiAfter.getPinned();
+            } catch (Throwable ignore) {}
             android.util.Log.d("AQY_LOCAL_GIFT", "toggleLocalWear id=" + gift.id
-                + " did=" + did + " pinned=" + nowPinned);
+                + " did=" + did + " wantPinned=" + nowPinned
+                + " beforePinned=" + aiqiyiPinnedBefore
+                + " writeOk=" + aiqiyiWriteOk + " readBack=" + aiqiyiReadBack
+                + " myId=" + UserConfig.getInstance(currentAccount).getClientUserId());
 
             try {
                 if (topView != null && topView.buttons != null && topView.buttons.length > 1) {

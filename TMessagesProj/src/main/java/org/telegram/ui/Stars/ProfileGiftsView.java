@@ -794,7 +794,8 @@ public class ProfileGiftsView extends View implements NotificationCenter.Notific
             // 违规礼物佩戴入口写入时 pinned 直接为 true，所以表现上是「添加即挂上」。
             final ArrayList<LocalGiftData> localList = LocalGiftStore.getPinnedForUser(dialogId);
             android.util.Log.d("AQY_LOCAL_GIFT", "injectLocalGifts enter dialogId=" + dialogId
-                    + " pinned.size=" + localList.size() + " real=" + gifts.size());
+                    + " pinned.size=" + localList.size() + " real=" + gifts.size()
+                    + " myId=" + UserConfig.getInstance(currentAccount).getClientUserId());
             if (localList.isEmpty()) {
                 lastLocalGiftCount = 0;
                 return;
