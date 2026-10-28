@@ -397,6 +397,42 @@ public class ProfileGiftsView extends View implements NotificationCenter.Notific
         return 0;
     }
 
+    /**
+     * Aiqiyi: 取当前佩戴的本地礼物的 pattern 颜色，供头部底纹染色。
+     *
+     * 官方 StarGiftDrawableIcon 里底纹颜色来自该礼物自身 backdrop 的
+     * pattern_color，换礼物即换色。这里把同样的色交给 ProfileActivity，
+     * 避免头部底纹永远是 peerColor / 主题的固定色。
+     *
+     * @return 0 表示没有可用的本地佩戴礼物，上层保持原逻辑
+     */
+    public int getWornLocalPatternColor() {
+        try {
+            Gift worn = null;
+            int wornSeq = -1;
+            for (int i = 0; i < localGifts.size(); i++) {
+                final Gift g = localGifts.get(i);
+                if (g == null) continue;
+                boolean isPinned = false;
+                try {
+                    uz.unnarsx.cherrygram.core.helpers.localdata.LocalGiftData d =
+                        uz.unnarsx.cherrygram.core.helpers.localdata.LocalGiftStore
+                            .findLocalGift(UserConfig.getInstance(currentAccount).getClientUserId(), g.id);
+                    isPinned = d != null && d.getPinned();
+                } catch (Throwable ignore) {}
+                if (!isPinned) continue;
+                if (i > wornSeq) {
+                    wornSeq = i;
+                    worn = g;
+                }
+            }
+            if (worn != null && worn.patternColor != 0) return worn.patternColor;
+        } catch (Throwable t) {
+            org.telegram.messenger.FileLog.e("Aiqiyi getWornLocalPatternColor failed", t);
+        }
+        return 0;
+    }
+
     /** Aiqiyi: 上一次本地礼物数量，用于判断是否需要重绘 */
     private int lastLocalGiftCount = -1;
     /** Aiqiyi: 本地礼物行数变化标记，用于触发 header 重新测量 */
@@ -689,6 +725,10 @@ public class ProfileGiftsView extends View implements NotificationCenter.Notific
                         // 不修的话 aiqiyiIsLocalGiftId() 快路径失效，用户点本地礼物
                         // 会落到商店购买页，买回来的是服务端基础款。
                         if (LocalGiftStore.INSTANCE.repairPositiveCollectibleIds() > 0) changed = true;
+                        // [Aiqiyi] 历史数据归并：收礼物时会自动 pinned=true，
+                        // 多收几个就多条同时佩戴，导致「当前佩戴的那个」无法确定，
+                        // 头部底纹固定在某一个上不动。这里只保留最后一个。
+                        if (LocalGiftStore.INSTANCE.repairMultipleWorn() > 0) changed = true;
                     } catch (Throwable ignore) {}
                     if (changed) {
                         org.telegram.messenger.AndroidUtilities.runOnUIThread(() -> {

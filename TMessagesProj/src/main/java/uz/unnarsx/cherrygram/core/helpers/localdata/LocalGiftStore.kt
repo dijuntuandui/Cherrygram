@@ -363,6 +363,43 @@ object LocalGiftStore {
     }
 
     /**
+     * 爱琦艺：佩戴某个本地礼物（互斥）。
+     *
+     * 官方语义是「一个人只能佩戴一个礼物」，但 pinned 字段本身是
+     * 单独布尔，多个可以同时为 true（收礼物时自动置 true），
+     * 上层取「当前佩戴的那个」就没有唯一解，底纹固定在
+     * 某一个暂不变就是这个原因。
+     *
+     * 这里做互斥写入：把目标置为佩戴的同时，清掉其余所有的佩戴标志，
+     * 保证任何时候最多只有一个 pinned=true，当前佩戴才有确定搭建。
+     *
+     * @return 是否找到并修改成功
+     */
+    @JvmStatic
+    fun setWornExclusive(userId: Long, collectibleId: Long): Boolean {
+        return try {
+            val list = getDataForUser(userId)
+            val target = list.firstOrNull { it.collectibleId == collectibleId } ?: return false
+            var changed = false
+            for (g in list) {
+                val should = g.collectibleId == collectibleId
+                if (g.pinned != should) {
+                    g.pinned = should
+                    changed = true
+                }
+            }
+            if (changed) {
+                saveData(userId, list)
+                notifyChanged(userId)
+                FileLog.d("LocalGiftStore setWornExclusive: worn=" + collectibleId + " user=" + userId)
+            }
+            true
+        } catch (e: Exception) {
+            FileLog.e("LocalGiftStore setWornExclusive failed", e)
+            false
+        }
+    }
+    /**
      * 爱琦艺：取某个用户所有已佩戴的本地礼物（按添加顺序）
      */
     @JvmStatic
@@ -520,6 +557,66 @@ object LocalGiftStore {
             fixed
         } catch (e: Exception) {
             FileLog.e("Aiqiyi gift repair failed", e)
+            0
+        }
+    }
+
+    /**
+     * Aiqiyi: 历史数据归并——保证每个用户最多只有一个 pinned=true。
+     *
+     * 背景：收到本地礼物时 SendGiftSheet 会直接写 pinned=true，
+     * 多收几个就会出现多条同时佩戴。而头部底纹需要
+     * 「唯一的当前佩戴」才能确定用哪张 pattern，否则固定在某一个上不动。
+     *
+     * 这里保留列表里最后一个 pinned（即最新收到的），其余全部摘下。
+     * 只跑一次，用 PREF 标记去重。
+     *
+     * @return 修正的条数
+     */
+    @JvmStatic
+    fun repairMultipleWorn(): Int {
+        return try {
+            if (isRepairDone("multi_worn")) return 0
+            var fixed = 0
+            // 枚举所有有本地礼物数据的用户（与 repairPositiveCollectibleIds 同一写法）
+            val userIds = ArrayList<Long>()
+            try {
+                for (key in prefs.all.keys) {
+                    if (!key.startsWith(KEY_PREFIX)) continue
+                    val id = key.removePrefix(KEY_PREFIX).toLongOrNull() ?: continue
+                    userIds.add(id)
+                }
+            } catch (e: Exception) {
+                FileLog.e("Aiqiyi gift repair multi_worn: 枚举用户失败", e)
+            }
+            for (uid in userIds) {
+                val list = getDataForUser(uid)
+                if (list.size < 2) continue
+                val wornIdx = list.indexOfLast { it.pinned }
+                if (wornIdx < 0) {
+                    markRepairDone("multi_worn")
+                    continue
+                }
+                var changed = false
+                for (i in list.indices) {
+                    val should = i == wornIdx
+                    if (list[i].pinned != should) {
+                        list[i].pinned = should
+                        changed = true
+                        if (!should) fixed++
+                    }
+                }
+                if (changed) {
+                    saveData(uid, list)
+                    notifyChanged(uid)
+                    FileLog.d("Aiqiyi gift repair: 佩戴归并 uid=" + uid
+                        + " 保留=" + list[wornIdx].collectibleId + " 清理=" + fixed)
+                }
+            }
+            markRepairDone("multi_worn")
+            fixed
+        } catch (e: Exception) {
+            FileLog.e("Aiqiyi gift repair multi_worn failed", e)
             0
         }
     }

@@ -1315,8 +1315,20 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
         private boolean emojiIsCollectible;
 
         public void setBackgroundEmojiId(long emojiId, boolean isCollectible, boolean animated) {
+            setBackgroundEmojiId(emojiId, isCollectible, animated, 0);
+        }
+        /**
+         * Aiqiyi: 带底纹颜色的重载版。
+         *
+         * 官方语义里头部底纹的颜色就是该礼物 backdrop 的 pattern_color，
+         * 但这里原本用的是固定字段 emojiColor（来自 peerColor / 主题），
+         * 所以换礼物颜色不变。传入 patternColor 就能让底纹跟着礼物走。
+         *
+         * @param tintColor 0 表示不指定，保持原有 emojiColor 逻辑
+         */
+        public void setBackgroundEmojiId(long emojiId, boolean isCollectible, boolean animated, int tintColor) {
             emoji.set(emojiId, animated);
-            emoji.setColor(emojiColor);
+            emoji.setColor(tintColor != 0 ? tintColor : emojiColor);
             emojiIsCollectible = isCollectible;
             if (!animated) {
                 emojiFullT.force(isCollectible);
@@ -11687,15 +11699,21 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                 // 这里直接向 giftsView 要当前佩戴礼物的 pattern 文档，拿不到再退回原链。
                 long aiqiyiBgEmojiId = 0;
                 boolean aiqiyiBgIsCollectible = false;
+                int aiqiyiBgTint = 0;
                 if (userId != 0 && userId == getUserConfig().getClientUserId() && giftsView != null) {
                     aiqiyiBgEmojiId = giftsView.getWornLocalPatternDocId();
                     aiqiyiBgIsCollectible = aiqiyiBgEmojiId != 0;
+                    // [Aiqiyi] 底纹颜色跟着当前佩戴的礼物走，
+                    // 对齐官方 StarGiftDrawableIcon 的 pattern.setColor(backdrop.pattern_color)
+                    if (aiqiyiBgEmojiId != 0) {
+                        aiqiyiBgTint = giftsView.getWornLocalPatternColor();
+                    }
                 }
                 if (aiqiyiBgEmojiId == 0) {
                     aiqiyiBgEmojiId = UserObject.getProfileEmojiId(user);
                     aiqiyiBgIsCollectible = user != null && user.emoji_status instanceof TLRPC.TL_emojiStatusCollectible;
                 }
-                topView.setBackgroundEmojiId(aiqiyiBgEmojiId, aiqiyiBgIsCollectible, true);
+                topView.setBackgroundEmojiId(aiqiyiBgEmojiId, aiqiyiBgIsCollectible, true, aiqiyiBgTint);
             }
             if (ratingView != null) {
                 ratingView.updateColors(peerColor);
