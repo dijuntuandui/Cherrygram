@@ -1262,10 +1262,10 @@ public class StarGiftSheet extends BottomSheetWithRecyclerListView implements No
                 return false;
             }
             final boolean nowPinned = !d.getPinned();
-            // [Aiqiyi] 恢复官方行为：官方允许同时佩戴最多 6 个礼物，
-            // 上一版改成互斥单选是错误理解，已回滚。
-            // 头部底纹取哪个礼物的问题，改在展示层按「最后一个佩戴的」取，
-            // 不挡用户佩戴多个。
+            // [Aiqiyi] 佩戴策略与官方一致：最多 6 个礼物同时环绕头像摆放。
+            // 戴 B 不清掉 A，六个槽位都能用。
+            // 「头部底纹只跟最后一个戴上的」由 wearOrder 顺序号解决，
+            // 不靠关闭其他礼物的 pinned 来实现，否则就只能摆一个了。
             // [Aiqiyi DEBUG] 写入前后都打印，用于定位「点佩戴但读回来还是 0」。
             int aiqiyiPinnedBefore = -1;
             try {
@@ -1275,7 +1275,9 @@ public class StarGiftSheet extends BottomSheetWithRecyclerListView implements No
                     aiqiyiPinnedBefore = aiqiyiBefore.getPinned() ? 1 : 0;
                 }
             } catch (Throwable ignore) {}
-            boolean aiqiyiWriteOk = uz.unnarsx.cherrygram.core.helpers.localdata.LocalGiftStore.setPinned(did, gift.id, nowPinned);
+            boolean aiqiyiWriteOk =
+                uz.unnarsx.cherrygram.core.helpers.localdata.LocalGiftStore
+                    .setPinnedWithOrder(did, gift.id, nowPinned);
             boolean aiqiyiReadBack = false;
             try {
                 uz.unnarsx.cherrygram.core.helpers.localdata.LocalGiftData aiqiyiAfter =

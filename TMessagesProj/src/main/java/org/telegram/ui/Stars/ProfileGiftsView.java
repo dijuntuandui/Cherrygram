@@ -408,22 +408,14 @@ public class ProfileGiftsView extends View implements NotificationCenter.Notific
      */
     public int getWornLocalPatternColor() {
         try {
+            final LocalGiftData lastWorn = aiqiyiLastWorn();
+            if (lastWorn == null) return 0;
             Gift worn = null;
-            int wornSeq = -1;
             for (int i = 0; i < localGifts.size(); i++) {
                 final Gift g = localGifts.get(i);
-                if (g == null) continue;
-                boolean isPinned = false;
-                try {
-                    uz.unnarsx.cherrygram.core.helpers.localdata.LocalGiftData d =
-                        uz.unnarsx.cherrygram.core.helpers.localdata.LocalGiftStore
-                            .findLocalGift(UserConfig.getInstance(currentAccount).getClientUserId(), g.id);
-                    isPinned = d != null && d.getPinned();
-                } catch (Throwable ignore) {}
-                if (!isPinned) continue;
-                if (i > wornSeq) {
-                    wornSeq = i;
+                if (g != null && g.id == lastWorn.getCollectibleId()) {
                     worn = g;
+                    break;
                 }
             }
             if (worn != null && worn.patternColor != 0) return worn.patternColor;
@@ -443,25 +435,34 @@ public class ProfileGiftsView extends View implements NotificationCenter.Notific
      * @param out 长度 >= 2 的数组，输出 [startColor, endColor]
      * @return 是否取到（false 时 out 不作数）
      */
+    /**
+     * Aiqiyi: 取「最后戴上的」那一个本地礼物（按 wearOrder 最大）。
+     *
+     * 官方允许 6 个礼物同时环绕头像，头部底纹只跟最后一个戴上的。
+     * 这里不再用「全局唯一佩戴」的实现，否则槽位就只能用掉一个。
+     *
+     * @return 没有已佩戴礼物时返回 null
+     */
+    private LocalGiftData aiqiyiLastWorn() {
+        try {
+            return LocalGiftStore.getLastWornForUser(dialogId);
+        } catch (Throwable t) {
+            org.telegram.messenger.FileLog.e("Aiqiyi aiqiyiLastWorn failed", t);
+            return null;
+        }
+    }
+
     public boolean getWornLocalBackdropColors(int[] out) {
         if (out == null || out.length < 2) return false;
         try {
+            final LocalGiftData lastWorn = aiqiyiLastWorn();
+            if (lastWorn == null) return false;
             Gift worn = null;
-            int wornSeq = -1;
             for (int i = 0; i < localGifts.size(); i++) {
                 final Gift g = localGifts.get(i);
-                if (g == null) continue;
-                boolean isPinned = false;
-                try {
-                    uz.unnarsx.cherrygram.core.helpers.localdata.LocalGiftData d =
-                        uz.unnarsx.cherrygram.core.helpers.localdata.LocalGiftStore
-                            .findLocalGift(UserConfig.getInstance(currentAccount).getClientUserId(), g.id);
-                    isPinned = d != null && d.getPinned();
-                } catch (Throwable ignore) {}
-                if (!isPinned) continue;
-                if (i > wornSeq) {
-                    wornSeq = i;
+                if (g != null && g.id == lastWorn.getCollectibleId()) {
                     worn = g;
+                    break;
                 }
             }
             if (worn == null) return false;

@@ -139,6 +139,16 @@ data class LocalGiftData(
     var pinned: Boolean = false,
 
     /**
+     * 爱琦艺：佩戴顺序号（越大越新）。
+     *
+     * 官方允许最多 6 个礼物环绕头像摆放，但资料页头部底纹只跟「最后一个戴上的」。
+     * 每次点佩戴把当前值 +1 写入，展示层取 pinned=true 里 wearOrder 最大的那个铺底纹。
+     * 0 = 从未佩戴过。
+     */
+    @SerializedName("wearOrder")
+    var wearOrder: Long = 0L,
+
+    /**
      * 爱琦艺：自定义典藏编号。
      *
      * 0  = 未修改，显示礼物原本的编号（沿用 giftNum）

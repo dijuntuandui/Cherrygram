@@ -337,6 +337,51 @@ object LocalGiftStore {
     }
 
     /**
+     * 爱琦艺：设置佩戴状态，并同步维护「最后佩戴顺序号」。
+     *
+     * 官方允许最多 6 个礼物环绕头像摆放（pinned 可多个 true），
+     * 但资料页头部底纹只跟「最后一个戴上的」，所以需要一个单调递增的顺序号。
+     * 戴上时写入全局最大值 +1；摘下时置 0。
+     *
+     * @return 是否写入成功
+     */
+    @JvmStatic
+    fun setPinnedWithOrder(userId: Long, collectibleId: Long, pinned: Boolean): Boolean {
+        return try {
+            val list = getDataForUser(userId)
+            val target = list.firstOrNull { it.collectibleId == collectibleId } ?: return false
+            val maxOrder = list.maxOfOrNull { it.wearOrder } ?: 0L
+            val newOrder = if (pinned) maxOrder + 1 else 0L
+            if (target.pinned == pinned && target.wearOrder == newOrder) return true
+            target.pinned = pinned
+            target.wearOrder = newOrder
+            saveData(userId, list)
+            notifyChanged(userId)
+            FileLog.d("LocalGiftStore setPinnedWithOrder: id=" + collectibleId
+                    + " pinned=" + pinned + " order=" + newOrder + " user=" + userId)
+            true
+        } catch (e: Exception) {
+            FileLog.e("LocalGiftStore setPinnedWithOrder failed", e)
+            false
+        }
+    }
+
+    /**
+     * 爱琦艺：取同一个用户里「最后戴上的」那个礼物，用于资料页头部底纹。
+     *
+     * @return 没有已佩戴礼物时返回 null
+     */
+    @JvmStatic
+    fun getLastWornForUser(userId: Long): LocalGiftData? {
+        return try {
+            getDataForUser(userId).filter { it.pinned }.maxByOrNull { it.wearOrder }
+        } catch (e: Exception) {
+            FileLog.e("LocalGiftStore getLastWornForUser failed", e)
+            null
+        }
+    }
+
+    /**
      * 爱琦艺：取某个用户所有已佩戴的本地礼物（按添加顺序）
      */
     /**
@@ -405,7 +450,9 @@ object LocalGiftStore {
     @JvmStatic
     fun getPinnedForUser(userId: Long): ArrayList<LocalGiftData> {
         return try {
-            ArrayList(getDataForUser(userId).filter { it.pinned })
+            // 戴上顺序（wearOrder 小的在前），保证环绕头像的槽位分配稳定，
+            // 不会因为列表刷新导致礼物在图一/图二之间跳位置。
+            ArrayList(getDataForUser(userId).filter { it.pinned }.sortedBy { it.wearOrder })
         } catch (e: Exception) {
             FileLog.e("LocalGiftStore getPinnedForUser failed", e)
             ArrayList()
