@@ -1377,11 +1377,21 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
 
             int gradientX = getWidth() / 2;
             if (backgroundGradient == null || backgroundGradientColor1 != color1 || backgroundGradientColor2 != color2 || backgroundGradientX != gradientX) {
-                backgroundGradientRadius = dp(96) * 2;
+                // [Aiqiyi] 佩戴礼物后，底色要铺满整个头部，而不是只在头像周围一小圈。
+                // 底层已经铺了 currentColor（纯黑），这里把渐变半径拉到覆盖整屏，
+                // 让礼物的 center/edge 两色真正出来。
+                backgroundGradientRadius = hasColorById
+                        ? Math.max(getMeasuredWidth(), getMeasuredHeight()) * 0.95f
+                        : dp(96) * 2;
                 backgroundGradientY = (actionBar.getOccupyStatusBar() ? AndroidUtilities.statusBarHeight : 0)
                         + ActionBar.getCurrentActionBarHeight()
                         - 21 * AndroidUtilities.density
                         + actionBar.getTranslationY();
+                // [Aiqiyi] 换礼物后让整个头部均匀地过渡到 edge 色，
+                // 而不是让 center 色在中心炸开一个圆。
+                if (hasColorById) {
+                    backgroundGradientY = -backgroundGradientRadius * 0.15f;
+                }
                 backgroundGradient = new RadialGradient(backgroundGradientX = gradientX, backgroundGradientY + backgroundGradientRadius / 2f, backgroundGradientRadius, new int[]{backgroundGradientColor2 = color2, backgroundGradientColor1 = color1}, new float[]{0, 1}, Shader.TileMode.CLAMP);
                 backgroundGradient.setLocalMatrix(backgroundGradientMatrix);
                 backgroundPaint.setShader(backgroundGradient);
