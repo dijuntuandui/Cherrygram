@@ -1352,6 +1352,9 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                     hasColorById = true;
                     color1Animated.set(color1, true);
                     color2Animated.set(color2, true);
+                    // [Aiqiyi] 按钮与头部同色：戴礼物时按钮底色跟礼物 backdrop 走，
+                    // 否则会停留在 peerColor.patternColor（深红），与头部渐变脱节。
+                    btnColor = Theme.multAlpha(color1, .45f);
                     android.util.Log.d("AQY_LOCAL_GIFT", "B-final override APPLIED "
                             + Integer.toHexString(color1) + " -> " + Integer.toHexString(color2)
                             + " did=" + getDialogId() + " animated=" + animated);
