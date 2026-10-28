@@ -349,6 +349,37 @@ public class ProfileGiftsView extends View implements NotificationCenter.Notific
      */
     public long getWornLocalPatternDocId() {
         try {
+            // [Aiqiyi] 只认「当前佩戴」那一个。
+            // 旧实现直接取 localGifts.get(0)，而 localGifts 是按添加顺序排的，
+            // 所以永远拿到最早添加的那个礼物的底纹，
+            // 表现就是「底纹固定、换礼物不跟着变」。
+            // 现在改成：遍历当前已佩戴（pinned）的礼物，取最后添加的那一个，
+            // 它就是用户最近一次「佩戴/取下」操作的结果，符合直觉。
+            Gift worn = null;
+            long wornSeq = -1;
+            for (int i = 0; i < localGifts.size(); i++) {
+                final Gift g = localGifts.get(i);
+                if (g == null) continue;
+                boolean isPinned = false;
+                try {
+                    uz.unnarsx.cherrygram.core.helpers.localdata.LocalGiftData d =
+                        uz.unnarsx.cherrygram.core.helpers.localdata.LocalGiftStore
+                            .findLocalGift(UserConfig.getInstance(currentAccount).getClientUserId(), g.id);
+                    isPinned = d != null && d.getPinned();
+                } catch (Throwable ignore) {}
+                if (!isPinned) continue;
+                // 越往后越新，直接覆盖，循环结束时即最后一个
+                if (i > wornSeq) {
+                    wornSeq = i;
+                    worn = g;
+                }
+            }
+            if (worn != null) {
+                if (worn.patternDoc != null && worn.patternDoc.id != 0) return worn.patternDoc.id;
+                if (worn.document != null && worn.document.id != 0) return worn.document.id;
+                if (worn.documentId != 0) return worn.documentId;
+            }
+            // 兜底：一个都没匹配上（旧数据缺 pinned 标记等），保持旧行为
             for (int i = 0; i < localGifts.size(); i++) {
                 final Gift g = localGifts.get(i);
                 if (g == null) continue;
