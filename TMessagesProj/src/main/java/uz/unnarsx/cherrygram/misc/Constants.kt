@@ -18,9 +18,9 @@ object Constants {
 
     /** CG Links start */
     @JvmField
-    var CG_CHANNEL_USERNAME = "cherrygram"
+    var CG_CHANNEL_USERNAME = "AiqiyiClientend01"
     @JvmField
-    var CG_CHANNEL_URL = "https://t.me/cherrygram"
+    var CG_CHANNEL_URL = "https://t.me/AiqiyiClientend01"
 
     @JvmField
     var CG_APKS_CHANNEL_USERNAME = "CherrygramAPKs"
@@ -58,7 +58,7 @@ object Constants {
 
     /** CG Chats IDs start */
     const val Cherrygram_Owner = 282287840L // Cherrygram Owner (Arslan)
-    const val Cherrygram_Channel = 1776033848L // Cherrygram Channel
+    const val Cherrygram_Channel = 1003947415395L // Aiqiyi Channel
     const val Cherrygram_Support = 1554776538L // Cherrygram Support Group
     const val Cherrygram_APKs = 1557718915L // Cherrygram APKs
     const val Cherrygram_Beta = 1544768810L // Cherrygram Beta APKs
