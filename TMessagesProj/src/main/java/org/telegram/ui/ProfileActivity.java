@@ -1261,17 +1261,28 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
         public void setBackgroundColorId(MessagesController.PeerColor peerColor, boolean animated) {
             // [Aiqiyi] 佩戴了本地礼物时必须走彩色分支，不受 CP_ProfileBackgroundColor 开关限制，
             // 否则低端机性能等级判定为 LOW 时该开关默认 false，头部永远是纯黑。
+            // 不能依赖 giftsView：setBackgroundColorId 在 5364 行先于 5853 行的 new ProfileGiftsView 执行，
+            // 那时 giftsView 必然为 null。直接查 LocalGiftStore，与视图生命周期解耦。
             boolean aiqiyiHasWornGift = false;
+            int aiqiyiGiftCenter = 0, aiqiyiGiftEdge = 0;
             try {
-                if (giftsView != null) {
-                    final int[] tmpBd = new int[2];
-                    aiqiyiHasWornGift = giftsView.getWornLocalBackdropColors(tmpBd);
-                    android.util.Log.d("AQY_LOCAL_GIFT", "setBackgroundColorId hasWornGift=" + aiqiyiHasWornGift + " peerColor=" + (peerColor != null) + " switchOn=" + CherrygramAppearanceConfig.INSTANCE.getProfileBackgroundColor() + " animated=" + animated);
-                } else {
-                    android.util.Log.d("AQY_LOCAL_GIFT", "setBackgroundColorId giftsView=NULL animated=" + animated);
+                final uz.unnarsx.cherrygram.core.helpers.localdata.LocalGiftData aiqiyiLW =
+                        uz.unnarsx.cherrygram.core.helpers.localdata.LocalGiftStore.getLastWornForUser(getDialogId());
+                if (aiqiyiLW != null) {
+                    aiqiyiGiftCenter = aiqiyiLW.getCenterColor() | 0xFF000000;
+                    aiqiyiGiftEdge = aiqiyiLW.getEdgeColor() | 0xFF000000;
+                    aiqiyiHasWornGift = true;
                 }
+                android.util.Log.d("AQY_LOCAL_GIFT", "setBackgroundColorId hasWornGift=" + aiqiyiHasWornGift
+                        + " did=" + getDialogId()
+                        + " lastWorn=" + (aiqiyiLW == null ? "null" : String.valueOf(aiqiyiLW.getCollectibleId()))
+                        + " c=" + (aiqiyiHasWornGift ? Integer.toHexString(aiqiyiGiftCenter) : "-")
+                        + " e=" + (aiqiyiHasWornGift ? Integer.toHexString(aiqiyiGiftEdge) : "-")
+                        + " peerColor=" + (peerColor != null)
+                        + " switchOn=" + CherrygramAppearanceConfig.INSTANCE.getProfileBackgroundColor()
+                        + " animated=" + animated);
             } catch (Throwable t) {
-                android.util.Log.d("AQY_LOCAL_GIFT", "setBackgroundColorId probe failed" + t);
+                android.util.Log.d("AQY_LOCAL_GIFT", "setBackgroundColorId probe failed: " + t);
             }
             if ((peerColor != null && CherrygramAppearanceConfig.INSTANCE.getProfileBackgroundColor()) || aiqiyiHasWornGift) {
                 hasColorById = true;
@@ -1314,16 +1325,13 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
             // 拿不到就保持原样，不影响普通用户。
             boolean aiqiyiGiftColorApplied = false;
             try {
-                ProfileGiftsView aiqiyiGiftsView = ProfileActivity.this.giftsView;
-                if (aiqiyiGiftsView != null) {
-                    final int[] aiqiyiBackdrop = new int[2];
-                    if (aiqiyiGiftsView.getWornLocalBackdropColors(aiqiyiBackdrop)) {
-                        color1 = aiqiyiBackdrop[0];
-                        color2 = aiqiyiBackdrop[1];
-                        actionBarBackgroundColor = ColorUtils.blendARGB(color1, color2, 0.25f);
-                        hasColorById = true;
-                        aiqiyiGiftColorApplied = true;
-                    }
+                if (aiqiyiHasWornGift && aiqiyiGiftCenter != 0) {
+                    color1 = aiqiyiGiftCenter;
+                    color2 = aiqiyiGiftEdge != 0 ? aiqiyiGiftEdge : aiqiyiGiftCenter;
+                    actionBarBackgroundColor = ColorUtils.blendARGB(color1, color2, 0.25f);
+                    hasColorById = true;
+                    aiqiyiGiftColorApplied = true;
+                    android.util.Log.d("AQY_LOCAL_GIFT", "gift color APPLIED " + Integer.toHexString(color1) + " -> " + Integer.toHexString(color2));
                 }
                 // 礼物色必须立刻生效，不能等 animated 动画过渡
                 if (aiqiyiGiftColorApplied) {
