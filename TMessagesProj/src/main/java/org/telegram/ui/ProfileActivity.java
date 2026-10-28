@@ -11681,7 +11681,21 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                 updatedPeerColor();
             }
             if (topView != null) {
-                topView.setBackgroundEmojiId(UserObject.getProfileEmojiId(user), user != null && user.emoji_status instanceof TLRPC.TL_emojiStatusCollectible, true);
+                // [Aiqiyi local] 本地佩戴的礼物优先。官方逻辑是"戴哪个礼物就铺哪个礼物的
+                // pattern"，本地礼物的 emoji_status 是本地伪造的，服务端一刷
+                // pattern_document_id 就没了，头部那层隐纹跟着消失。
+                // 这里直接向 giftsView 要当前佩戴礼物的 pattern 文档，拿不到再退回原链。
+                long aiqiyiBgEmojiId = 0;
+                boolean aiqiyiBgIsCollectible = false;
+                if (isSelf && giftsView != null) {
+                    aiqiyiBgEmojiId = giftsView.getWornLocalPatternDocId();
+                    aiqiyiBgIsCollectible = aiqiyiBgEmojiId != 0;
+                }
+                if (aiqiyiBgEmojiId == 0) {
+                    aiqiyiBgEmojiId = UserObject.getProfileEmojiId(user);
+                    aiqiyiBgIsCollectible = user != null && user.emoji_status instanceof TLRPC.TL_emojiStatusCollectible;
+                }
+                topView.setBackgroundEmojiId(aiqiyiBgEmojiId, aiqiyiBgIsCollectible, true);
             }
             if (ratingView != null) {
                 ratingView.updateColors(peerColor);

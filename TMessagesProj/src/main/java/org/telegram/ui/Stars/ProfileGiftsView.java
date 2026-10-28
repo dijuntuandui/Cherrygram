@@ -302,29 +302,14 @@ public class ProfileGiftsView extends View implements NotificationCenter.Notific
                 gradientPaint.setAlpha((int) (0xFF * alpha * gradientAlpha));
                 canvas.drawRect(-gsz / 2.0f, -gsz / 2.0f, gsz / 2.0f, gsz / 2.0f, gradientPaint);
             }
-            // Aiqiyi: 补礼物图案（pattern）层。
-            // 官方 StarGiftDrawableIcon 的画法是 gradient -> pattern -> model 三层，
-            // 我们原来只有 gradient + emojiDrawable，中间那层纹路缺失，所以佩戴后
-            // 名字旁只剩一块光秃秃的渐变底 + 一个贴纸，跟官方的立体质感差一截。
-            // 这里只补 pattern，立体本体仍然走下面的 emojiDrawable，不改变现状。
-            //   scale 0.25f 对齐官方同尺寸用法（StarsIntroActivity 46dp 用 .25f，
-            //   我们这格是 45dp，肉眼无差）。
-            //   patternDrawable 为 null（礼物没有 pattern 属性 / 文档没缓存）时整层跳过，
-            //   表现与改动前完全一致，不会画成空白。
-            //
-            // 【必须 try-catch 包住】这段在 canvas.save() 之后、emojiDrawable 之前，
-            // 一旦抛异常就会跳过礼物本体绘制，还会让 canvas.restore() 执行不到，
-            // 直接复现「礼物渲染不出来」的老毛病。这里除了异常一律吞掉并继续往下画，
-            // 宁可少一层纹路，也绝不能让礼物本体消失。
-            if (patternDrawable != null) {
-                try {
-                    patternDrawable.setBounds(-(int) (gsz / 2.0f), -(int) (gsz / 2.0f), (int) (gsz / 2.0f), (int) (gsz / 2.0f));
-                    patternDrawable.setAlpha((int) (0xFF * alpha * gradientAlpha));
-                    StarGiftPatterns.drawPattern(canvas, StarGiftPatterns.TYPE_DEFAULT, patternDrawable, gsz, gsz, alpha * gradientAlpha, 0.25f);
-                } catch (Throwable ignore) {
-                    // 纹路画失败不影响礼物本体；下一帧还会再试
-                }
-            }
+            // Aiqiyi: 礼物格子内不再绘制 pattern 纹路。
+            // 上一版在这里加过一层 StarGiftPatterns.drawPattern，本意是模仿官方
+            // StarGiftDrawableIcon 的三层画法，但 45dp 的格子里铺 patternLocations
+            // 那套 ±110dp 量级的坐标，等于把整组小图标压进一小块，视觉上是糊成一团，
+            // 与官方差异极大（官方礼物本体周围是干净的，纹路只出现在整屏背景层）。
+            // 官方礼物周围的"底图"来自 ProfileActivity 上的
+            // StarGiftPatterns.drawProfileAnimatedPattern(...)，那是整屏铺开的一层，
+            // 与本方法无关。因此这里整层移除，礼物本体仍按原样绘制。
             if (emojiDrawable != null) {
                 final int sz = dp(24);
                 emojiDrawable.setBounds(-sz / 2, -sz / 2, sz / 2, sz / 2);
@@ -351,6 +336,36 @@ public class ProfileGiftsView extends View implements NotificationCenter.Notific
      * 这样服务端礼物排满时本地礼物依然能画出来，两套逻辑不打架。
      */
     public final ArrayList<Gift> localGifts = new ArrayList<>();
+    /**
+     * Aiqiyi: 取当前佩戴的本地礼物的 pattern 文档 id，供 ProfileActivity 铺头部背景层。
+     *
+     * 官方逻辑是「戴哪个礼物，主页头部就铺哪个礼物的 pattern 隐纹」。本地礼物走的
+     * 是自造 emoji_status，服务端刷新后 pattern_document_id 会被冲掉，头部那层
+     * 跟着消失。这里直接把本地礼物里已经解析好的 patternDoc 交给上层，绕开
+     * emoji_status 这条不可靠的链路。
+     *
+     * 优先返回真正的 pattern 文档；没有再退回礼物本体贴纸（draw() 层已做同样兜底），
+     * 两者都没有就返回 0，上层会按原逻辑走。
+     */
+    public long getWornLocalPatternDocId() {
+        try {
+            for (int i = 0; i < localGifts.size(); i++) {
+                final Gift g = localGifts.get(i);
+                if (g == null) continue;
+                if (g.patternDoc != null && g.patternDoc.id != 0) return g.patternDoc.id;
+            }
+            for (int i = 0; i < localGifts.size(); i++) {
+                final Gift g = localGifts.get(i);
+                if (g == null) continue;
+                if (g.document != null && g.document.id != 0) return g.document.id;
+                if (g.documentId != 0) return g.documentId;
+            }
+        } catch (Throwable t) {
+            org.telegram.messenger.FileLog.e("Aiqiyi getWornLocalPatternDocId failed", t);
+        }
+        return 0;
+    }
+
     /** Aiqiyi: 上一次本地礼物数量，用于判断是否需要重绘 */
     private int lastLocalGiftCount = -1;
     /** Aiqiyi: 本地礼物行数变化标记，用于触发 header 重新测量 */
@@ -705,8 +720,12 @@ public class ProfileGiftsView extends View implements NotificationCenter.Notific
                 // 取不到就留 null，draw() 跳过 pattern 层，表现等同改动前。
                 try {
                     gift.patternDoc = LocalGiftConverter.resolvePatternDocument(data);
+                    // [Aiqiyi] 与 LocalGiftConverter.createUnique 里的兜底保持一致的思路：
+                    // 真 pattern 取不到时退用礼物本体贴纸，保证头部那层隐纹永远有图可铺，
+                    // 不会因为 pattern 缺失导致"戴了礼物但背景一片死色"。
+                    if (gift.patternDoc == null) gift.patternDoc = doc;
                 } catch (Throwable ignore) {
-                    gift.patternDoc = null;
+                    gift.patternDoc = doc;
                 }
                 // Aiqiyi: 本地礼物与官方佩戴礼物共用同一套 0..maxCount-1 环绕坐标。
                 // 分配顺序：先让官方礼物吃满自己的槽位，本地礼物再取剩下的空位，
