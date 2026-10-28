@@ -1285,6 +1285,22 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                     btnColor = Theme.multAlpha(PeerColorActivity.adaptProfileEmojiColor(getThemedColor(Theme.key_actionBarDefault)), .15f);
                 }
             }
+            // [Aiqiyi] 佩戴礼物后，头部底色跟着礼物 backdrop 走。
+            // 官方礼物卡片是 center_color -> edge_color 渐变，
+            // 配戴后头部背景也应是这两个色，而不是资料页主题色。
+            // 拿不到就保持原样，不影响普通用户。
+            try {
+                ProfileGiftsView aiqiyiGiftsView = ProfileActivity.this.giftsView;
+                if (aiqiyiGiftsView != null) {
+                    final int[] aiqiyiBackdrop = new int[2];
+                    if (aiqiyiGiftsView.getWornLocalBackdropColors(aiqiyiBackdrop)) {
+                        color1 = aiqiyiBackdrop[0];
+                        color2 = aiqiyiBackdrop[1];
+                        actionBarBackgroundColor = ColorUtils.blendARGB(color1, color2, 0.25f);
+                        hasColorById = true;
+                    }
+                }
+            } catch (Throwable ignore) {}
             if (!animated) {
                 color1Animated.set(color1, true);
                 color2Animated.set(color2, true);

@@ -1262,16 +1262,11 @@ public class StarGiftSheet extends BottomSheetWithRecyclerListView implements No
                 return false;
             }
             final boolean nowPinned = !d.getPinned();
-            // [Aiqiyi] 佩戴改为互斥单选：一个人只能佩戴一个礼物。
-            // 旧实现只改目标那一条，而收到礼物时会自动 pinned=true，
-            // 多个礼物同时 true 就无法确定「当前佩戴的那个」，
-            // 头部底纹会固定在某一个上不动。
-            // 现在戴上时把其余全部摘下，保证全局最多一个 pinned=true。
-            if (nowPinned) {
-                uz.unnarsx.cherrygram.core.helpers.localdata.LocalGiftStore.setWornExclusive(did, gift.id);
-            } else {
-                uz.unnarsx.cherrygram.core.helpers.localdata.LocalGiftStore.setPinned(did, gift.id, false);
-            }
+            // [Aiqiyi] 恢复官方行为：官方允许同时佩戴最多 6 个礼物，
+            // 上一版改成互斥单选是错误理解，已回滚。
+            // 头部底纹取哪个礼物的问题，改在展示层按「最后一个佩戴的」取，
+            // 不挡用户佩戴多个。
+            uz.unnarsx.cherrygram.core.helpers.localdata.LocalGiftStore.setPinned(did, gift.id, nowPinned);
             android.util.Log.d("AQY_LOCAL_GIFT", "toggleLocalWear id=" + gift.id
                 + " did=" + did + " pinned=" + nowPinned);
 

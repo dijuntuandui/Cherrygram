@@ -433,6 +433,57 @@ public class ProfileGiftsView extends View implements NotificationCenter.Notific
         return 0;
     }
 
+    /**
+     * Aiqiyi: 取当前佩戴的本地礼物的头部渐变两色。
+     *
+     * 官方资料页头部背景是 color1 -> color2 的径向渐变，
+     * 配戴礼物后应该换成该礼物 backdrop 的
+     * center_color -> edge_color（也就是礼物卡片上那个渐变）。
+     *
+     * @param out 长度 >= 2 的数组，输出 [startColor, endColor]
+     * @return 是否取到（false 时 out 不作数）
+     */
+    public boolean getWornLocalBackdropColors(int[] out) {
+        if (out == null || out.length < 2) return false;
+        try {
+            Gift worn = null;
+            int wornSeq = -1;
+            for (int i = 0; i < localGifts.size(); i++) {
+                final Gift g = localGifts.get(i);
+                if (g == null) continue;
+                boolean isPinned = false;
+                try {
+                    uz.unnarsx.cherrygram.core.helpers.localdata.LocalGiftData d =
+                        uz.unnarsx.cherrygram.core.helpers.localdata.LocalGiftStore
+                            .findLocalGift(UserConfig.getInstance(currentAccount).getClientUserId(), g.id);
+                    isPinned = d != null && d.getPinned();
+                } catch (Throwable ignore) {}
+                if (!isPinned) continue;
+                if (i > wornSeq) {
+                    wornSeq = i;
+                    worn = g;
+                }
+            }
+            if (worn == null) return false;
+            // Gift.color 存的是 center_color，还需要 edge_color，
+            // 直接从 LocalGiftData 取原始两色，不走 | 0xFF000000 强制不透明。
+            uz.unnarsx.cherrygram.core.helpers.localdata.LocalGiftData d =
+                uz.unnarsx.cherrygram.core.helpers.localdata.LocalGiftStore
+                    .findLocalGift(UserConfig.getInstance(currentAccount).getClientUserId(), worn.id);
+            if (d == null) {
+                out[0] = worn.color;
+                out[1] = worn.color;
+                return true;
+            }
+            out[0] = d.getCenterColor() | 0xFF000000;
+            out[1] = d.getEdgeColor() | 0xFF000000;
+            return true;
+        } catch (Throwable t) {
+            org.telegram.messenger.FileLog.e("Aiqiyi getWornLocalBackdropColors failed", t);
+        }
+        return false;
+    }
+
     /** Aiqiyi: 上一次本地礼物数量，用于判断是否需要重绘 */
     private int lastLocalGiftCount = -1;
     /** Aiqiyi: 本地礼物行数变化标记，用于触发 header 重新测量 */
@@ -725,10 +776,9 @@ public class ProfileGiftsView extends View implements NotificationCenter.Notific
                         // 不修的话 aiqiyiIsLocalGiftId() 快路径失效，用户点本地礼物
                         // 会落到商店购买页，买回来的是服务端基础款。
                         if (LocalGiftStore.INSTANCE.repairPositiveCollectibleIds() > 0) changed = true;
-                        // [Aiqiyi] 历史数据归并：收礼物时会自动 pinned=true，
-                        // 多收几个就多条同时佩戴，导致「当前佩戴的那个」无法确定，
-                        // 头部底纹固定在某一个上不动。这里只保留最后一个。
-                        if (LocalGiftStore.INSTANCE.repairMultipleWorn() > 0) changed = true;
+                        // [Aiqiyi] 不再归并佩戴标志：官方允许同时佩戴 6 个，
+                        // 多个 pinned=true 是正常状态，不能被当成脏数据清掉。
+                        // 头部底纹取哪个，在 getWornLocalPatternDocId 里按「最近添加」取即可。
                     } catch (Throwable ignore) {}
                     if (changed) {
                         org.telegram.messenger.AndroidUtilities.runOnUIThread(() -> {
