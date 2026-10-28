@@ -1289,6 +1289,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
             // 官方礼物卡片是 center_color -> edge_color 渐变，
             // 配戴后头部背景也应是这两个色，而不是资料页主题色。
             // 拿不到就保持原样，不影响普通用户。
+            boolean aiqiyiGiftColorApplied = false;
             try {
                 ProfileGiftsView aiqiyiGiftsView = ProfileActivity.this.giftsView;
                 if (aiqiyiGiftsView != null) {
@@ -1298,7 +1299,13 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                         color2 = aiqiyiBackdrop[1];
                         actionBarBackgroundColor = ColorUtils.blendARGB(color1, color2, 0.25f);
                         hasColorById = true;
+                        aiqiyiGiftColorApplied = true;
                     }
+                }
+                // 礼物色必须立刻生效，不能等 animated 动画过渡
+                if (aiqiyiGiftColorApplied) {
+                    color1Animated.set(color1, true);
+                    color2Animated.set(color2, true);
                 }
             } catch (Throwable ignore) {}
             if (!animated) {

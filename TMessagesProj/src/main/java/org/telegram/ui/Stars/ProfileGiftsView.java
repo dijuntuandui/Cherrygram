@@ -447,6 +447,7 @@ public class ProfileGiftsView extends View implements NotificationCenter.Notific
         if (out == null || out.length < 2) return false;
         try {
             final LocalGiftData lastWorn = aiqiyiLastWorn();
+            android.util.Log.d("AQY_LOCAL_GIFT", "backdropColors: dialogId=" + dialogId + " lastWorn=" + (lastWorn == null ? "null" : (lastWorn.getCollectibleId() + "/" + Integer.toHexString(lastWorn.getCenterColor()) + "->" + Integer.toHexString(lastWorn.getEdgeColor()))) + " localGifts.size=" + localGifts.size());
             if (lastWorn == null) return false;
             Gift worn = null;
             for (int i = 0; i < localGifts.size(); i++) {
@@ -456,7 +457,15 @@ public class ProfileGiftsView extends View implements NotificationCenter.Notific
                     break;
                 }
             }
-            if (worn == null) return false;
+            if (worn == null) {
+                final StringBuilder sb = new StringBuilder();
+                for (int i = 0; i < localGifts.size(); i++) {
+                    final Gift gg = localGifts.get(i);
+                    if (gg != null) sb.append(gg.id).append(',');
+                }
+                android.util.Log.d("AQY_LOCAL_GIFT", "backdropColors: worn NOT FOUND for collectibleId=" + lastWorn.getCollectibleId() + " ids=[" + sb + "]");
+                return false;
+            }
             // Gift.color 存的是 center_color，还需要 edge_color，
             // 直接从 LocalGiftData 取原始两色，不走 | 0xFF000000 强制不透明。
             // 直接复用上面按 wearOrder 定位到的 lastWorn，不再用当前账号 userId 重查，
@@ -469,6 +478,7 @@ public class ProfileGiftsView extends View implements NotificationCenter.Notific
             }
             out[0] = d.getCenterColor() | 0xFF000000;
             out[1] = d.getEdgeColor() | 0xFF000000;
+            android.util.Log.d("AQY_LOCAL_GIFT", "backdropColors OK: " + Integer.toHexString(out[0]) + " -> " + Integer.toHexString(out[1]));
             return true;
         } catch (Throwable t) {
             org.telegram.messenger.FileLog.e("Aiqiyi getWornLocalBackdropColors failed", t);
