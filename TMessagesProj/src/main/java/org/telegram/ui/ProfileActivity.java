@@ -1259,17 +1259,40 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
         private final Paint backgroundPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
 
         public void setBackgroundColorId(MessagesController.PeerColor peerColor, boolean animated) {
-            if (peerColor != null && CherrygramAppearanceConfig.INSTANCE.getProfileBackgroundColor()) {
-                hasColorById = true;
-                color1 = peerColor.getBgColor1(Theme.isCurrentThemeDark());
-                color2 = peerColor.getBgColor2(Theme.isCurrentThemeDark());
-                actionBarBackgroundColor = ColorUtils.blendARGB(color1, color2, 0.25f);
-                if (peerColor.patternColor != 0) {
-                    emojiColor = peerColor.patternColor;
-                    btnColor = Theme.multAlpha(peerColor.patternColor, .45f);
+            // [Aiqiyi] 佩戴了本地礼物时必须走彩色分支，不受 CP_ProfileBackgroundColor 开关限制，
+            // 否则低端机性能等级判定为 LOW 时该开关默认 false，头部永远是纯黑。
+            boolean aiqiyiHasWornGift = false;
+            try {
+                if (giftsView != null) {
+                    final int[] tmpBd = new int[2];
+                    aiqiyiHasWornGift = giftsView.getWornLocalBackdropColors(tmpBd);
+                    android.util.Log.d("AQY_LOCAL_GIFT", "setBackgroundColorId hasWornGift=" + aiqiyiHasWornGift + " peerColor=" + (peerColor != null) + " switchOn=" + CherrygramAppearanceConfig.INSTANCE.getProfileBackgroundColor() + " animated=" + animated);
                 } else {
-                    emojiColor = PeerColorActivity.adaptProfileEmojiColor(color1);
-                    btnColor = Theme.multAlpha(PeerColorActivity.adaptProfileEmojiColor(color1), .15f);
+                    android.util.Log.d("AQY_LOCAL_GIFT", "setBackgroundColorId giftsView=NULL animated=" + animated);
+                }
+            } catch (Throwable t) {
+                android.util.Log.d("AQY_LOCAL_GIFT", "setBackgroundColorId probe failed" + t);
+            }
+            if ((peerColor != null && CherrygramAppearanceConfig.INSTANCE.getProfileBackgroundColor()) || aiqiyiHasWornGift) {
+                hasColorById = true;
+                if (peerColor != null) {
+                    color1 = peerColor.getBgColor1(Theme.isCurrentThemeDark());
+                    color2 = peerColor.getBgColor2(Theme.isCurrentThemeDark());
+                    actionBarBackgroundColor = ColorUtils.blendARGB(color1, color2, 0.25f);
+                    if (peerColor.patternColor != 0) {
+                        emojiColor = peerColor.patternColor;
+                        btnColor = Theme.multAlpha(peerColor.patternColor, .45f);
+                    } else {
+                        emojiColor = PeerColorActivity.adaptProfileEmojiColor(color1);
+                        btnColor = Theme.multAlpha(PeerColorActivity.adaptProfileEmojiColor(color1), .15f);
+                    }
+                } else {
+                    // 只为本地礼物开的彩色分支，peerColor 为空时先用占位色，后面礼物那块会覆盖
+                    color1 = currentColor;
+                    color2 = currentColor;
+                    actionBarBackgroundColor = currentColor;
+                    emojiColor = Color.WHITE;
+                    btnColor = Color.WHITE;
                 }
             } else {
                 actionBarBackgroundColor = currentColor;
