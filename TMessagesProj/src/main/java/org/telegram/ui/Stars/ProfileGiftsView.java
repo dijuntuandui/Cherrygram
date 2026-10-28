@@ -349,29 +349,20 @@ public class ProfileGiftsView extends View implements NotificationCenter.Notific
      */
     public long getWornLocalPatternDocId() {
         try {
-            // [Aiqiyi] 只认「当前佩戴」那一个。
-            // 旧实现直接取 localGifts.get(0)，而 localGifts 是按添加顺序排的，
-            // 所以永远拿到最早添加的那个礼物的底纹，
-            // 表现就是「底纹固定、换礼物不跟着变」。
-            // 现在改成：遍历当前已佩戴（pinned）的礼物，取最后添加的那一个，
-            // 它就是用户最近一次「佩戴/取下」操作的结果，符合直觉。
+            // [Aiqiyi] 只认「最后一个戴上的」礼物底纹。
+            // 与 getWornLocalBackdropColors / getWornLocalPatternColor 保持同一口径：
+            // 按 wearOrder 最大取胜，而不是按 localGifts 列表下标。
+            // 同时佩戴数据按 dialogId 存取，避免群资料页读不到自己的佩戴。
+            final LocalGiftData lastWorn = aiqiyiLastWorn();
             Gift worn = null;
-            long wornSeq = -1;
-            for (int i = 0; i < localGifts.size(); i++) {
-                final Gift g = localGifts.get(i);
-                if (g == null) continue;
-                boolean isPinned = false;
-                try {
-                    uz.unnarsx.cherrygram.core.helpers.localdata.LocalGiftData d =
-                        uz.unnarsx.cherrygram.core.helpers.localdata.LocalGiftStore
-                            .findLocalGift(UserConfig.getInstance(currentAccount).getClientUserId(), g.id);
-                    isPinned = d != null && d.getPinned();
-                } catch (Throwable ignore) {}
-                if (!isPinned) continue;
-                // 越往后越新，直接覆盖，循环结束时即最后一个
-                if (i > wornSeq) {
-                    wornSeq = i;
-                    worn = g;
+            if (lastWorn != null) {
+                final long wantId = lastWorn.getCollectibleId();
+                for (int i = 0; i < localGifts.size(); i++) {
+                    final Gift g = localGifts.get(i);
+                    if (g != null && g.id == wantId) {
+                        worn = g;
+                        break;
+                    }
                 }
             }
             if (worn != null) {
@@ -468,9 +459,9 @@ public class ProfileGiftsView extends View implements NotificationCenter.Notific
             if (worn == null) return false;
             // Gift.color 存的是 center_color，还需要 edge_color，
             // 直接从 LocalGiftData 取原始两色，不走 | 0xFF000000 强制不透明。
-            uz.unnarsx.cherrygram.core.helpers.localdata.LocalGiftData d =
-                uz.unnarsx.cherrygram.core.helpers.localdata.LocalGiftStore
-                    .findLocalGift(UserConfig.getInstance(currentAccount).getClientUserId(), worn.id);
+            // 直接复用上面按 wearOrder 定位到的 lastWorn，不再用当前账号 userId 重查，
+            // 否则群资料页读不到存在群 id 下的佩戴数据。
+            uz.unnarsx.cherrygram.core.helpers.localdata.LocalGiftData d = lastWorn;
             if (d == null) {
                 out[0] = worn.color;
                 out[1] = worn.color;
