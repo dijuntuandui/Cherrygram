@@ -11687,7 +11687,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                 // 这里直接向 giftsView 要当前佩戴礼物的 pattern 文档，拿不到再退回原链。
                 long aiqiyiBgEmojiId = 0;
                 boolean aiqiyiBgIsCollectible = false;
-                if (isSelf && giftsView != null) {
+                if (userId != 0 && userId == getUserConfig().getClientUserId() && giftsView != null) {
                     aiqiyiBgEmojiId = giftsView.getWornLocalPatternDocId();
                     aiqiyiBgIsCollectible = aiqiyiBgEmojiId != 0;
                 }
