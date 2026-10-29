@@ -89,6 +89,7 @@ public class GeneralPreferencesEntry extends BaseCGPreferencesEntry {
     private final int aiqiyiSpecialAttentionRow = 37;
     private final int aiqiyiHourlyChimeRow = 38;
     private final int aiqiyiBookmarksRow = 40;
+    private final int aiqiyiBookmarksListRow = 44;
     private final int aiqiyiSyntaxHighlightRow = 41;
     private final int aiqiyiExtensionCleanupRow = 42;
     private final int aiqiyiFakeLocationRow = 43;
@@ -301,6 +302,13 @@ public class GeneralPreferencesEntry extends BaseCGPreferencesEntry {
                 .setChecked(CherrygramAppearanceConfig.INSTANCE.getAiqiyiBookmarks())
                 .slug("aiqiyi_bookmarks")
         );
+        // [Aiqiyi bookmark] 开关下方再给一行入口，点了直接看书签列表
+        if (CherrygramAppearanceConfig.INSTANCE.getAiqiyiBookmarks()) {
+            items.add(SettingsHelper.asTextDetail(aiqiyiBookmarksListRow, 0,
+                    getString(R.string.AQY_BookmarksTitle), getBookmarkSummary())
+                    .slug("aiqiyi_bookmarks_list")
+            );
+        }
         items.add(SettingsHelper.asSwitchCG(aiqiyiSyntaxHighlightRow, getString(R.string.AQY_SyntaxHighlight), getString(R.string.AQY_SyntaxHighlight_Desc))
                 .setChecked(CherrygramAppearanceConfig.INSTANCE.getAiqiyiSyntaxHighlight())
                 .slug("aiqiyi_syntax_highlight")
@@ -514,6 +522,8 @@ items.add(SettingsHelper.asTextDetail(aiqiyiAutoSignInRow, 0, getString(R.string
         } else if (item.id == aiqiyiHourlyChimeRow) {
             CherrygramAppearanceConfig.INSTANCE.setAiqiyiHourlyChime(!CherrygramAppearanceConfig.INSTANCE.getAiqiyiHourlyChime());
             SettingsHelper.updateCheckState(view, CherrygramAppearanceConfig.INSTANCE.getAiqiyiHourlyChime());
+        } else if (item.id == aiqiyiBookmarksListRow) {
+            presentFragment(new uz.unnarsx.cherrygram.aiqiyi.bookmark.AiqiyiBookmarksEntry());
         } else if (item.id == aiqiyiBookmarksRow) {
             CherrygramAppearanceConfig.INSTANCE.setAiqiyiBookmarks(!CherrygramAppearanceConfig.INSTANCE.getAiqiyiBookmarks());
             SettingsHelper.updateCheckState(view, CherrygramAppearanceConfig.INSTANCE.getAiqiyiBookmarks());
@@ -562,6 +572,27 @@ items.add(SettingsHelper.asTextDetail(aiqiyiAutoSignInRow, 0, getString(R.string
         return getString(on ? R.string.AQY_LocalZone_On : R.string.AQY_LocalZone_Off);
     }
 
+
+    /** [Aiqiyi bookmark] 设置页那一行的右侧摘要：显示已书签的会话数 / 总条数 */
+    private String getBookmarkSummary() {
+        try {
+            java.util.Map<Long, Integer> counts =
+                    uz.unnarsx.cherrygram.aiqiyi.bookmark.AiqiyiBookmarksHelper
+                            .getBookmarkCounts(org.telegram.messenger.UserConfig.selectedAccount);
+            if (counts == null || counts.isEmpty()) {
+                return getString(R.string.AQY_Bookmarks_Empty_Summary);
+            }
+            int total = 0;
+            for (Integer c : counts.values()) {
+                if (c != null) {
+                    total += c;
+                }
+            }
+            return counts.size() + " / " + total;
+        } catch (Throwable ignore) {
+            return "";
+        }
+    }
 
     private String getCustomDeletedMarkText() {
         String t = CherrygramMessagesConfig.INSTANCE.getAiqiyiCustomDeletedMark();

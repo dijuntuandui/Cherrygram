@@ -32492,6 +32492,19 @@ public class ChatActivity extends BaseFragment implements
                 } catch (Throwable ignore) {
                 }
 
+                // [Aiqiyi bookmark] 长按菜单追加「添加/移除书签」
+                if (popupLayout != null && selectedObject != null
+                        && uz.unnarsx.cherrygram.core.configs.CherrygramAppearanceConfig.INSTANCE.getAiqiyiBookmarks()) {
+                    try {
+                        java.util.ArrayList<org.telegram.messenger.MessageObject> __cgBookmarkSel =
+                                new java.util.ArrayList<>(1);
+                        __cgBookmarkSel.add(selectedObject);
+                        uz.unnarsx.cherrygram.aiqiyi.bookmark.AiqiyiBookmarkMenuInjector
+                                .inject(this, popupLayout, __cgBookmarkSel);
+                    } catch (Throwable ignore) {
+                    }
+                }
+
                 scrimPopupWindowItems = new ActionBarMenuSubItem[items.size()];
                 for (int a = 0, N = items.size(); a < N; a++) {
                     final Integer option = options.get(a);

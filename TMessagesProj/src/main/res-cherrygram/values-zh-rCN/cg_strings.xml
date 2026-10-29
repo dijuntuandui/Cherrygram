@@ -749,4 +749,22 @@
     <string name="AQY_Menu_CustomIdDate">注册日期</string>
     <string name="AQY_Menu_CustomIdHint">输入新的ID（仅本地生效）</string>
     <string name="AQY_Menu_OK">确定</string>
+    <!-- [Aiqiyi] 消息书签 -->
+    <string name="AQY_Menu_AddBookmark">添加书签</string>
+    <string name="AQY_Menu_RemoveBookmark">移除书签</string>
+    <string name="AQY_Menu_AddBookmarks">添加书签</string>
+    <string name="AQY_Menu_RemoveBookmarks">移除书签</string>
+    <string name="AQY_BookmarkAdded">已添加到书签</string>
+    <string name="AQY_BookmarkRemoved">已从书签移除</string>
+    <string name="AQY_BookmarksAdded">已添加到书签</string>
+    <string name="AQY_BookmarksRemoved">已从书签移除</string>
+    <string name="AQY_BookmarksTitle">消息书签</string>
+    <string name="AQY_BookmarksEmpty">还没有书签。长按任意消息即可添加。</string>
+    <string name="AQY_BookmarksClearAll">清空全部书签</string>
+    <string name="AQY_BookmarksClearAllConfirm">确定要清空全部书签吗？此操作不可撤销。</string>
+    <string name="AQY_BookmarksCleared">书签已清空</string>
+    <string name="AQY_BookmarksCount">%1$d 条</string>
+    <string name="AQY_BookmarksOpenChat">打开会话</string>
+    <string name="AQY_BookmarksJumpFail">这条消息已无法定位</string>
+    <string name="AQY_Bookmarks_Empty_Summary">还没有</string>
 </resources>

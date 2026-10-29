@@ -819,4 +819,22 @@
     <string name="AQY_LocalGift_Dump">Export gift catalog (temp)</string>
     <string name="AQY_LocalGift_Dump_Desc">Write full catalog to Download/Aiqiyi/gifts.txt</string>
     <string name="AQY_LocalGift_Note">Clearing only affects local records and never touches real Telegram gifts or account data.</string>
+    <!-- [Aiqiyi] Message bookmarks -->
+    <string name="AQY_Menu_AddBookmark">Add bookmark</string>
+    <string name="AQY_Menu_RemoveBookmark">Remove bookmark</string>
+    <string name="AQY_Menu_AddBookmarks">Add bookmarks</string>
+    <string name="AQY_Menu_RemoveBookmarks">Remove bookmarks</string>
+    <string name="AQY_BookmarkAdded">Added to bookmarks</string>
+    <string name="AQY_BookmarkRemoved">Removed from bookmarks</string>
+    <string name="AQY_BookmarksAdded">Added to bookmarks</string>
+    <string name="AQY_BookmarksRemoved">Removed from bookmarks</string>
+    <string name="AQY_BookmarksTitle">Bookmarks</string>
+    <string name="AQY_BookmarksEmpty">No bookmarks yet. Long press any message to add one.</string>
+    <string name="AQY_BookmarksClearAll">Clear all bookmarks</string>
+    <string name="AQY_BookmarksClearAllConfirm">Clear all bookmarks? This cannot be undone.</string>
+    <string name="AQY_BookmarksCleared">Bookmarks cleared</string>
+    <string name="AQY_BookmarksCount">%1$d saved</string>
+    <string name="AQY_BookmarksOpenChat">Open chat</string>
+    <string name="AQY_BookmarksJumpFail">This message can no longer be located</string>
+    <string name="AQY_Bookmarks_Empty_Summary">None yet</string>
 </resources>
