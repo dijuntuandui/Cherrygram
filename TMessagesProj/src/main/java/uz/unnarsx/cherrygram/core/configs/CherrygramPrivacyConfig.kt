@@ -30,7 +30,13 @@ object CherrygramPrivacyConfig: CoroutineScope by CoroutineScope(
     /** Privacy finish */
 
     /** Passcode lock start */
-    var hideArchiveFromChatsList by sharedPreferences.boolean("SP_HideArchiveFromChatsList", false)
+    // [Aiqiyi] 归档伪装功能已关闭：上滑固定显示「已归档的聊天」，不再伪装成频道。
+    // getter 恒为 false，setter 写入不生效（保持签名兼容，避免其他代码编译报错）。
+    var hideArchiveFromChatsList: Boolean
+        get() = false
+        set(value) {
+            // 固定禁用，忽略写入
+        }
     var askBiometricsToOpenArchive by sharedPreferences.boolean("SP_AskBiometricsToOpenArchive", false)
     var askBiometricsToOpenEncrypted by sharedPreferences.boolean("SP_AskBiometricsToOpenEncrypted", false)
     var askBiometricsToOpenChat by sharedPreferences.boolean("SP_AskBiometricsToOpenChat", false)

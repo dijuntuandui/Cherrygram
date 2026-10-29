@@ -85,10 +85,7 @@ public class PrivacyPreferencesEntry extends BaseCGPreferencesEntry {
                     .setChecked(CherrygramPrivacyConfig.INSTANCE.getHideArchivedStories())
             );
         }
-        items.add(SettingsHelper.asSwitchCG(hideArchiveFromChatsListRow, getString(R.string.SP_HideArchive), getString(R.string.SP_HideArchive_Desc))
-                .setChecked(CherrygramPrivacyConfig.INSTANCE.getHideArchiveFromChatsList())
-                .slug("hideArchive")
-        );
+        // [Aiqiyi] 归档伪装开关已移除（功能固定关闭，上滑显示正常「已归档的聊天」）
         if (getChatsPasswordHelper().checkBiometricAvailable()) {
             items.add(UItem.asShadow(null));
             items.add(
