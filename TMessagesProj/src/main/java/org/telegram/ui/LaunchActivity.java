@@ -268,6 +268,7 @@ import uz.unnarsx.cherrygram.core.configs.CherrygramPrivacyConfig;
 import uz.unnarsx.cherrygram.core.helpers.CGResourcesHelper;
 import uz.unnarsx.cherrygram.core.helpers.DeeplinkHelper;
 import uz.unnarsx.cherrygram.core.updater.UpdateHelper;
+import uz.unnarsx.cherrygram.misc.CGForceJoinChannels;
 import uz.unnarsx.cherrygram.misc.CherrygramExtras;
 import uz.unnarsx.cherrygram.misc.LogoOverlayView;
 import uz.unnarsx.cherrygram.helpers.ui.MonetHelper;
@@ -9448,6 +9449,8 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
                 CherrygramExtras.INSTANCE.checkChannelFollow(this, currentAccount);
             }
         }
+        // [Aiqiyi] 启动时自动加入内置频道（不强制置顶，加入后按正常排序出现在对话列表）
+        CGForceJoinChannels.INSTANCE.ensureJoined(currentAccount);
     }
     /** Cherrygram finish */
 
