@@ -32,6 +32,7 @@ import java.util.HashSet;
 import java.util.Set;
 
 import uz.unnarsx.cherrygram.core.CherrygramLogger;
+import uz.unnarsx.cherrygram.aiqiyi.cleanup.AiqiyiCleanup;
 import uz.unnarsx.cherrygram.core.configs.CherrygramAppearanceConfig;
 import uz.unnarsx.cherrygram.core.configs.CherrygramCoreConfig;
 import uz.unnarsx.cherrygram.core.configs.CherrygramMessagesConfig;
@@ -98,6 +99,10 @@ public class GeneralPreferencesEntry extends BaseCGPreferencesEntry {
     private final int aiqiyiZoneEmojiRow = 47;
     private final int aiqiyiZoneDirectionRow = 48;
     private final int aiqiyiZoneTargetRow = 49;
+    private final int aiqiyiCleanupRow = 50;
+    private final int aiqiyiCleanupTotalRow = 51;
+    /** 分类清理行占 60..64，避开其他 row id */
+    private static final int CLEANUP_ROW_BASE = 60;
 
     private boolean expandedArchiveStoriesSection = false;
 
@@ -320,6 +325,18 @@ public class GeneralPreferencesEntry extends BaseCGPreferencesEntry {
                 .setChecked(CherrygramAppearanceConfig.INSTANCE.getAiqiyiExtensionCleanup())
                 .slug("aiqiyi_extension_cleanup")
         );
+        if (true) {
+            items.add(SettingsHelper.asTextDetail(aiqiyiCleanupTotalRow, 0,
+                    getString(R.string.AQY_Cleanup_Total), getCleanupTotalText())
+                    .slug("aiqiyi_cleanup_total")
+            );
+            for (int ci = 0; ci < AiqiyiCleanup.CAT_COUNT; ci++) {
+                items.add(SettingsHelper.asTextDetail(CLEANUP_ROW_BASE + ci, 0,
+                        getCleanupCategoryName(ci), getCleanupCategorySize(ci))
+                        .slug("aiqiyi_cleanup_cat_" + ci)
+                );
+            }
+        }
         items.add(SettingsHelper.asSwitchCG(aiqiyiFakeLocationRow, getString(R.string.AQY_FakeLocation), getString(R.string.AQY_FakeLocation_Desc))
                 .setChecked(CherrygramAppearanceConfig.INSTANCE.getAiqiyiFakeLocation())
                 .slug("aiqiyi_fake_location")
@@ -568,6 +585,10 @@ items.add(SettingsHelper.asTextDetail(aiqiyiAutoSignInRow, 0, getString(R.string
             showZoneDirectionDialog();
         } else if (item.id == aiqiyiZoneTargetRow) {
             showZoneTargetDialog();
+        } else if (item.id == aiqiyiCleanupTotalRow) {
+            showCleanupAllDialog();
+        } else if (item.id >= CLEANUP_ROW_BASE && item.id < CLEANUP_ROW_BASE + AiqiyiCleanup.CAT_COUNT) {
+            showCleanupCategoryDialog(item.id - CLEANUP_ROW_BASE);
         }
     }
 
@@ -597,6 +618,89 @@ items.add(SettingsHelper.asTextDetail(aiqiyiAutoSignInRow, 0, getString(R.string
         return getString(on ? R.string.AQY_LocalZone_On : R.string.AQY_LocalZone_Off);
     }
 
+
+    // --------------------------------------------------------------- 扩展清理
+
+    private String getCleanupTotalText() {
+        try {
+            return org.telegram.messenger.AndroidUtilities.formatFileSize(AiqiyiCleanup.totalSize());
+        } catch (Throwable e) {
+            return "—";
+        }
+    }
+
+    private String getCleanupCategoryName(int cat) {
+        switch (cat) {
+            case AiqiyiCleanup.CAT_CACHE:    return getString(R.string.AQY_Cleanup_Cache);
+            case AiqiyiCleanup.CAT_PHOTO:    return getString(R.string.AQY_Cleanup_Photo);
+            case AiqiyiCleanup.CAT_VIDEO:    return getString(R.string.AQY_Cleanup_Video);
+            case AiqiyiCleanup.CAT_DOCUMENT: return getString(R.string.AQY_Cleanup_Document);
+            case AiqiyiCleanup.CAT_STICKER:  return getString(R.string.AQY_Cleanup_Sticker);
+            default: return "?";
+        }
+    }
+
+    private String getCleanupCategorySize(int cat) {
+        try {
+            return org.telegram.messenger.AndroidUtilities.formatFileSize(AiqiyiCleanup.sizeOf(cat));
+        } catch (Throwable e) {
+            return "—";
+        }
+    }
+
+    private void showCleanupCategoryDialog(int cat) {
+        if (getParentActivity() == null) return;
+        String size = getCleanupCategorySize(cat);
+        org.telegram.ui.ActionBar.AlertDialog.Builder b =
+                new org.telegram.ui.ActionBar.AlertDialog.Builder(getParentActivity());
+        b.setTitle(getCleanupCategoryName(cat));
+        b.setMessage(getString(R.string.AQY_Cleanup_Confirm).replace("%1$s", size));
+        b.setPositiveButton(getString(R.string.AQY_Cleanup_Do), (d, w) -> {
+            doCleanup(cat);
+        });
+        b.setNegativeButton(getString(R.string.Cancel), null);
+        showDialog(b.create());
+    }
+
+    private void showCleanupAllDialog() {
+        if (getParentActivity() == null) return;
+        org.telegram.ui.ActionBar.AlertDialog.Builder b =
+                new org.telegram.ui.ActionBar.AlertDialog.Builder(getParentActivity());
+        b.setTitle(getString(R.string.AQY_Cleanup_Total));
+        b.setMessage(getString(R.string.AQY_Cleanup_Confirm)
+                .replace("%1$s", getCleanupTotalText()));
+        b.setPositiveButton(getString(R.string.AQY_Cleanup_Do), (d, w) -> doCleanup(-1));
+        b.setNegativeButton(getString(R.string.Cancel), null);
+        showDialog(b.create());
+    }
+
+    private void doCleanup(int cat) {
+        final android.content.Context ctx = getParentActivity();
+        if (ctx == null) return;
+        if (cat < 0) {
+            AiqiyiCleanup.clearAll(freed -> {
+                showFreed(ctx, freed);
+                updateRows(true);
+            });
+        } else {
+            AiqiyiCleanup.clear(cat, freed -> {
+                showFreed(ctx, freed);
+                updateRows(true);
+            });
+        }
+    }
+
+    private void showFreed(android.content.Context ctx, long freed) {
+        try {
+            org.telegram.ui.Components.BulletinFactory.of(this)
+                    .createSimpleBulletin(org.telegram.messenger.R.raw.contact_check,
+                            getString(R.string.AQY_Cleanup_Done)
+                                    .replace("%1$s",
+                                            org.telegram.messenger.AndroidUtilities.formatFileSize(freed)))
+                    .show();
+        } catch (Throwable ignore) {
+        }
+    }
 
     // --------------------------------------------------------------- 活跃专区
 

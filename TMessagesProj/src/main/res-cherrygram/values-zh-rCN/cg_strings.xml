@@ -779,4 +779,13 @@
     <string name="AQY_Zone_Target_Hint">用户 ID，逗号分隔</string>
     <string name="AQY_Zone_Target_Desc">留空则不限制发送者</string>
     <string name="AQY_Zone_Target_Clear">清空</string>
+    <string name="AQY_Cleanup_Total">总占用</string>
+    <string name="AQY_Cleanup_Cache">临时缓存</string>
+    <string name="AQY_Cleanup_Photo">图片</string>
+    <string name="AQY_Cleanup_Video">视频</string>
+    <string name="AQY_Cleanup_Document">文件</string>
+    <string name="AQY_Cleanup_Sticker">表情贴纸</string>
+    <string name="AQY_Cleanup_Confirm">将清理 %1$s，聊天记录和云端内容不受影响。</string>
+    <string name="AQY_Cleanup_Do">清理</string>
+    <string name="AQY_Cleanup_Done">已释放 %1$s</string>
 </resources>

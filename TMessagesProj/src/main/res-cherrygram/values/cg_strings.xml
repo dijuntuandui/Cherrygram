@@ -849,4 +849,13 @@
     <string name="AQY_Zone_Target_Hint">User IDs, comma separated</string>
     <string name="AQY_Zone_Target_Desc">Leave empty for no sender limit</string>
     <string name="AQY_Zone_Target_Clear">Clear</string>
+    <string name="AQY_Cleanup_Total">Total size</string>
+    <string name="AQY_Cleanup_Cache">Temporary cache</string>
+    <string name="AQY_Cleanup_Photo">Photos</string>
+    <string name="AQY_Cleanup_Video">Videos</string>
+    <string name="AQY_Cleanup_Document">Files</string>
+    <string name="AQY_Cleanup_Sticker">Stickers</string>
+    <string name="AQY_Cleanup_Confirm">Will free %1$s. Chats and cloud data are not affected.</string>
+    <string name="AQY_Cleanup_Do">Clear</string>
+    <string name="AQY_Cleanup_Done">Freed %1$s</string>
 </resources>
