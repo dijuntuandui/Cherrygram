@@ -65,12 +65,13 @@ public final class AiqiyiBookmarkMenuInjector {
         }
 
         final int account = chatActivity.getCurrentAccount();
+        final long finalDialogId = dialogId;
         final int[] idArr = new int[ids.size()];
         for (int i = 0; i < idArr.length; i++) {
             idArr[i] = ids.get(i);
         }
 
-        final boolean allBookmarked = AiqiyiBookmarksHelper.areAllBookmarked(account, dialogId, idArr);
+        final boolean allBookmarked = AiqiyiBookmarksHelper.areAllBookmarked(account, finalDialogId, idArr);
         final boolean single = idArr.length == 1;
 
         LinearLayout sections = new LinearLayout(chatActivity.getParentActivity());
@@ -88,7 +89,7 @@ public final class AiqiyiBookmarkMenuInjector {
         cell.setTextAndIcon(label, icon);
         cell.setOnClickListener(v -> {
             chatActivity.closeMenu();
-            boolean nowOn = AiqiyiBookmarksHelper.toggleBookmarks(account, dialogId, idArr);
+            boolean nowOn = AiqiyiBookmarksHelper.toggleBookmarks(account, finalDialogId, idArr);
             int res = nowOn
                     ? (single ? R.string.AQY_BookmarkAdded : R.string.AQY_BookmarksAdded)
                     : (single ? R.string.AQY_BookmarkRemoved : R.string.AQY_BookmarksRemoved);

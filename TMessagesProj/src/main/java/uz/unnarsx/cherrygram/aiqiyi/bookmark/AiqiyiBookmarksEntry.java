@@ -158,7 +158,9 @@ public class AiqiyiBookmarksEntry extends BaseCGPreferencesEntry {
 
     private void showBulletin(CharSequence text) {
         try {
-            org.telegram.ui.Components.BulletinFactory.of(this).createSimpleBulletin(text).show();
+            org.telegram.ui.Components.BulletinFactory.of(this)
+                    .createSimpleBulletin(org.telegram.messenger.R.raw.contact_check, text)
+                    .show();
         } catch (Throwable ignore) {
         }
     }
