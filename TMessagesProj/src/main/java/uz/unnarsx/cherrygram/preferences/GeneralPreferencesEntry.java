@@ -95,6 +95,9 @@ public class GeneralPreferencesEntry extends BaseCGPreferencesEntry {
     private final int aiqiyiFakeLocationRow = 43;
     private final int aiqiyiDialogueBubbleRow = 45;
     private final int aiqiyiActiveZoneRow = 46;
+    private final int aiqiyiZoneEmojiRow = 47;
+    private final int aiqiyiZoneDirectionRow = 48;
+    private final int aiqiyiZoneTargetRow = 49;
 
     private boolean expandedArchiveStoriesSection = false;
 
@@ -329,6 +332,21 @@ public class GeneralPreferencesEntry extends BaseCGPreferencesEntry {
                 .setChecked(CherrygramAppearanceConfig.INSTANCE.getAiqiyiActiveZone())
                 .slug("aiqiyi_active_zone")
         );
+        if (CherrygramAppearanceConfig.INSTANCE.getAiqiyiActiveZone()) {
+            items.add(SettingsHelper.asTextDetail(aiqiyiZoneEmojiRow, 0,
+                    getString(R.string.AQY_Zone_Emoji),
+                    CherrygramAppearanceConfig.INSTANCE.getAiqiyiActiveZoneEmoji())
+                    .slug("aiqiyi_zone_emoji")
+            );
+            items.add(SettingsHelper.asTextDetail(aiqiyiZoneDirectionRow, 0,
+                    getString(R.string.AQY_Zone_Direction), getZoneDirectionText())
+                    .slug("aiqiyi_zone_direction")
+            );
+            items.add(SettingsHelper.asTextDetail(aiqiyiZoneTargetRow, 0,
+                    getString(R.string.AQY_Zone_Target), getZoneTargetText())
+                    .slug("aiqiyi_zone_target")
+            );
+        }
 items.add(SettingsHelper.asTextDetail(aiqiyiAutoSignInRow, 0, getString(R.string.AQY_AutoSignIn), getAutoSignInSummary())
                 .slug("aiqiyi_auto_sign_in"));
         items.add(SettingsHelper.asSwitchCG(aiqiyiSelfCertRow, getString(R.string.AQY_SelfCert), getString(R.string.AQY_SelfCert_Desc))
@@ -543,6 +561,13 @@ items.add(SettingsHelper.asTextDetail(aiqiyiAutoSignInRow, 0, getString(R.string
         } else if (item.id == aiqiyiActiveZoneRow) {
             CherrygramAppearanceConfig.INSTANCE.setAiqiyiActiveZone(!CherrygramAppearanceConfig.INSTANCE.getAiqiyiActiveZone());
             SettingsHelper.updateCheckState(view, CherrygramAppearanceConfig.INSTANCE.getAiqiyiActiveZone());
+            updateRows(true);
+        } else if (item.id == aiqiyiZoneEmojiRow) {
+            showZoneEmojiDialog();
+        } else if (item.id == aiqiyiZoneDirectionRow) {
+            showZoneDirectionDialog();
+        } else if (item.id == aiqiyiZoneTargetRow) {
+            showZoneTargetDialog();
         }
     }
 
@@ -572,6 +597,122 @@ items.add(SettingsHelper.asTextDetail(aiqiyiAutoSignInRow, 0, getString(R.string
         return getString(on ? R.string.AQY_LocalZone_On : R.string.AQY_LocalZone_Off);
     }
 
+
+    // --------------------------------------------------------------- 活跃专区
+
+    private String getZoneDirectionText() {
+        int d = CherrygramAppearanceConfig.INSTANCE.getAiqiyiActiveZoneDirection();
+        if (d == 1) return getString(R.string.AQY_Zone_Dir_Self);
+        if (d == 2) return getString(R.string.AQY_Zone_Dir_All);
+        return getString(R.string.AQY_Zone_Dir_Others);
+    }
+
+    private String getZoneTargetText() {
+        int mode = CherrygramAppearanceConfig.INSTANCE.getAiqiyiActiveZoneTargetMode();
+        if (mode == 1) {
+            String raw = CherrygramAppearanceConfig.INSTANCE.getAiqiyiActiveZoneTargetUsers();
+            int n = 0;
+            if (raw != null) {
+                for (String p : raw.split(",")) {
+                    if (p.trim().length() > 0) n++;
+                }
+            }
+            return n + " " + getString(R.string.AQY_Zone_Users_Count);
+        }
+        return getString(R.string.AQY_Zone_Target_All);
+    }
+
+    private void showZoneEmojiDialog() {
+        if (getParentActivity() == null) return;
+        org.telegram.ui.Components.EditTextBoldCursor editText =
+                new org.telegram.ui.Components.EditTextBoldCursor(getParentActivity());
+        editText.setText(CherrygramAppearanceConfig.INSTANCE.getAiqiyiActiveZoneEmoji());
+        editText.setTextSize(1, 18);
+        editText.setTextColor(org.telegram.ui.ActionBar.Theme.getColor(org.telegram.ui.ActionBar.Theme.key_dialogTextBlack));
+        editText.setHintText(getString(R.string.AQY_Zone_Emoji_Hint));
+        editText.setFocusable(true);
+        editText.requestFocus();
+
+        android.widget.LinearLayout container = new android.widget.LinearLayout(getParentActivity());
+        container.setOrientation(android.widget.LinearLayout.VERTICAL);
+        int pad = org.telegram.messenger.AndroidUtilities.dp(24);
+        container.setPadding(pad, 0, pad, 0);
+        container.addView(editText, org.telegram.ui.Components.LayoutHelper.createLinear(
+                org.telegram.ui.Components.LayoutHelper.MATCH_PARENT,
+                org.telegram.ui.Components.LayoutHelper.WRAP_CONTENT));
+
+        org.telegram.ui.ActionBar.AlertDialog.Builder b =
+                new org.telegram.ui.ActionBar.AlertDialog.Builder(getParentActivity());
+        b.setTitle(getString(R.string.AQY_Zone_Emoji));
+        b.setView(container);
+        b.setPositiveButton(getString(R.string.OK), (d, w) -> {
+            String v = editText.getText().toString().trim();
+            CherrygramAppearanceConfig.INSTANCE.setAiqiyiActiveZoneEmoji(
+                    v.isEmpty() ? "\uD83D\uDC4D" : v);
+            updateRows(true);
+        });
+        b.setNegativeButton(getString(R.string.Cancel), null);
+        showDialog(b.create());
+    }
+
+    private void showZoneDirectionDialog() {
+        if (getParentActivity() == null) return;
+        int cur = CherrygramAppearanceConfig.INSTANCE.getAiqiyiActiveZoneDirection();
+        CharSequence[] options = new CharSequence[]{
+                (cur == 0 ? "\u2713 " : "") + getString(R.string.AQY_Zone_Dir_Others),
+                (cur == 1 ? "\u2713 " : "") + getString(R.string.AQY_Zone_Dir_Self),
+                (cur == 2 ? "\u2713 " : "") + getString(R.string.AQY_Zone_Dir_All)
+        };
+        org.telegram.ui.ActionBar.AlertDialog.Builder b =
+                new org.telegram.ui.ActionBar.AlertDialog.Builder(getParentActivity());
+        b.setTitle(getString(R.string.AQY_Zone_Direction));
+        b.setItems(options, (d, which) -> {
+            CherrygramAppearanceConfig.INSTANCE.setAiqiyiActiveZoneDirection(which);
+            d.dismiss();
+            updateRows(true);
+        });
+        b.setNegativeButton(getString(R.string.Cancel), null);
+        showDialog(b.create());
+    }
+
+    private void showZoneTargetDialog() {
+        if (getParentActivity() == null) return;
+        org.telegram.ui.Components.EditTextBoldCursor editText =
+                new org.telegram.ui.Components.EditTextBoldCursor(getParentActivity());
+        editText.setText(CherrygramAppearanceConfig.INSTANCE.getAiqiyiActiveZoneTargetUsers());
+        editText.setTextSize(1, 16);
+        editText.setTextColor(org.telegram.ui.ActionBar.Theme.getColor(org.telegram.ui.ActionBar.Theme.key_dialogTextBlack));
+        editText.setHintText(getString(R.string.AQY_Zone_Target_Hint));
+        editText.setFocusable(true);
+        editText.requestFocus();
+
+        android.widget.LinearLayout container = new android.widget.LinearLayout(getParentActivity());
+        container.setOrientation(android.widget.LinearLayout.VERTICAL);
+        int pad = org.telegram.messenger.AndroidUtilities.dp(24);
+        container.setPadding(pad, 0, pad, 0);
+        container.addView(editText, org.telegram.ui.Components.LayoutHelper.createLinear(
+                org.telegram.ui.Components.LayoutHelper.MATCH_PARENT,
+                org.telegram.ui.Components.LayoutHelper.WRAP_CONTENT));
+
+        org.telegram.ui.ActionBar.AlertDialog.Builder b =
+                new org.telegram.ui.ActionBar.AlertDialog.Builder(getParentActivity());
+        b.setTitle(getString(R.string.AQY_Zone_Target));
+        b.setMessage(getString(R.string.AQY_Zone_Target_Desc));
+        b.setView(container);
+        b.setPositiveButton(getString(R.string.OK), (d, w) -> {
+            String v = editText.getText().toString().trim();
+            CherrygramAppearanceConfig.INSTANCE.setAiqiyiActiveZoneTargetUsers(v);
+            CherrygramAppearanceConfig.INSTANCE.setAiqiyiActiveZoneTargetMode(v.isEmpty() ? 0 : 1);
+            updateRows(true);
+        });
+        b.setNegativeButton(getString(R.string.Cancel), null);
+        b.setNeutralButton(getString(R.string.AQY_Zone_Target_Clear), (d, w) -> {
+            CherrygramAppearanceConfig.INSTANCE.setAiqiyiActiveZoneTargetUsers("");
+            CherrygramAppearanceConfig.INSTANCE.setAiqiyiActiveZoneTargetMode(0);
+            updateRows(true);
+        });
+        showDialog(b.create());
+    }
 
     /** [Aiqiyi bookmark] 设置页那一行的右侧摘要：显示已书签的会话数 / 总条数 */
     private String getBookmarkSummary() {

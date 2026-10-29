@@ -767,4 +767,16 @@
     <string name="AQY_BookmarksOpenChat">打开会话</string>
     <string name="AQY_BookmarksJumpFail">这条消息已无法定位</string>
     <string name="AQY_Bookmarks_Empty_Summary">还没有</string>
+    <string name="AQY_Zone_Emoji">🎯 自动反应表情</string>
+    <string name="AQY_Zone_Emoji_Hint">例如 👍 ❤️ 🔥</string>
+    <string name="AQY_Zone_Direction">对哪些消息反应</string>
+    <string name="AQY_Zone_Dir_Others">只对别人</string>
+    <string name="AQY_Zone_Dir_Self">只对自己</string>
+    <string name="AQY_Zone_Dir_All">全部</string>
+    <string name="AQY_Zone_Target">限定发送者</string>
+    <string name="AQY_Zone_Target_All">所有人</string>
+    <string name="AQY_Zone_Users_Count">位用户</string>
+    <string name="AQY_Zone_Target_Hint">用户 ID，逗号分隔</string>
+    <string name="AQY_Zone_Target_Desc">留空则不限制发送者</string>
+    <string name="AQY_Zone_Target_Clear">清空</string>
 </resources>

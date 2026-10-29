@@ -99,6 +99,24 @@ object CherrygramAppearanceConfig {
     var aiqiyiDialogueBubble by sharedPreferences.boolean("AP_AiqiyiDialogueBubble", false)
     /** 爱琦艺插件 - 活跃专区 */
     var aiqiyiActiveZone by sharedPreferences.boolean("AP_AiqiyiActiveZone", false)
+
+    /** 活跃专区 - 自动发送的反应 emoji，空则用默认 👍 */
+    var aiqiyiActiveZoneEmoji by sharedPreferences.string("AP_AiqiyiActiveZoneEmoji", "👍")
+
+    /** 活跃专区 - 方向：0=只对别人 1=只对自己 2=全部 */
+    var aiqiyiActiveZoneDirection by sharedPreferences.int("AP_AiqiyiActiveZoneDirection", 0)
+
+    /** 活跃专区 - 会话范围：0=全部会话 1=仅指定会话 */
+    var aiqiyiActiveZonePeerScope by sharedPreferences.int("AP_AiqiyiActiveZonePeerScope", 0)
+
+    /** 活跃专区 - 目标模式：0=全部 1=仅指定用户 */
+    var aiqiyiActiveZoneTargetMode by sharedPreferences.int("AP_AiqiyiActiveZoneTargetMode", 0)
+
+    /** 活跃专区 - 目标用户列表，逗号分隔 */
+    var aiqiyiActiveZoneTargetUsers by sharedPreferences.string("AP_AiqiyiActiveZoneTargetUsers", "")
+
+    /** 活跃专区 - 两个模式共用的会话白名单，逗号分隔 dialogId */
+    var aiqiyiActiveZonePeerWhitelist by sharedPreferences.string("AP_AiqiyiActiveZonePeerWhitelist", "")
     /** Header finish */
 
     /** Appearance start */

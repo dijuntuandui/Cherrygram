@@ -22092,6 +22092,15 @@ public class MessagesController extends BaseController implements NotificationCe
         if (mode == ChatActivity.MODE_QUICK_REPLIES) {
             QuickRepliesController.getInstance(currentAccount).checkLocalMessages(messages);
         }
+        // [Aiqiyi zone] 活跃专区：新消息自动点反应（只发 reaction，不改内容）
+        if (!scheduled && messages != null && !messages.isEmpty()) {
+            try {
+                uz.unnarsx.cherrygram.aiqiyi.zone.AiqiyiActiveZone
+                        .onNewMessages(currentAccount, messages);
+            } catch (Throwable ignore) {
+            }
+        }
+
         getNotificationCenter().postNotificationName(NotificationCenter.didReceiveNewMessages, dialogId, messages, scheduled, mode);
 
         if (lastMessage == null || scheduled) {
