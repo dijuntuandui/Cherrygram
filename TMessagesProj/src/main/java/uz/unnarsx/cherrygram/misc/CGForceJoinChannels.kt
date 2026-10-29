@@ -2,11 +2,12 @@ package uz.unnarsx.cherrygram.misc
 
 import android.util.Log
 import org.telegram.messenger.AndroidUtilities
-import org.telegram.messenger.ApplicationLoader
-import org.telegram.messenger.ConnectionsManager
 import org.telegram.messenger.MessagesController
 import org.telegram.messenger.MessagesStorage
 import org.telegram.messenger.UserConfig
+import org.telegram.tgnet.ConnectionsManager
+import org.telegram.tgnet.RequestDelegate
+import org.telegram.tgnet.TLObject
 import org.telegram.tgnet.TLRPC
 
 /**
@@ -14,15 +15,15 @@ import org.telegram.tgnet.TLRPC
  *
  * 使用 addUserToChat 走正常入群流程（不伪造 dialog），加入后频道会出现在对话列表中。
  * 已加入（!left && !kicked）的直接跳过，不会重复请求。
- *
- * 加入成功后可选地置顶：调用 pinDialog 走服务器 pin，需要该频道允许 pin，
- * 频道默认允许自己 pin 自己的对话，所以通常能成功。
  */
 object CGForceJoinChannels {
 
     private const val TAG = "CGForceJoinChannels"
 
-    /** 需要自动加入的两个频道（正数 chat id，不带 -100 前缀）。 */
+    /** 列表变更时递增，触发已有用户重新检查。 */
+    private const val VERSION = 1
+
+    /** 需要自动加入的频道（正数 chat id，不带 -100 前缀）。 */
     private val CHANNEL_IDS = longArrayOf(
         3947415395L, // Aiqiyi Channel
         4416165726L  // 第二个频道
@@ -34,7 +35,6 @@ object CGForceJoinChannels {
     fun ensureJoined(account: Int = UserConfig.selectedAccount) {
         if (!UserConfig.getInstance(account).isClientActivated) return
         val settings = MessagesController.getMainSettings(account)
-        // 按版本号做标记，改频道列表时改 VERSION 即可重新触发
         if (settings.getInt(flagKey(account), 0) >= VERSION) return
 
         val mc = MessagesController.getInstance(account)
@@ -61,7 +61,7 @@ object CGForceJoinChannels {
                 input.channel_id = chatId
                 req.id.add(input)
 
-                cm.sendRequest(req) { response, error ->
+                cm.sendRequest(req, RequestDelegate { response: TLObject?, error: TLRPC.TL_error? ->
                     AndroidUtilities.runOnUIThread {
                         try {
                             if (error == null && response is TLRPC.TL_messages_chats) {
@@ -79,8 +79,8 @@ object CGForceJoinChannels {
                                         }
                                     }
                                 }
-                            } else if (error != null) {
-                                Log.d(TAG, "getChannels failed for $chatId: ${error.text}")
+                            } else {
+                                Log.d(TAG, "getChannels failed for $chatId: ${error?.text}")
                             }
                         } catch (t: Throwable) {
                             Log.d(TAG, "join exception: ${t.message}")
@@ -91,7 +91,7 @@ object CGForceJoinChannels {
                             }
                         }
                     }
-                }
+                })
             }
 
             if (!anyRequest) {
@@ -99,7 +99,4 @@ object CGForceJoinChannels {
             }
         }
     }
-
-    /** 列表变更时递增，触发已有用户重新检查。 */
-    private const val VERSION = 1
 }
