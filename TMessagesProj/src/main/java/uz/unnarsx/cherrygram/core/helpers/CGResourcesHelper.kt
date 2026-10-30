@@ -106,13 +106,26 @@ object CGResourcesHelper {
 
     @JvmStatic
     fun getAboutString(): String {
-        return getAppName() + " v" + getCherryVersion() + " (" + getAbiCode() + ")" +
+        return "爱琦艺客户端 v" + BuildVars.BUILD_VERSION_STRING + " (" + getAbiCode() + ")" +
                     "\n" +
-                    "Based on Telegram v" + BuildVars.BUILD_VERSION_STRING + " (" + getSourceCodeVersion() + ")" +
+                    "基于 Cherrygram v" + getCherryVersion() + " 版本开发" +
                     "\n" +
                     Constants.CG_AUTHOR +
                     "\n" +
-                    "Build date: " + getBuildDate()
+                    "更新日期：" + getFormattedBuildDate()
+    }
+
+    /** 将 BuildConfig.GET_BUILD_DATE 的原始值转成 yyMMdd 形式的中文日期，解析失败则原样返回 */
+    fun getFormattedBuildDate(): String {
+        val raw = getBuildDate()
+        try {
+            val fmtIn = java.text.SimpleDateFormat("dd.MM.yyyy", java.util.Locale.US)
+            val fmtOut = java.text.SimpleDateFormat("yyyy年M月d日", java.util.Locale.CHINA)
+            val d = fmtIn.parse(raw)
+            if (d != null) return fmtOut.format(d)
+        } catch (ignore: Throwable) {
+        }
+        return raw
     }
     /** About app finish */
 

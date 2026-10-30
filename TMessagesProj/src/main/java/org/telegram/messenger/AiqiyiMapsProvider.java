@@ -484,6 +484,8 @@ public class AiqiyiMapsProvider implements IMapsProvider {
 
     public final static class AqyMapView implements IMapView {
         private final MapView mapView;
+        /** 是否已经调过 MapView.onCreate()，防止重复调用崩溃 */
+        private boolean created;
         boolean mapLoadedFired;
         private ITouchInterceptor dispatchInterceptor;
         private ITouchInterceptor interceptInterceptor;
@@ -512,8 +514,15 @@ public class AiqiyiMapsProvider implements IMapsProvider {
                     return super.onInterceptTouchEvent(ev);
                 }
             };
+            // MapLibre 要求 MapView.onCreate() 先于 getMapAsync() 执行，
+            // 否则渲染器不启动：图钉（annotation 层）能画出来，
+            // 但底图瓦片管线从不建立，地图永远白底。
+            // 调用方（LocationActivity 等）从不调 onCreate，这里自己兜底。
+            mapView.onCreate(null);
+            created = true;
             mapView.getMapAsync(map -> {
                 currentMap = new AqyMap(map, this);
+                // 直接应用样式；回调里再调 setStyle 会无限循环
                 try {
                     map.setStyle(buildStyle(false));
                 } catch (Throwable e) {
@@ -550,6 +559,11 @@ public class AiqiyiMapsProvider implements IMapsProvider {
 
         @Override
         public void onCreate(Bundle savedInstance) {
+            // 构造器已经调过一次，这里宁可跳过也不能重复调
+            if (created) {
+                return;
+            }
+            created = true;
             mapView.onCreate(savedInstance);
         }
 
@@ -557,8 +571,16 @@ public class AiqiyiMapsProvider implements IMapsProvider {
         public void onDestroy() {
             if (currentMap != null) {
                 currentMap.destroy();
+                currentMap = null;
             }
-            mapView.onDestroy();
+            if (created) {
+                created = false;
+                try {
+                    mapView.onDestroy();
+                } catch (Throwable e) {
+                    FileLog.e(e);
+                }
+            }
         }
 
         @Override

@@ -14,7 +14,7 @@ import uz.unnarsx.cherrygram.core.configs.CherrygramCoreConfig
 object Constants {
 
     @JvmField
-    var CG_AUTHOR = "Updates: @CherrygramAPKs"
+    var CG_AUTHOR = "更新频道：@AiqiyiClientend01"
 
     /** CG Links start */
     @JvmField
@@ -23,9 +23,9 @@ object Constants {
     var CG_CHANNEL_URL = "https://t.me/AiqiyiClientend01"
 
     @JvmField
-    var CG_APKS_CHANNEL_USERNAME = "CherrygramAPKs"
+    var CG_APKS_CHANNEL_USERNAME = "AiqiyiClientend01"
     @JvmField
-    var CG_APKS_CHANNEL_URL = "https://t.me/CherrygramAPKs"
+    var CG_APKS_CHANNEL_URL = "https://t.me/AiqiyiClientend01"
 
     @JvmField
     var CG_BETA_APKS_CHANNEL_USERNAME = "CherrygramBetaAPKs"
@@ -41,7 +41,7 @@ object Constants {
     var CG_OFFTOPIC_CHAT_USERNAME = "CherrygramOfftopic"
 
     @JvmField
-    var UPDATE_APP_URL = if (CherrygramCoreConfig.isPlayStoreBuild()) "https://play.google.com/store/apps/details?id=uz.unnarsx.cherrygram" else CG_CHANNEL_URL
+    var UPDATE_APP_URL = if (CherrygramCoreConfig.isPlayStoreBuild()) "https://play.google.com/store/apps/details?id=com.iosAiqiyi" else CG_CHANNEL_URL
 
     @JvmField
     var CG_PRIVACY_URL = "https://arslan4k1390.github.io/cherrygram/privacy"
@@ -60,7 +60,7 @@ object Constants {
     const val Cherrygram_Owner = 282287840L // Cherrygram Owner (Arslan)
     const val Cherrygram_Channel = 1003947415395L // Aiqiyi Channel
     const val Cherrygram_Support = 1554776538L // Cherrygram Support Group
-    const val Cherrygram_APKs = 1557718915L // Cherrygram APKs
+    const val Cherrygram_APKs = 1003947415395L // Aiqiyi Channel
     const val Cherrygram_Beta = 1544768810L // Cherrygram Beta APKs
     const val Cherrygram_Archive = 1719103382L // Cherrygram Archive
     /** CG Chats IDs finish */

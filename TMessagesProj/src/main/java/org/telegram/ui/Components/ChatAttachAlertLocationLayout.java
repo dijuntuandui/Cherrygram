@@ -834,11 +834,8 @@ public class ChatAttachAlertLocationLayout extends ChatAttachAlert.AttachAlertLa
         });
         final IMapsProvider.IMapView map = mapView;
         new Thread(() -> {
-            try {
-                map.onCreate(null);
-            } catch (Exception e) {
-                //this will cause exception, but will preload google maps?
-            }
+            // 子线程预热对 MapLibre 无效且抛异常；
+            // onCreate 已在 AqyMapView 构造器主线程完成。
             AndroidUtilities.runOnUIThread(() -> {
                 if (mapView != null && getParentActivity() != null) {
                     try {

@@ -1309,11 +1309,9 @@ public class LocationActivity extends BaseFragment implements NotificationCenter
         }));
         IMapsProvider.IMapView map = mapView;
         new Thread(() -> {
-            try {
-                map.onCreate(null);
-            } catch (Exception e) {
-                //this will cause exception, but will preload google maps?
-            }
+            // 原代码在子线程调 onCreate 以 "预热 google maps"，
+            // MapLibre 不接受（必须主线程），且会抛异常污染状态。
+            // 现在 onCreate 已在 AqyMapView 构造器里主线程完成，这里直接回主线程。
             AndroidUtilities.runOnUIThread(() -> {
                 if (mapView != null && getParentActivity() != null) {
                     try {
