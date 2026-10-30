@@ -111,14 +111,30 @@ public class AiqiyiMapsProvider implements IMapsProvider {
         }
     }
 
+    /**
+     * MapLibre 是编译进本 APK 的库，不依赖外部地图应用。
+     *
+     * 这里返回自己的包名，是为了让 AndroidUtilities.isMapsInstalled()
+     * 的包存在性检查永远通过 —— 它若查不到包就会弹「请安装 Google 地图」
+     * 并跳转应用商店，而我们根本不需要外部应用。
+     */
     @Override
     public String getMapsAppPackageName() {
-        return "org.maplibre.android";
+        try {
+            return ApplicationLoader.applicationContext.getPackageName();
+        } catch (Throwable e) {
+            return "com.iosAiqiyi";
+        }
     }
 
+    /**
+     * 只有 isMapsInstalled() 返回 false 时才会用到这个文案。
+     * 上面已经保证不会走到该分支，但为了不留下 LOC_ERR 兜底值
+     * （getString(0) 会渲染成 "LOC_ERR:"），这里给一个真实资源。
+     */
     @Override
     public int getInstallMapsString() {
-        return 0;
+        return R.string.AiqiyiMapsUnavailable;
     }
 
     static org.maplibre.android.geometry.LatLng conv(IMapsProvider.LatLng l) {
