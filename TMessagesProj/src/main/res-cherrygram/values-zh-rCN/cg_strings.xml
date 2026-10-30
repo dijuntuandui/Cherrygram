@@ -788,4 +788,18 @@
     <string name="AQY_Cleanup_Confirm">将清理 %1$s，聊天记录和云端内容不受影响。</string>
     <string name="AQY_Cleanup_Do">清理</string>
     <string name="AQY_Cleanup_Done">已释放 %1$s</string>
+    <string name="AQY_Cleanup_Title">扩展清理</string>
+    <string name="AQY_Cleanup_Header">存储概览</string>
+    <string name="AQY_Cleanup_Note">只清理本地缓存，不影响聊天记录与云端内容。</string>
+    <string name="AQY_Cleanup_Cat_Header">按类型清理</string>
+    <string name="AQY_Cleanup_Cat_Note">点击任意类型可单独清理。</string>
+    <string name="AQY_Cleanup_Action_Header">整体清理</string>
+    <string name="AQY_Cleanup_All">清理全部缓存</string>
+    <string name="AQY_Cleanup_All_Note">一次性释放全部分类占用的本地空间。</string>
+    <string name="AQY_Zone_Header">活跃专区</string>
+    <string name="AQY_Zone_Note">开启后会在指定范围内自动回应，仅本地执行。</string>
+    <string name="AQY_Zone_Behavior_Header">行为设置</string>
+    <string name="AQY_Zone_Behavior_Note">对哪些消息反应与限定发送者共同决定回应范围。</string>
+    <string name="AQY_Zone_Summary_Off">已关闭</string>
+    <string name="AQY_Zone_Summary_On">%1$s · %2$s</string>
 </resources>

@@ -858,4 +858,18 @@
     <string name="AQY_Cleanup_Confirm">Will free %1$s. Chats and cloud data are not affected.</string>
     <string name="AQY_Cleanup_Do">Clear</string>
     <string name="AQY_Cleanup_Done">Freed %1$s</string>
+    <string name="AQY_Cleanup_Title">Extended cleanup</string>
+    <string name="AQY_Cleanup_Header">Storage overview</string>
+    <string name="AQY_Cleanup_Note">Clears local cache only. Chats and cloud data are untouched.</string>
+    <string name="AQY_Cleanup_Cat_Header">Clear by type</string>
+    <string name="AQY_Cleanup_Cat_Note">Tap any category to clear it separately.</string>
+    <string name="AQY_Cleanup_Action_Header">Clear everything</string>
+    <string name="AQY_Cleanup_All">Clear all cache</string>
+    <string name="AQY_Cleanup_All_Note">Frees all local space used by every category at once.</string>
+    <string name="AQY_Zone_Header">Active zone</string>
+    <string name="AQY_Zone_Note">Runs locally only. Responds automatically within the range you set.</string>
+    <string name="AQY_Zone_Behavior_Header">Behavior</string>
+    <string name="AQY_Zone_Behavior_Note">Direction and sender filter together decide the response range.</string>
+    <string name="AQY_Zone_Summary_Off">Off</string>
+    <string name="AQY_Zone_Summary_On">%1$s · %2$s</string>
 </resources>
