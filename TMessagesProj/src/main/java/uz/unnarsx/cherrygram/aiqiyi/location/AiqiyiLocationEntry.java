@@ -15,6 +15,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
+import android.widget.FrameLayout;
 import android.widget.LinearLayout;
 import android.widget.ListView;
 import android.widget.TextView;
@@ -270,6 +271,8 @@ public class AiqiyiLocationEntry extends BaseCGPreferencesEntry {
                     sub.setVisibility(View.GONE);
                     ll.addView(sub, slp);
 
+                    // [Aiqiyi] 固定条目高度，否则 ListView 只测一行时会把那一行撑满整个弹窗。
+                    ll.setMinimumHeight(AndroidUtilities.dp(56));
                     ll.setTag(new TextView[]{title, sub});
                 } else {
                     ll = (LinearLayout) convertView;
@@ -296,9 +299,20 @@ public class AiqiyiLocationEntry extends BaseCGPreferencesEntry {
         };
         listView.setAdapter(adapter);
 
+        // [Aiqiyi] 关键：ListView 直接 setView 进 Dialog 会被测成一行高（因为
+        // 没有用满屏高的约束），剩下的条目全被挤到可见区外。
+        // 这里给它一个有上下限的高度：条目少就自适应，条目多就封顶滞动。
+        int rowH = AndroidUtilities.dp(56);
+        int contentH = presets.length * rowH;
+        int maxH = AndroidUtilities.dp(360);
+        int listH = Math.min(contentH, maxH);
+        FrameLayout wrapper = new FrameLayout(getParentActivity());
+        wrapper.addView(listView, new FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT, listH));
+
         final AlertDialog dialog = new AlertDialog.Builder(getParentActivity())
                 .setTitle(getString(R.string.AQY_Loc_Presets))
-                .setView(listView)
+                .setView(wrapper)
                 .setNegativeButton(getString(R.string.Cancel), null)
                 .create();
 
