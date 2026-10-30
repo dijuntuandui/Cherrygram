@@ -242,6 +242,15 @@ public class AiqiyiMapsProvider implements IMapsProvider {
         AqyMap(MapLibreMap map, AqyMapView owner) {
             this.map = map;
             this.owner = owner;
+            // MapLibre 默认最大缩放 22，但 OSM 瓦片最深只到 18。
+            // 不限制的话用户能捏到 22，底图被过度拉伸糊成一片。
+            // 这里锁死到瓦片实际上限，手势缩放也推不过去。
+            try {
+                map.setMaxZoomPreference(OSM_MAX_ZOOM);
+                map.setMinZoomPreference(2f);
+            } catch (Throwable e) {
+                FileLog.e(e);
+            }
         }
 
         @Override
@@ -278,7 +287,10 @@ public class AiqiyiMapsProvider implements IMapsProvider {
 
         @Override
         public float getMaxZoomLevel() {
-            return (float) map.getMaxZoomLevel();
+            // 返回瓦片实际上限，而不是 MapLibre 的 22。
+            // 上游全部用 getMaxZoomLevel()-N 算初始缩放，
+            // 这里报 22 会把初始视野推到 18（只能看几个街区）。
+            return (float) OSM_MAX_ZOOM;
         }
 
         @Override
