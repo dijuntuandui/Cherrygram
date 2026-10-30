@@ -523,6 +523,10 @@ public class LocationController extends BaseController implements NotificationCe
     }
 
     private void setLastKnownLocation(Location location) {
+        // [Aiqiyi] 地图同步伪造：开了开关就把真实定位换成伪坐标，
+        // 让地图预览 / 精度 / 发出去的位置保持同一个点。
+        // 过期判断必须放在替换之后，否则伪坐标的时间戳会被误判丢弃。
+        location = uz.unnarsx.cherrygram.aiqiyi.location.AiqiyiLocationInjector.fakeLocation(location);
         if (location != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR1 && (SystemClock.elapsedRealtimeNanos() - location.getElapsedRealtimeNanos()) / 1000000000 > 60 * 5) {
             return;
         }

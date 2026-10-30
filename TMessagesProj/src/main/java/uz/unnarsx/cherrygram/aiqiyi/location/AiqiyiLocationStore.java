@@ -19,6 +19,7 @@ public class AiqiyiLocationStore {
     private static final String KEY_LON = "aqy_loc_lon";
     private static final String KEY_LABEL = "aqy_loc_label";
     private static final String KEY_LIVE = "aqy_loc_live";
+    private static final String KEY_MAP = "aqy_loc_map";
     private static final String PRESET_PREFIX = "aqy_loc_preset_";
 
     /** 预设点：名称 → "lat,lon" */
@@ -84,6 +85,32 @@ public class AiqiyiLocationStore {
             sp().edit().putBoolean(KEY_LIVE, enabled).apply();
         } catch (Throwable ignore) {
         }
+    }
+
+    /**
+     * 地图同步伪造开关。
+     * 打开后 LocationController 拿到的定位本身就被换成伪坐标，
+     * 地图预览、精度、发送出去的位置全部一致；
+     * 关闭则只伪造发出去的位置，地图仍显示真实定位。
+     */
+    public static boolean isMapEnabled() {
+        try {
+            return sp().getBoolean(KEY_MAP, true);
+        } catch (Throwable e) {
+            return true;
+        }
+    }
+
+    public static void setMapEnabled(boolean enabled) {
+        try {
+            sp().edit().putBoolean(KEY_MAP, enabled).apply();
+        } catch (Throwable ignore) {
+        }
+    }
+
+    /** 地图是否需要伪造：总开关 + 坐标有效 + 地图开关 */
+    public static boolean shouldOverrideMap() {
+        return shouldOverride() && isMapEnabled();
     }
 
     // ==================== 坐标 ====================

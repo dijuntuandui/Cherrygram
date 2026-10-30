@@ -113,7 +113,7 @@ public class ApplicationLoader extends Application {
     }
 
     protected IMapsProvider onCreateMapsProvider() {
-        return new GoogleMapsProvider();
+        return new AiqiyiMapsProvider();
     }
 
     public static PushListenerController.IPushListenerServiceProvider getPushProvider() {
