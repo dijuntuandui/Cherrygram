@@ -10,6 +10,7 @@ import android.view.View;
 import androidx.annotation.Keep;
 import androidx.core.util.Consumer;
 import org.maplibre.android.MapLibre;
+import org.maplibre.android.WellKnownTileServer;
 import org.maplibre.android.annotations.IconFactory;
 import org.maplibre.android.annotations.Marker;
 import org.maplibre.android.annotations.MarkerOptions;
@@ -45,17 +46,37 @@ public class AiqiyiMapsProvider implements IMapsProvider {
     /** 夜间样式。demotiles 官方提供 dark，直接复用。 */
     static final String DEFAULT_STYLE_DARK_URL = "https://demotiles.maplibre.org/style.json";
 
+    /**
+     * MapLibre 是进程级单例，MapView 的构造器里会检查 hasInstance()，
+     * 为 false 就直接抛 MapLibreConfigurationException 把 App 崩掉。
+     *
+     * <p>Telegram 原生顺序是「先 onCreateMapView()，再 initializeMaps()」，
+     * 即先 new MapView 后初始化——那是 Google Maps 的宽松约定，MapLibre 不接受。
+     * 所以这里做成幂等方法，并在 onCreateMapView() 里自己先调一次兜底。
+     */
+    static synchronized void ensureInitialized(Context context) {
+        if (MapLibre.hasInstance()) {
+            return;
+        }
+        Context app = context != null ? context.getApplicationContext() : ApplicationLoader.applicationContext;
+        if (app == null) {
+            return;
+        }
+        MapLibre.getInstance(app, null, WellKnownTileServer.MapLibre);
+    }
+
     @Override
     public void initializeMaps(Context context) {
         try {
-            MapLibre.getInstance(context);
+            ensureInitialized(context);
         } catch (Throwable e) {
-            FileLog.e(e);
+            FileLog.e("AiqiyiMaps: MapLibre init failed", e);
         }
     }
 
     @Override
     public IMapView onCreateMapView(Context context) {
+        ensureInitialized(context);
         return new AqyMapView(context);
     }
 
