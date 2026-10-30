@@ -865,6 +865,8 @@
     <string name="AQY_Loc_Behavior_Header">行为</string>
     <string name="AQY_Loc_Live">实时位置也伪造</string>
     <string name="AQY_Loc_Live_Desc">关闭后只有普通位置发送被替换</string>
+    <string name="AQY_Loc_Map">地图也伪造</string>
+    <string name="AQY_Loc_Map_Desc">开启后地图预览和图钉也走伪坐标</string>
     <string name="AQY_Loc_Reset">清除坐标</string>
     <string name="AQY_Loc_Reset_Desc">恢复为未设置并关闭开关</string>
     <string name="AQY_Loc_Reset_Done">坐标已清除</string>

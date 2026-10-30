@@ -326,7 +326,7 @@ public class AiqiyiLocationEntry extends BaseCGPreferencesEntry {
             }
             listView.performHapticFeedback(
                     android.view.HapticFeedbackConstants.LONG_PRESS);
-            showPresetActionDialog(presetName, dialog, positions -> updateRows(true));
+            showPresetActionDialog(presetName, dialog, () -> updateRows(true));
             return true;
         });
 

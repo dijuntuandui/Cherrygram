@@ -916,6 +916,17 @@
     <string name="AQY_Loc_Presets">Presets</string>
     <string name="AQY_Loc_Presets_Desc">Pick a saved location</string>
     <string name="AQY_Loc_No_Preset">No presets yet</string>
+    <string name="AQY_Loc_Preset_LongPress_Hint">Long-press your own preset to rename or delete</string>
+    <string name="AQY_Loc_Preset_Rename">Rename</string>
+    <string name="AQY_Loc_Preset_Delete">Delete</string>
+    <string name="AQY_Loc_Preset_Deleted">Deleted</string>
+    <string name="AQY_Loc_Preset_Renamed">Renamed</string>
+    <string name="AQY_Loc_Preset_Name_Empty">Name cannot be empty</string>
+    <string name="AQY_Loc_Preset_Name_Dup">A preset with this name already exists</string>
+    <string name="AQY_Loc_Preset_Builtin_Readonly">Built-in presets cannot be deleted or renamed, but you can save your own copy</string>
+    <string name="AQY_Loc_Name_Optional">Name (optional)</string>
+    <string name="AQY_Loc_Name_Optional_Hint">Leave empty to show coordinates only</string>
+    <string name="AQY_Loc_Delete_Confirm">Delete “%1$s”?</string>
     <string name="AQY_Loc_Preset_Name_Hint">Name this location</string>
     <string name="AQY_Loc_Preset_Saved">Saved as preset</string>
     <string name="AQY_Loc_Save_Preset">Save Current Point</string>
