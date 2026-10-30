@@ -15,7 +15,6 @@ import org.maplibre.android.annotations.Marker;
 import org.maplibre.android.annotations.MarkerOptions;
 import org.maplibre.android.camera.CameraUpdate;
 import org.maplibre.android.camera.CameraUpdateFactory;
-import org.maplibre.android.geometry.LatLng;
 import org.maplibre.android.geometry.LatLngBounds;
 import org.maplibre.android.maps.MapLibreMap;
 import org.maplibre.android.maps.MapLibreMapOptions;
@@ -122,8 +121,8 @@ public class AiqiyiMapsProvider implements IMapsProvider {
         return 0;
     }
 
-    static LatLng conv(IMapsProvider.LatLng l) {
-        return new LatLng(l.latitude, l.longitude);
+    static org.maplibre.android.geometry.LatLng conv(IMapsProvider.LatLng l) {
+        return new org.maplibre.android.geometry.LatLng(l.latitude, l.longitude);
     }
 
     /* ---------------------------------------------------------------- */
@@ -309,7 +308,7 @@ public class AiqiyiMapsProvider implements IMapsProvider {
             AqyMarkerOptions o = (AqyMarkerOptions) markerOptions;
             MarkerOptions mo = new MarkerOptions();
             if (o.position != null) {
-                mo.position(new LatLng(o.position.latitude, o.position.longitude));
+                mo.position(new org.maplibre.android.geometry.LatLng(o.position.latitude, o.position.longitude));
             }
             if (o.iconBitmap != null) {
                 mo.icon(IconFactory.getInstance(ApplicationLoader.applicationContext).fromBitmap(o.iconBitmap));
@@ -598,8 +597,8 @@ public class AiqiyiMapsProvider implements IMapsProvider {
         @Override
         public LatLng getPosition() {
             org.maplibre.android.geometry.LatLng p = marker.getPosition();
-            if (p == null) return new LatLng(0, 0);
-            return new LatLng(p.getLatitude(), p.getLongitude());
+            if (p == null) return new IMapsProvider.LatLng(0, 0);
+            return new IMapsProvider.LatLng(p.getLatitude(), p.getLongitude());
         }
 
         @Override
@@ -634,7 +633,7 @@ public class AiqiyiMapsProvider implements IMapsProvider {
     }
 
     public final static class AqyMarkerOptions implements IMarkerOptions {
-        LatLng position;
+        IMapsProvider.LatLng position;
         Bitmap iconBitmap;
         int iconResId;
         String title;
@@ -723,7 +722,7 @@ public class AiqiyiMapsProvider implements IMapsProvider {
     }
 
     public final static class AqyCircleOptions implements ICircleOptions {
-        LatLng center;
+        IMapsProvider.LatLng center;
         double radius;
         int strokeColor;
         int fillColor;
@@ -792,9 +791,9 @@ public class AiqiyiMapsProvider implements IMapsProvider {
             try {
                 LatLngBounds lb = builder.build();
                 org.maplibre.android.geometry.LatLng c = lb.getCenter();
-                return new LatLng(c.getLatitude(), c.getLongitude());
+                return new IMapsProvider.LatLng(c.getLatitude(), c.getLongitude());
             } catch (Throwable e) {
-                return new LatLng(0, 0);
+                return new IMapsProvider.LatLng(0, 0);
             }
         }
     }
