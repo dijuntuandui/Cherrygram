@@ -1192,6 +1192,8 @@ public class LocationActivity extends BaseFragment implements NotificationCenter
                         location.geo = new TLRPC.TL_geoPoint();
                         location.geo.lat = AndroidUtilities.fixLocationCoord(userLocation.getLatitude());
                         location.geo._long = AndroidUtilities.fixLocationCoord(userLocation.getLongitude());
+                        // [Aiqiyi location] 本地坐标伪造：发出前替换为自定义坐标
+                        uz.unnarsx.cherrygram.aiqiyi.location.AiqiyiLocationInjector.applyToGeo(location.geo);
                         if (parentFragment != null && parentFragment.isInScheduleMode()) {
                             AlertsCreator.createScheduleDatePickerDialog(getParentActivity(), parentFragment.getDialogId(), (notify, scheduleDate, scheduleRepeatPeriod) -> {
                                 delegate.didSelectLocation(location, locationType, notify, scheduleDate, 0);
@@ -1873,6 +1875,8 @@ public class LocationActivity extends BaseFragment implements NotificationCenter
         location.geo._long = AndroidUtilities.fixLocationCoord(myLocation.getLongitude());
         location.heading = LocationController.getHeading(myLocation);
         location.flags |= 1;
+        // [Aiqiyi location] 本地坐标伪造：实时位置按开关决定是否替换
+        uz.unnarsx.cherrygram.aiqiyi.location.AiqiyiLocationInjector.applyToLiveGeo(location.geo);
         location.period = period;
         location.proximity_notification_radius = radius;
         location.flags |= 8;

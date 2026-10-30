@@ -319,15 +319,11 @@ public class GeneralPreferencesEntry extends BaseCGPreferencesEntry {
                 .setChecked(CherrygramAppearanceConfig.INSTANCE.getAiqiyiExtensionCleanup())
                 .slug("aiqiyi_extension_cleanup")
         );
-        items.add(SettingsHelper.asSwitchCG(aiqiyiFakeLocationRow, getString(R.string.AQY_FakeLocation), getString(R.string.AQY_FakeLocation_Desc))
-                .setChecked(CherrygramAppearanceConfig.INSTANCE.getAiqiyiFakeLocation())
+        items.add(SettingsHelper.asTextDetail(aiqiyiFakeLocationRow, 0,
+                        getString(R.string.AQY_FakeLocation), getFakeLocationSummary())
                 .slug("aiqiyi_fake_location")
         );
-        items.add(SettingsHelper.asSwitchCG(aiqiyiDialogueBubbleRow, getString(R.string.AQY_DialogueBubble), getString(R.string.AQY_DialogueBubble_Desc))
-                .setChecked(CherrygramAppearanceConfig.INSTANCE.getAiqiyiDialogueBubble())
-                .slug("aiqiyi_dialogue_bubble")
-        );
-items.add(SettingsHelper.asTextDetail(aiqiyiAutoSignInRow, 0, getString(R.string.AQY_AutoSignIn), getAutoSignInSummary())
+        items.add(SettingsHelper.asTextDetail(aiqiyiAutoSignInRow, 0, getString(R.string.AQY_AutoSignIn), getAutoSignInSummary())
                 .slug("aiqiyi_auto_sign_in"));
         items.add(SettingsHelper.asSwitchCG(aiqiyiSelfCertRow, getString(R.string.AQY_SelfCert), getString(R.string.AQY_SelfCert_Desc))
                 .setChecked(CherrygramAppearanceConfig.INSTANCE.getAiqiyiSelfCertBadge())
@@ -544,9 +540,7 @@ items.add(SettingsHelper.asTextDetail(aiqiyiAutoSignInRow, 0, getString(R.string
             CherrygramAppearanceConfig.INSTANCE.setAiqiyiExtensionCleanup(!CherrygramAppearanceConfig.INSTANCE.getAiqiyiExtensionCleanup());
             SettingsHelper.updateCheckState(view, CherrygramAppearanceConfig.INSTANCE.getAiqiyiExtensionCleanup());
         } else if (item.id == aiqiyiFakeLocationRow) {
-            CherrygramAppearanceConfig.INSTANCE.setAiqiyiFakeLocation(!CherrygramAppearanceConfig.INSTANCE.getAiqiyiFakeLocation());
-            SettingsHelper.updateCheckState(view, CherrygramAppearanceConfig.INSTANCE.getAiqiyiFakeLocation());
-            showRestartBulletin();
+            presentFragment(new uz.unnarsx.cherrygram.aiqiyi.location.AiqiyiLocationEntry());
         } else if (item.id == aiqiyiDialogueBubbleRow) {
             presentFragment(new uz.unnarsx.cherrygram.aiqiyi.dialogue.AiqiyiDialogueEntry());
         } else if (item.id == aiqiyiActiveZoneRow) {
@@ -691,6 +685,17 @@ items.add(SettingsHelper.asTextDetail(aiqiyiAutoSignInRow, 0, getString(R.string
         try {
             return org.telegram.messenger.AndroidUtilities
                     .formatFileSize(AiqiyiCleanup.totalSize());
+        } catch (Throwable e) {
+            return "-";
+        }
+    }
+
+    private CharSequence getFakeLocationSummary() {
+        try {
+            if (!uz.unnarsx.cherrygram.aiqiyi.location.AiqiyiLocationStore.shouldOverride()) {
+                return getString(R.string.AQY_Loc_Off);
+            }
+            return uz.unnarsx.cherrygram.aiqiyi.location.AiqiyiLocationStore.formatPoint();
         } catch (Throwable e) {
             return "-";
         }
