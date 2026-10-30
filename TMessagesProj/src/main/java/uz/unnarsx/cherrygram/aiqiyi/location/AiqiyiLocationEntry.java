@@ -467,10 +467,11 @@ public class AiqiyiLocationEntry extends BaseCGPreferencesEntry {
         AlertDialog.Builder b = new AlertDialog.Builder(getParentActivity());
         b.setTitle(getString(R.string.AQY_Loc_Save_Preset));
         b.setView(container);
-        b.setPositiveButton(getString(R.string.Save), (d, w) -> {
+        // [Aiqiyi] 校验逻辑挪到 TextWatcher，避免 positive 按钮 dismiss 后弹提示被吞
+        AlertDialog dlg = b.setPositiveButton(getString(R.string.Save), null).create();
+        dlg.setOnShowListener(d -> dlg.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v -> {
             String name = editText.getText().toString().trim();
             if (name.isEmpty()) {
-                // [Aiqiyi] 原来这里直接 return，点了保存没任何反应，像死了一样。
                 showTip(getString(R.string.AQY_Loc_Preset_Name_Empty));
                 return;
             }
@@ -478,13 +479,20 @@ public class AiqiyiLocationEntry extends BaseCGPreferencesEntry {
                 showTip(getString(R.string.AQY_Loc_Preset_Name_Dup));
                 return;
             }
-            AiqiyiLocationStore.addPreset(name,
-                    AiqiyiLocationStore.getLat(), AiqiyiLocationStore.getLon());
-            showTip(getString(R.string.AQY_Loc_Preset_Saved));
-            updateRows(true);
-        });
+            double lat = AiqiyiLocationStore.getLat();
+            double lon = AiqiyiLocationStore.getLon();
+            boolean ok = AiqiyiLocationStore.addPreset(name, lat, lon);
+            dlg.dismiss();
+            if (ok) {
+                showTip(getString(R.string.AQY_Loc_Preset_Saved));
+                updateRows(true);
+            } else {
+                showTip("保存失败：存储不可用");
+            }
+        }));
         b.setNegativeButton(getString(R.string.Cancel), null);
-        showDialog(b.create());
+        showDialog(dlg);
+        return;
     }
 
     private void showTip(String text) {

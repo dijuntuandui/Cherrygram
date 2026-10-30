@@ -40,7 +40,7 @@ public class AiqiyiLocationStore {
             {"洛杉矶 好莱坞", "34.134167,-118.321389"}
     };
 
-    private static SharedPreferences sp;
+    private static volatile SharedPreferences sp;
 
     private static SharedPreferences sp() {
         SharedPreferences cur = sp;
@@ -295,16 +295,27 @@ public class AiqiyiLocationStore {
         return list.toArray(new String[0][]);
     }
 
-    public static void addPreset(String name, double lat, double lon) {
+    /**
+     * [Aiqiyi] 改成返回 boolean。
+     * 原实现 catch (Throwable ignore) 全吞，sp() 为 null 时 NPE 被吃掉，
+     * 表现就是“点了保存什么也没发生，列表里也没有”。
+     * 现在失败必须让上层知道，才能给用户提示。
+     */
+    public static boolean addPreset(String name, double lat, double lon) {
         if (TextUtils.isEmpty(name)) {
-            return;
+            return false;
         }
         try {
-            sp().edit()
+            SharedPreferences p = sp();
+            if (p == null) {
+                return false;
+            }
+            return p.edit()
                     .putString(PRESET_PREFIX + name.trim(),
                             String.format(java.util.Locale.US, "%.6f,%.6f", lat, lon))
-                    .apply();
-        } catch (Throwable ignore) {
+                    .commit();
+        } catch (Throwable e) {
+            return false;
         }
     }
 
