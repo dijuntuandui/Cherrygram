@@ -17,7 +17,7 @@ public class AiqiyiLocationInjector {
      * @param geo 目标 geo 对象，就地修改
      * @return 是否发生了替换
      */
-    public static boolean applyToGeo(TLRPC.TL_geoPoint geo) {
+    public static boolean applyToGeo(TLRPC.GeoPoint geo) {
         if (geo == null) {
             return false;
         }
@@ -36,7 +36,7 @@ public class AiqiyiLocationInjector {
     /**
      * 实时位置：只有开了「实时位置也伪造」才替换。
      */
-    public static boolean applyToLiveGeo(TLRPC.TL_geoPoint geo) {
+    public static boolean applyToLiveGeo(TLRPC.GeoPoint geo) {
         if (geo == null) {
             return false;
         }
@@ -59,7 +59,7 @@ public class AiqiyiLocationInjector {
      * 实时位置的朝向/精度字段在伪造时没有意义，
      * 一并做一次清理，避免真实朝向泄露。
      */
-    public static void clearHeadingIfFaked(TLRPC.TL_messageMediaGeoLive media) {
+    public static void clearHeadingIfFaked(TLRPC.MessageMedia media) {
         if (media == null) {
             return;
         }

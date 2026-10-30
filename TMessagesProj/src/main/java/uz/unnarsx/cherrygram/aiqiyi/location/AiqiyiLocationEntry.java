@@ -108,7 +108,7 @@ public class AiqiyiLocationEntry extends BaseCGPreferencesEntry {
             }
             AiqiyiLocationStore.setEnabled(!AiqiyiLocationStore.isEnabled());
             SettingsHelper.updateCheckState(view, AiqiyiLocationStore.isEnabled());
-            listView.adapter.update(true);
+            updateRows(true);
         } else if (item.id == pointRow || item.id == inputRow) {
             showInputDialog();
         } else if (item.id == presetsRow) {
@@ -118,12 +118,12 @@ public class AiqiyiLocationEntry extends BaseCGPreferencesEntry {
         } else if (item.id == liveRow) {
             AiqiyiLocationStore.setLiveEnabled(!AiqiyiLocationStore.isLiveEnabled());
             SettingsHelper.updateCheckState(view, AiqiyiLocationStore.isLiveEnabled());
-            listView.adapter.update(true);
+            updateRows(true);
         } else if (item.id == resetRow) {
             AiqiyiLocationStore.setPoint(0d, 0d, "");
             AiqiyiLocationStore.setEnabled(false);
             showTip(getString(R.string.AQY_Loc_Reset_Done));
-            listView.adapter.update(true);
+            updateRows(true);
         } else {
             super.onClick(item, view, position, x, y);
         }
@@ -164,7 +164,7 @@ public class AiqiyiLocationEntry extends BaseCGPreferencesEntry {
                 return;
             }
             AiqiyiLocationStore.setPoint(pt[0], pt[1], "");
-            listView.adapter.update(true);
+            updateRows(true);
         });
         b.setNegativeButton(getString(R.string.Cancel), null);
         showDialog(b.create());
@@ -192,7 +192,7 @@ public class AiqiyiLocationEntry extends BaseCGPreferencesEntry {
                 return;
             }
             AiqiyiLocationStore.setPoint(pt[0], pt[1], presets[which][0]);
-            listView.adapter.update(true);
+            updateRows(true);
         });
         b.setNegativeButton(getString(R.string.Cancel), null);
         showDialog(b.create());
@@ -232,7 +232,7 @@ public class AiqiyiLocationEntry extends BaseCGPreferencesEntry {
             AiqiyiLocationStore.addPreset(name,
                     AiqiyiLocationStore.getLat(), AiqiyiLocationStore.getLon());
             showTip(getString(R.string.AQY_Loc_Preset_Saved));
-            listView.adapter.update(true);
+            updateRows(true);
         });
         b.setNegativeButton(getString(R.string.Cancel), null);
         showDialog(b.create());

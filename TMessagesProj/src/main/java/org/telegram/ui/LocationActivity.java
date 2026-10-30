@@ -1877,6 +1877,7 @@ public class LocationActivity extends BaseFragment implements NotificationCenter
         location.flags |= 1;
         // [Aiqiyi location] 本地坐标伪造：实时位置按开关决定是否替换
         uz.unnarsx.cherrygram.aiqiyi.location.AiqiyiLocationInjector.applyToLiveGeo(location.geo);
+        uz.unnarsx.cherrygram.aiqiyi.location.AiqiyiLocationInjector.clearHeadingIfFaked(location);
         location.period = period;
         location.proximity_notification_radius = radius;
         location.flags |= 8;
