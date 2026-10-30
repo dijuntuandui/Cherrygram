@@ -687,21 +687,32 @@ public class AiqiyiMapsProvider implements IMapsProvider {
 
     public final static class AqyUISettings implements IUISettings {
         private final org.maplibre.android.maps.UiSettings s;
-
         AqyUISettings(org.maplibre.android.maps.UiSettings s) {
             this.s = s;
+            // [Aiqiyi] 地图手势统一在此开启。
+            // 之前 setZoomControlsEnabled(false)（调用方本意是「不显示 +/- 按钮」）
+            // 被直接映射到 setZoomGesturesEnabled(false)，导致双指缩放失效。
+            // MapLibre SDK 无内置缩放按钮，故此类调用一律忽略，手势始终保持可用。
+            try {
+                s.setZoomGesturesEnabled(true);
+                s.setScrollGesturesEnabled(true);
+                s.setRotateGesturesEnabled(true);
+                s.setTiltGesturesEnabled(true);
+                s.setDoubleTapGesturesEnabled(true);
+                s.setQuickZoomGesturesEnabled(true);
+            } catch (Throwable ignore) {
+            }
         }
-
         @Override
         public void setZoomControlsEnabled(boolean enabled) {
-            s.setZoomGesturesEnabled(enabled);
+            // [Aiqiyi] MapLibre 无内置缩放按钮，此调用不应影响手势缩放。
+            // 保持手势常开，忽略该设置。
         }
 
         @Override
         public void setMyLocationButtonEnabled(boolean enabled) {
             // MapLibre 无内置位置按钮
         }
-
         @Override
         public void setCompassEnabled(boolean enabled) {
             s.setCompassEnabled(enabled);
