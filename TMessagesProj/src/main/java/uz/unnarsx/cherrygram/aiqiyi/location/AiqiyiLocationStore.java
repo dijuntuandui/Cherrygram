@@ -52,17 +52,12 @@ public class AiqiyiLocationStore {
                 // [Aiqiyi] 修复：applicationContext 在冷启动早期可能为 null，
                 // 原实现会在此处 NPE，被上层 catch 吞掉后直接返回真实定位，
                 // 表现为「伪坐标先生效、随后跳回真实位置」。
-                // 这里改成先取上下文，拿不到就退到 UserConfig 的上下文。
+                // 这里改成先取上下文，拿不到就安全降级返回默认值。
                 android.content.Context ctx = ApplicationLoader.applicationContext;
                 if (ctx == null) {
-                    try {
-                        ctx = UserConfig.getInstance(UserConfig.selectedAccount).getCurrentAccount().context;
-                    } catch (Throwable ignore) {
-                        ctx = null;
-                    }
-                }
-                if (ctx == null) {
-                    // 还是拿不到上下文：返回 null，交给调用方用默认值安全降级
+                    // 上下文还没就绪（冷启动早期）：返回 null，
+                    // 由 getXxxSafe 用默认值安全降级，绝不抛异常。
+                    // 不再尝试别的上下文，避免依赖不存在的 API。
                     return null;
                 }
                 sp = ctx.getSharedPreferences("aqy_fake_location", 0);
