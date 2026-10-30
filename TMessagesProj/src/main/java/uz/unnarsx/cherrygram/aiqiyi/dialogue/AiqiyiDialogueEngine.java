@@ -210,7 +210,7 @@ public class AiqiyiDialogueEngine {
             MessagesController controller = MessagesController.getInstance(account);
             // 自己的消息
             if (message.out) {
-                int myId = UserConfig.getInstance(account).getClientUserId();
+                int myId = (int) UserConfig.getInstance(account).getClientUserId();
                 TLRPC.User me = controller.getUser(Long.valueOf(myId));
                 if (me != null && !TextUtils.isEmpty(UserObject.getUserName(me))) {
                     return UserObject.getUserName(me);
