@@ -872,7 +872,21 @@ public class LocationController extends BaseController implements NotificationCe
     }
 
     public Location getLastKnownLocation() {
-        return lastKnownLocation;
+        // [Aiqiyi] 兜底：开了地图伪造但当前位置为空时，
+        // 不能再把 null 抛给上层（上层会自己去问系统拿真实定位），
+        // 这里直接返回伪坐标。
+        Location cur = lastKnownLocation;
+        try {
+            if (uz.unnarsx.cherrygram.aiqiyi.location.AiqiyiLocationStore.shouldOverrideMap()) {
+                if (cur == null) {
+                    return uz.unnarsx.cherrygram.aiqiyi.location.AiqiyiLocationInjector.fakeLocation(null);
+                }
+                // 已有值，但也再过一遍注入，防止别处绕过 setLastKnownLocation
+                return uz.unnarsx.cherrygram.aiqiyi.location.AiqiyiLocationInjector.fakeLocation(cur);
+            }
+        } catch (Throwable ignore) {
+        }
+        return cur;
     }
 
     public void loadLiveLocations(long did) {

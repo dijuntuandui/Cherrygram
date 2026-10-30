@@ -924,6 +924,8 @@
     <string name="AQY_Loc_Behavior_Header">Behavior</string>
     <string name="AQY_Loc_Live">Spoof Live Location Too</string>
     <string name="AQY_Loc_Live_Desc">When off, only static location sends are replaced</string>
+    <string name="AQY_Loc_Map">Spoof Map Display Too</string>
+    <string name="AQY_Loc_Map_Desc">When on, the map preview and pin also use the fake point</string>
     <string name="AQY_Loc_Reset">Clear Point</string>
     <string name="AQY_Loc_Reset_Desc">Reset to unset and turn the switch off</string>
     <string name="AQY_Loc_Reset_Done">Point cleared</string>

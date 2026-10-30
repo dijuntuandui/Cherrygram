@@ -85,6 +85,14 @@ public class AiqiyiLocationInjector {
      */
     public static Location fakeLocation(Location real) {
         try {
+            org.telegram.messenger.FileLog.d("[AQY-LOC] fakeLocation in: real="
+                    + (real == null ? "null" : (real.getLatitude() + "," + real.getLongitude()))
+                    + " enabled=" + AiqiyiLocationStore.isEnabled()
+                    + " mapEnabled=" + AiqiyiLocationStore.isMapEnabled()
+                    + " valid=" + AiqiyiLocationStore.hasValidPoint()
+                    + " shouldMap=" + AiqiyiLocationStore.shouldOverrideMap()
+                    + " lat=" + AiqiyiLocationStore.getLat()
+                    + " lon=" + AiqiyiLocationStore.getLon());
             if (!AiqiyiLocationStore.shouldOverrideMap()) {
                 return real;
             }

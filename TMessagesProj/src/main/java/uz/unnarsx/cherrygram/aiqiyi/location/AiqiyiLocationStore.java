@@ -43,22 +43,71 @@ public class AiqiyiLocationStore {
     private static SharedPreferences sp;
 
     private static SharedPreferences sp() {
-        if (sp == null) {
-            synchronized (AiqiyiLocationStore.class) {
-                if (sp == null) {
-                    sp = ApplicationLoader.applicationContext
-                            .getSharedPreferences("aqy_fake_location", 0);
-                }
-            }
+        SharedPreferences cur = sp;
+        if (cur != null) {
+            return cur;
         }
-        return sp;
+        synchronized (AiqiyiLocationStore.class) {
+            if (sp == null) {
+                // [Aiqiyi] 修复：applicationContext 在冷启动早期可能为 null，
+                // 原实现会在此处 NPE，被上层 catch 吞掉后直接返回真实定位，
+                // 表现为「伪坐标先生效、随后跳回真实位置」。
+                // 这里改成先取上下文，拿不到就退到 UserConfig 的上下文。
+                android.content.Context ctx = ApplicationLoader.applicationContext;
+                if (ctx == null) {
+                    try {
+                        ctx = UserConfig.getInstance(UserConfig.selectedAccount).getCurrentAccount().context;
+                    } catch (Throwable ignore) {
+                        ctx = null;
+                    }
+                }
+                if (ctx == null) {
+                    // 还是拿不到上下文：返回 null，交给调用方用默认值安全降级
+                    return null;
+                }
+                sp = ctx.getSharedPreferences("aqy_fake_location", 0);
+            }
+            return sp;
+        }
+    }
+
+    /** 安全读取：sp 可能为 null，绝不抛异常 */
+    private static boolean getBoolSafe(String key, boolean def) {
+        try {
+            SharedPreferences p = sp();
+            if (p == null) return def;
+            return p.getBoolean(key, def);
+        } catch (Throwable e) {
+            return def;
+        }
+    }
+
+    private static float getFloatSafe(String key, float def) {
+        try {
+            SharedPreferences p = sp();
+            if (p == null) return def;
+            return p.getFloat(key, def);
+        } catch (Throwable e) {
+            return def;
+        }
+    }
+
+    private static String getStringSafe(String key, String def) {
+        try {
+            SharedPreferences p = sp();
+            if (p == null) return def;
+            String v = p.getString(key, def);
+            return v == null ? def : v;
+        } catch (Throwable e) {
+            return def;
+        }
     }
 
     // ==================== 开关 ====================
 
     public static boolean isEnabled() {
         try {
-            return sp().getBoolean(KEY_ENABLED, false);
+            return getBoolSafe(KEY_ENABLED, false);
         } catch (Throwable e) {
             return false;
         }
@@ -74,7 +123,7 @@ public class AiqiyiLocationStore {
     /** 是否连实时位置一起伪造 */
     public static boolean isLiveEnabled() {
         try {
-            return sp().getBoolean(KEY_LIVE, true);
+            return getBoolSafe(KEY_LIVE, true);
         } catch (Throwable e) {
             return true;
         }
@@ -95,7 +144,7 @@ public class AiqiyiLocationStore {
      */
     public static boolean isMapEnabled() {
         try {
-            return sp().getBoolean(KEY_MAP, true);
+            return getBoolSafe(KEY_MAP, true);
         } catch (Throwable e) {
             return true;
         }
@@ -117,7 +166,7 @@ public class AiqiyiLocationStore {
 
     public static double getLat() {
         try {
-            return sp().getFloat(KEY_LAT, 0f);
+            return getFloatSafe(KEY_LAT, 0f);
         } catch (Throwable e) {
             return 0d;
         }
@@ -125,7 +174,7 @@ public class AiqiyiLocationStore {
 
     public static double getLon() {
         try {
-            return sp().getFloat(KEY_LON, 0f);
+            return getFloatSafe(KEY_LON, 0f);
         } catch (Throwable e) {
             return 0d;
         }

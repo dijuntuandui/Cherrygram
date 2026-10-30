@@ -35,6 +35,7 @@ public class AiqiyiLocationEntry extends BaseCGPreferencesEntry {
     private final int savePresetRow = 724;
     private final int liveRow = 725;
     private final int resetRow = 726;
+    private final int mapRow = 727;
 
     @Override
     protected CharSequence getTitle() {
@@ -90,6 +91,12 @@ public class AiqiyiLocationEntry extends BaseCGPreferencesEntry {
                     .setChecked(AiqiyiLocationStore.isLiveEnabled())
                     .slug("aqy_loc_live")
             );
+            items.add(SettingsHelper.asSwitchCG(mapRow,
+                            getString(R.string.AQY_Loc_Map),
+                            getString(R.string.AQY_Loc_Map_Desc))
+                    .setChecked(AiqiyiLocationStore.isMapEnabled())
+                    .slug("aqy_loc_map")
+            );
             items.add(SettingsHelper.asTextDetail(resetRow, 0,
                             getString(R.string.AQY_Loc_Reset),
                             getString(R.string.AQY_Loc_Reset_Desc))
@@ -118,6 +125,10 @@ public class AiqiyiLocationEntry extends BaseCGPreferencesEntry {
         } else if (item.id == liveRow) {
             AiqiyiLocationStore.setLiveEnabled(!AiqiyiLocationStore.isLiveEnabled());
             SettingsHelper.updateCheckState(view, AiqiyiLocationStore.isLiveEnabled());
+            updateRows(true);
+        } else if (item.id == mapRow) {
+            AiqiyiLocationStore.setMapEnabled(!AiqiyiLocationStore.isMapEnabled());
+            SettingsHelper.updateCheckState(view, AiqiyiLocationStore.isMapEnabled());
             updateRows(true);
         } else if (item.id == resetRow) {
             AiqiyiLocationStore.setPoint(0d, 0d, "");
