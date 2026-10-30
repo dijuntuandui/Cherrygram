@@ -2157,8 +2157,13 @@ public class LocationActivity extends BaseFragment implements NotificationCenter
             }
         });
         map.setOnMyLocationChangeListener(location -> {
-            positionMarker(location);
-            getLocationController().setMapLocation(location, isFirstLocation);
+            // [Aiqiyi] 这个回调的 location 来自 MapLibre 自己拿的系统定位，
+            // 完全绕过了 LocationController，直接拿去摆图钉了。
+            // setMapLocation() 里虽然会再注入一次，但 positionMarker() 是先执行的，
+            // 所以伪造在地图上永远慢一拍。这里提前换掉。
+            Location fixed = uz.unnarsx.cherrygram.aiqiyi.location.AiqiyiLocationInjector.fakeLocation(location);
+            positionMarker(fixed);
+            getLocationController().setMapLocation(fixed, isFirstLocation);
             isFirstLocation = false;
         });
         map.setOnMarkerClickListener(marker -> {
@@ -2511,7 +2516,9 @@ public class LocationActivity extends BaseFragment implements NotificationCenter
                 break;
             }
         }
-        return l;
+        // [Aiqiyi] 这里直接问系统 LocationManager，绕过了 LocationController，
+        // 所以 setLastKnownLocation() 里的伪造对这条路径不生效。补一次。
+        return uz.unnarsx.cherrygram.aiqiyi.location.AiqiyiLocationInjector.fakeLocation(l);
     }
 
     private void positionMarker(Location location) {

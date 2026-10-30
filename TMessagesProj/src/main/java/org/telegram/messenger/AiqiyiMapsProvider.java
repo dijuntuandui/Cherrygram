@@ -41,10 +41,51 @@ import java.util.Map;
 @Keep
 public class AiqiyiMapsProvider implements IMapsProvider {
 
-    /** 默认矢量瓦片样式，无需 key。支持全球范围，中国大陆可直连。 */
+    /**
+     * 免 key 底图：OpenStreetMap HOT 镜像，国内直连可用。
+     * 官方 tile.openstreetmap.org 在国内经常超时，实测镜像 ~1.6s。
+     */
+    static final String OSM_HOT = "https://a.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png";
+
+    /** 不带注记的约束底图：仅用于食服时的极简档 */
     static final String DEFAULT_STYLE_URL = "https://demotiles.maplibre.org/style.json";
-    /** 夜间样式。demotiles 官方提供 dark，直接复用。 */
-    static final String DEFAULT_STYLE_DARK_URL = "https://demotiles.maplibre.org/style.json";
+
+    /**
+     * 构造 OSM 栅格样式。
+     *
+     * 坐标系：OSM 是泰坡墨卡托 EPSG:3857，与 MapLibre 默认一致
+     * （也就是 WGS-84 直接上图，不需要 GCJ-02 偏移修正，
+     * 但也意味着与国内地图 App 有 50~500m 的固有偏差，这是期望行为）。
+     */
+    static String buildOsmStyle(boolean dark) {
+        String bg = dark ? "#101418" : "#e8e8e8";
+        char q = 34;
+        StringBuilder sb = new StringBuilder(512);
+        sb.append('{').append(q).append("version").append(q).append(":8,");
+        sb.append(q).append("sources").append(q).append(":{");
+        sb.append(q).append("osm").append(q).append(":{");
+        sb.append(q).append("type").append(q).append(':').append(q).append("raster").append(q).append(',');
+        sb.append(q).append("tiles").append(q).append(":[").append(q).append(OSM_HOT).append(q).append(']').append(',');
+        sb.append(q).append("tileSize").append(q).append(":256,");
+        sb.append(q).append("minzoom").append(q).append(":0,");
+        sb.append(q).append("maxzoom").append(q).append(":19,");
+        sb.append(q).append("attribution").append(q).append(':').append(q).append("(c) OpenStreetMap contributors").append(q).append("}},");
+        sb.append(q).append("layers").append(q).append(":[");
+        sb.append('{').append(q).append("id").append(q).append(':').append(q).append("bg").append(q).append(',');
+        sb.append(q).append("type").append(q).append(':').append(q).append("background").append(q).append(',');
+        sb.append(q).append("paint").append(q).append(":{").append(q).append("background-color").append(q)
+          .append(':').append(q).append(bg).append(q).append("}},");
+        sb.append('{').append(q).append("id").append(q).append(':').append(q).append("osm").append(q).append(',');
+        sb.append(q).append("type").append(q).append(':').append(q).append("raster").append(q).append(',');
+        sb.append(q).append("source").append(q).append(':').append(q).append("osm").append(q).append("}");
+        sb.append("]}");
+        return sb.toString();
+    }
+
+    /** 统一入口：默认走 OSM，失败才回退 demotiles。 */
+    static Style.Builder buildStyle(boolean dark) {
+        return new Style.Builder().fromJson(buildOsmStyle(dark));
+    }
 
     /**
      * MapLibre 是进程级单例，MapView 的构造器里会检查 hasInstance()，
@@ -337,7 +378,7 @@ public class AiqiyiMapsProvider implements IMapsProvider {
                 FileLog.d("AiqiyiMaps: ignoring incompatible google style json");
                 return;
             }
-            map.setStyle(new Style.Builder().fromUrl(DEFAULT_STYLE_URL));
+            map.setStyle(buildStyle(false));
         }
 
         @Override
@@ -448,7 +489,7 @@ public class AiqiyiMapsProvider implements IMapsProvider {
             mapView.getMapAsync(map -> {
                 currentMap = new AqyMap(map, this);
                 try {
-                    map.setStyle(new Style.Builder().fromUrl(DEFAULT_STYLE_URL));
+                    map.setStyle(buildStyle(false));
                 } catch (Throwable e) {
                     FileLog.e(e);
                 }
