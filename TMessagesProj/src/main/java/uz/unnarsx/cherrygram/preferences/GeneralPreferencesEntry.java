@@ -92,7 +92,6 @@ public class GeneralPreferencesEntry extends BaseCGPreferencesEntry {
     private final int aiqiyiBookmarksRow = 40;
     private final int aiqiyiBookmarksListRow = 44;
     private final int aiqiyiSyntaxHighlightRow = 41;
-    private final int aiqiyiExtensionCleanupRow = 42;
     private final int aiqiyiFakeLocationRow = 43;
     private final int aiqiyiDialogueBubbleRow = 45;
     private final int aiqiyiActiveZoneRow = 46;
@@ -315,10 +314,6 @@ public class GeneralPreferencesEntry extends BaseCGPreferencesEntry {
                 .setChecked(CherrygramAppearanceConfig.INSTANCE.getAiqiyiSyntaxHighlight())
                 .slug("aiqiyi_syntax_highlight")
         );
-        items.add(SettingsHelper.asSwitchCG(aiqiyiExtensionCleanupRow, getString(R.string.AQY_ExtensionCleanup), getString(R.string.AQY_ExtensionCleanup_Desc))
-                .setChecked(CherrygramAppearanceConfig.INSTANCE.getAiqiyiExtensionCleanup())
-                .slug("aiqiyi_extension_cleanup")
-        );
         items.add(SettingsHelper.asTextDetail(aiqiyiFakeLocationRow, 0,
                         getString(R.string.AQY_FakeLocation), getFakeLocationSummary())
                 .slug("aiqiyi_fake_location")
@@ -536,9 +531,6 @@ public class GeneralPreferencesEntry extends BaseCGPreferencesEntry {
         } else if (item.id == aiqiyiSyntaxHighlightRow) {
             CherrygramAppearanceConfig.INSTANCE.setAiqiyiSyntaxHighlight(!CherrygramAppearanceConfig.INSTANCE.getAiqiyiSyntaxHighlight());
             SettingsHelper.updateCheckState(view, CherrygramAppearanceConfig.INSTANCE.getAiqiyiSyntaxHighlight());
-        } else if (item.id == aiqiyiExtensionCleanupRow) {
-            CherrygramAppearanceConfig.INSTANCE.setAiqiyiExtensionCleanup(!CherrygramAppearanceConfig.INSTANCE.getAiqiyiExtensionCleanup());
-            SettingsHelper.updateCheckState(view, CherrygramAppearanceConfig.INSTANCE.getAiqiyiExtensionCleanup());
         } else if (item.id == aiqiyiFakeLocationRow) {
             presentFragment(new uz.unnarsx.cherrygram.aiqiyi.location.AiqiyiLocationEntry());
         } else if (item.id == aiqiyiDialogueBubbleRow) {
