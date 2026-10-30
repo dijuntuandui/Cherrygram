@@ -381,6 +381,7 @@ public class BotLocation {
                 break;
             }
         }
+        l = uz.unnarsx.cherrygram.aiqiyi.location.AiqiyiLocationInjector.fakeLocation(l);
 
         if (l == null && !lm.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
             Context context = LaunchActivity.instance;

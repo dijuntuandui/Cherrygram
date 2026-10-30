@@ -1566,7 +1566,7 @@ public class ChatAttachAlertLocationLayout extends ChatAttachAlert.AttachAlertLa
                 break;
             }
         }
-        return l;
+        return uz.unnarsx.cherrygram.aiqiyi.location.AiqiyiLocationInjector.fakeLocation(l);
     }
 
     private void positionMarker() {

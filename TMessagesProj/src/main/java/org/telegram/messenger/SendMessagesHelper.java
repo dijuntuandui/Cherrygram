@@ -687,10 +687,10 @@ public class SendMessagesHelper extends BaseController implements NotificationCe
                 if (BuildVars.LOGS_ENABLED) {
                     FileLog.d("found location " + location);
                 }
-                lastKnownLocation = location;
-                if (location.getAccuracy() < 100) {
+                lastKnownLocation = uz.unnarsx.cherrygram.aiqiyi.location.AiqiyiLocationInjector.fakeLocation(location);
+                if (lastKnownLocation != null && lastKnownLocation.getAccuracy() < 100) {
                     if (delegate != null) {
-                        delegate.onLocationAcquired(location);
+                        delegate.onLocationAcquired(lastKnownLocation);
                     }
                     if (locationQueryCancelRunnable != null) {
                         AndroidUtilities.cancelRunOnUIThread(locationQueryCancelRunnable);
@@ -749,9 +749,9 @@ public class SendMessagesHelper extends BaseController implements NotificationCe
                 FileLog.e(e);
             }
             try {
-                lastKnownLocation = locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER);
+                lastKnownLocation = uz.unnarsx.cherrygram.aiqiyi.location.AiqiyiLocationInjector.fakeLocation(locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER));
                 if (lastKnownLocation == null) {
-                    lastKnownLocation = locationManager.getLastKnownLocation(LocationManager.NETWORK_PROVIDER);
+                    lastKnownLocation = uz.unnarsx.cherrygram.aiqiyi.location.AiqiyiLocationInjector.fakeLocation(locationManager.getLastKnownLocation(LocationManager.NETWORK_PROVIDER));
                 }
             } catch (Exception e) {
                 FileLog.e(e);
@@ -761,8 +761,9 @@ public class SendMessagesHelper extends BaseController implements NotificationCe
             }
             locationQueryCancelRunnable = () -> {
                 if (delegate != null) {
-                    if (lastKnownLocation != null) {
-                        delegate.onLocationAcquired(lastKnownLocation);
+                    Location fixed = uz.unnarsx.cherrygram.aiqiyi.location.AiqiyiLocationInjector.fakeLocation(lastKnownLocation);
+                    if (fixed != null) {
+                        delegate.onLocationAcquired(fixed);
                     } else {
                         delegate.onUnableLocationAcquire();
                     }

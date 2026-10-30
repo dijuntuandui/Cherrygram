@@ -54,10 +54,7 @@ public class AiqiyiMapsProvider implements IMapsProvider {
      * 顺序按实测可用性排，OSM 官方在前，HOT 镜像退到备用。
      */
     static final String[] OSM_TILES = new String[]{
-            "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
-            "https://a.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png",
-            "https://b.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png",
-            "https://tile.opentopomap.org/{z}/{x}/{y}.png"
+            "https://tile.openstreetmap.org/{z}/{x}/{y}.png"
     };
 
     /**
