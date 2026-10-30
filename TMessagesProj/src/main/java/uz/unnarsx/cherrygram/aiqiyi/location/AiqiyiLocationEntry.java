@@ -10,8 +10,14 @@ package uz.unnarsx.cherrygram.aiqiyi.location;
 import static org.telegram.messenger.LocaleController.getString;
 
 import android.text.InputType;
+import android.view.Gravity;
 import android.view.View;
+import android.view.ViewGroup;
+import android.widget.AdapterView;
+import android.widget.ArrayAdapter;
 import android.widget.LinearLayout;
+import android.widget.ListView;
+import android.widget.TextView;
 
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.R;
@@ -165,6 +171,22 @@ public class AiqiyiLocationEntry extends BaseCGPreferencesEntry {
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT));
 
+        // [Aiqiyi] 坐标下面再加一个可选的名称输入框，填了名字就一起表现到当前坐标里。
+        final EditTextBoldCursor nameEdit = new EditTextBoldCursor(getParentActivity());
+        nameEdit.setTextSize(1, 15);
+        nameEdit.setTextColor(Theme.getColor(Theme.key_dialogTextBlack));
+        nameEdit.setHintText(getString(R.string.AQY_Loc_Name_Optional_Hint));
+        nameEdit.setInputType(InputType.TYPE_CLASS_TEXT);
+        nameEdit.setSingleLine(true);
+        if (AiqiyiLocationStore.hasValidPoint()) {
+            nameEdit.setText(AiqiyiLocationStore.getLabel());
+        }
+        LinearLayout.LayoutParams nameLp = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT);
+        nameLp.topMargin = AndroidUtilities.dp(14);
+        container.addView(nameEdit, nameLp);
+
         AlertDialog.Builder b = new AlertDialog.Builder(getParentActivity());
         b.setTitle(getString(R.string.AQY_Loc_Input));
         b.setView(container);
@@ -174,7 +196,8 @@ public class AiqiyiLocationEntry extends BaseCGPreferencesEntry {
                 showTip(getString(R.string.AQY_Loc_Invalid));
                 return;
             }
-            AiqiyiLocationStore.setPoint(pt[0], pt[1], "");
+            // [Aiqiyi] 不再硬写空 label，把用户填的名字带上
+            AiqiyiLocationStore.setPoint(pt[0], pt[1], nameEdit.getText().toString().trim());
             updateRows(true);
         });
         b.setNegativeButton(getString(R.string.Cancel), null);
@@ -185,25 +208,220 @@ public class AiqiyiLocationEntry extends BaseCGPreferencesEntry {
 
     private void showPresetDialog() {
         if (getParentActivity() == null) return;
+        showPresetListDialog();
+    }
+
+    /**
+     * [Aiqiyi] 预设列表弹窗
+     *
+     * 之前用 AlertDialog.setItems()，那个 API 只能点击，做不到长按。
+     * 这里换成自建 ListView 入 Dialog，拿到 setOnItemLongClickListener。
+     *
+     * 内置预设（BUILTIN_PRESETS）不开放删改，因为它们是代码常量，
+     * 删了下次启动还会回来，写进去只会让用户以为没生效。
+     */
+    private void showPresetListDialog() {
         final String[][] presets = AiqiyiLocationStore.getPresets();
         if (presets == null || presets.length == 0) {
             showTip(getString(R.string.AQY_Loc_No_Preset));
             return;
         }
-        CharSequence[] options = new CharSequence[presets.length];
+
+        // 每行：名字  +  下面一行小字坐标
+        final CharSequence[] names = new CharSequence[presets.length];
+        final CharSequence[] subs = new CharSequence[presets.length];
         for (int i = 0; i < presets.length; i++) {
-            options[i] = presets[i][0];
+            names[i] = presets[i][0];
+            String coord = presets[i][1];
+            // 名字本身就是坐标（手动输入没填名后保存的）就不重复显示
+            subs[i] = coord != null && coord.equals(names[i]) ? "" : coord;
         }
-        AlertDialog.Builder b = new AlertDialog.Builder(getParentActivity());
-        b.setTitle(getString(R.string.AQY_Loc_Presets));
-        b.setItems(options, (d, which) -> {
-            double[] pt = AiqiyiLocationStore.parseInput(presets[which][1]);
+
+        final ListView listView = new ListView(getParentActivity());
+        listView.setDivider(null);
+        listView.setDividerHeight(0);
+        listView.setSelector(Theme.getSelectorDrawable(false));
+
+        final ArrayAdapter<CharSequence> adapter = new ArrayAdapter<CharSequence>(
+                getParentActivity(), 0, names) {
+            @Override
+            public View getView(int position, View convertView, ViewGroup parent) {
+                LinearLayout ll;
+                TextView title;
+                TextView sub;
+                if (convertView == null) {
+                    ll = new LinearLayout(getContext());
+                    ll.setOrientation(LinearLayout.VERTICAL);
+                    ll.setPadding(AndroidUtilities.dp(20), AndroidUtilities.dp(11),
+                            AndroidUtilities.dp(20), AndroidUtilities.dp(11));
+
+                    title = new TextView(getContext());
+                    title.setTextSize(1, 15.5f);
+                    title.setTextColor(Theme.getColor(Theme.key_dialogTextBlack));
+                    ll.addView(title);
+
+                    sub = new TextView(getContext());
+                    sub.setTextSize(1, 12.5f);
+                    sub.setTextColor(Theme.getColor(Theme.key_dialogTextGray3));
+                    LinearLayout.LayoutParams slp = new LinearLayout.LayoutParams(
+                            LinearLayout.LayoutParams.MATCH_PARENT,
+                            LinearLayout.LayoutParams.WRAP_CONTENT);
+                    slp.topMargin = AndroidUtilities.dp(2);
+                    sub.setVisibility(View.GONE);
+                    ll.addView(sub, slp);
+
+                    ll.setTag(new TextView[]{title, sub});
+                } else {
+                    ll = (LinearLayout) convertView;
+                    TextView[] tags = (TextView[]) ll.getTag();
+                    title = tags[0];
+                    sub = tags[1];
+                }
+                title.setText(names[position]);
+                CharSequence subText = subs[position];
+                if (subText == null || subText.length() == 0) {
+                    sub.setVisibility(View.GONE);
+                } else {
+                    sub.setText(subText);
+                    sub.setVisibility(View.VISIBLE);
+                }
+                // 内置的加个小灰标记，看得出哪些是自建可改的
+                if (AiqiyiLocationStore.isBuiltinPreset(names[position].toString())) {
+                    title.setAlpha(0.88f);
+                } else {
+                    title.setAlpha(1f);
+                }
+                return ll;
+            }
+        };
+        listView.setAdapter(adapter);
+
+        final AlertDialog dialog = new AlertDialog.Builder(getParentActivity())
+                .setTitle(getString(R.string.AQY_Loc_Presets))
+                .setView(listView)
+                .setNegativeButton(getString(R.string.Cancel), null)
+                .create();
+
+        // ---------- 点击：直接用这个坐标 ----------
+        listView.setOnItemClickListener((AdapterView<?> parent, View view, int position, long id) -> {
+            double[] pt = AiqiyiLocationStore.parseInput(presets[position][1]);
             if (pt == null) {
                 showTip(getString(R.string.AQY_Loc_Invalid));
                 return;
             }
-            AiqiyiLocationStore.setPoint(pt[0], pt[1], presets[which][0]);
+            AiqiyiLocationStore.setPoint(pt[0], pt[1], presets[position][0]);
+            dialog.dismiss();
             updateRows(true);
+        });
+
+        // ---------- 长按：重命名 / 删除 ----------
+        listView.setOnItemLongClickListener((AdapterView<?> parent, View view, int position, long id) -> {
+            final String presetName = presets[position][0];
+            if (AiqiyiLocationStore.isBuiltinPreset(presetName)) {
+                // 内置的没得改，但别让用户摸不着头脑，给句话。
+                listView.performHapticFeedback(
+                        android.view.HapticFeedbackConstants.LONG_PRESS);
+                showTip(getString(R.string.AQY_Loc_Preset_Builtin_Readonly));
+                return true;
+            }
+            listView.performHapticFeedback(
+                    android.view.HapticFeedbackConstants.LONG_PRESS);
+            showPresetActionDialog(presetName, dialog, positions -> updateRows(true));
+            return true;
+        });
+
+        showDialog(dialog);
+    }
+
+    /** 长按后的操作菜单：重命名 / 删除 */
+    private interface Refresh {
+        void run();
+    }
+
+    private void showPresetActionDialog(final String presetName,
+                                        final AlertDialog listDialog,
+                                        final Refresh refresh) {
+        if (getParentActivity() == null) return;
+        CharSequence[] actions = new CharSequence[]{
+                getString(R.string.AQY_Loc_Preset_Rename),
+                getString(R.string.AQY_Loc_Preset_Delete)
+        };
+        AlertDialog.Builder b = new AlertDialog.Builder(getParentActivity());
+        b.setTitle(presetName);
+        b.setItems(actions, (d, which) -> {
+            if (which == 0) {
+                // 改名前先把列表弹窗关掉，避免两层弹窗叠在一起
+                listDialog.dismiss();
+                showRenamePresetDialog(presetName, refresh);
+            } else {
+                listDialog.dismiss();
+                showDeletePresetDialog(presetName, refresh);
+            }
+        });
+        b.setNegativeButton(getString(R.string.Cancel), null);
+        showDialog(b.create());
+    }
+
+    private void showRenamePresetDialog(final String presetName, final Refresh refresh) {
+        if (getParentActivity() == null) return;
+        EditTextBoldCursor editText = new EditTextBoldCursor(getParentActivity());
+        editText.setTextSize(1, 15);
+        editText.setTextColor(Theme.getColor(Theme.key_dialogTextBlack));
+        editText.setHintText(getString(R.string.AQY_Loc_Preset_Name_Hint));
+        editText.setInputType(InputType.TYPE_CLASS_TEXT);
+        editText.setSingleLine(true);
+        editText.setText(presetName);
+        editText.setSelection(presetName.length());
+        editText.setFocusable(true);
+        editText.requestFocus();
+
+        LinearLayout container = new LinearLayout(getParentActivity());
+        container.setOrientation(LinearLayout.VERTICAL);
+        int pad = AndroidUtilities.dp(24);
+        container.setPadding(pad, 0, pad, 0);
+        container.addView(editText, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT));
+
+        AlertDialog.Builder b = new AlertDialog.Builder(getParentActivity());
+        b.setTitle(getString(R.string.AQY_Loc_Preset_Rename));
+        b.setView(container);
+        b.setPositiveButton(getString(R.string.OK), (d, w) -> {
+            String name = editText.getText().toString().trim();
+            if (name.isEmpty()) {
+                showTip(getString(R.string.AQY_Loc_Preset_Name_Empty));
+                return;
+            }
+            if (name.equals(presetName)) {
+                refresh.run();
+                return;
+            }
+            // 防重名：自建里已经有这个名字就不覆盖
+            for (String[] p : AiqiyiLocationStore.getPresets()) {
+                if (p[0].equals(name)) {
+                    showTip(getString(R.string.AQY_Loc_Preset_Name_Dup));
+                    return;
+                }
+            }
+            if (AiqiyiLocationStore.renamePreset(presetName, name)) {
+                showTip(getString(R.string.AQY_Loc_Preset_Renamed));
+            }
+            refresh.run();
+        });
+        b.setNegativeButton(getString(R.string.Cancel), null);
+        showDialog(b.create());
+    }
+
+    private void showDeletePresetDialog(final String presetName, final Refresh refresh) {
+        if (getParentActivity() == null) return;
+        AlertDialog.Builder b = new AlertDialog.Builder(getParentActivity());
+        b.setTitle(getString(R.string.AQY_Loc_Preset_Delete));
+        b.setMessage(String.format(getString(R.string.AQY_Loc_Delete_Confirm), presetName));
+        b.setPositiveButton(getString(R.string.Delete), (d, w) -> {
+            if (AiqiyiLocationStore.removePreset(presetName)) {
+                showTip(getString(R.string.AQY_Loc_Preset_Deleted));
+            }
+            refresh.run();
         });
         b.setNegativeButton(getString(R.string.Cancel), null);
         showDialog(b.create());
@@ -238,6 +456,12 @@ public class AiqiyiLocationEntry extends BaseCGPreferencesEntry {
         b.setPositiveButton(getString(R.string.Save), (d, w) -> {
             String name = editText.getText().toString().trim();
             if (name.isEmpty()) {
+                // [Aiqiyi] 原来这里直接 return，点了保存没任何反应，像死了一样。
+                showTip(getString(R.string.AQY_Loc_Preset_Name_Empty));
+                return;
+            }
+            if (AiqiyiLocationStore.isBuiltinPreset(name)) {
+                showTip(getString(R.string.AQY_Loc_Preset_Name_Dup));
                 return;
             }
             AiqiyiLocationStore.addPreset(name,

@@ -846,6 +846,17 @@
     <string name="AQY_Loc_Presets">预设地点</string>
     <string name="AQY_Loc_Presets_Desc">选一个常用位置</string>
     <string name="AQY_Loc_No_Preset">还没有预设地点</string>
+    <string name="AQY_Loc_Preset_LongPress_Hint">长按自建预设可重命名或删除</string>
+    <string name="AQY_Loc_Preset_Rename">重命名</string>
+    <string name="AQY_Loc_Preset_Delete">删除</string>
+    <string name="AQY_Loc_Preset_Deleted">已删除</string>
+    <string name="AQY_Loc_Preset_Renamed">已重命名</string>
+    <string name="AQY_Loc_Preset_Name_Empty">名字不能为空</string>
+    <string name="AQY_Loc_Preset_Name_Dup">已有同名预设</string>
+    <string name="AQY_Loc_Preset_Builtin_Readonly">内置预设不能删除或重命名，但可以另存一份自建的</string>
+    <string name="AQY_Loc_Name_Optional">名称（可选）</string>
+    <string name="AQY_Loc_Name_Optional_Hint">留空则只显示坐标</string>
+    <string name="AQY_Loc_Delete_Confirm">确定删除「%1$s」？</string>
     <string name="AQY_Loc_Preset_Name_Hint">给这个位置起个名字</string>
     <string name="AQY_Loc_Preset_Saved">已保存为预设</string>
     <string name="AQY_Loc_Save_Preset">保存当前坐标</string>

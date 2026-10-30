@@ -308,6 +308,67 @@ public class AiqiyiLocationStore {
         }
     }
 
+    /**
+     * 版本区分：内置预设写在 BUILTIN_PRESETS 常量里，读取时每次拼进去，
+     * 删不掉。所以长按菜单只对“用户自已建的”开放删/改名，
+     * 否则会出现“删了重启又回来”的鬼故事。
+     */
+    public static boolean isBuiltinPreset(String name) {
+        if (TextUtils.isEmpty(name)) {
+            return false;
+        }
+        String n = name.trim();
+        for (String[] p : BUILTIN_PRESETS) {
+            if (p[0].equals(n)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** 删除一条自建预设；内置的不许删 */
+    public static boolean removePreset(String name) {
+        if (TextUtils.isEmpty(name) || isBuiltinPreset(name)) {
+            return false;
+        }
+        try {
+            sp().edit().remove(PRESET_PREFIX + name.trim()).apply();
+            return true;
+        } catch (Throwable e) {
+            return false;
+        }
+    }
+
+    /** 重命名自建预设，保留原坐标；内置不许改名 */
+    public static boolean renamePreset(String oldName, String newName) {
+        if (TextUtils.isEmpty(oldName) || TextUtils.isEmpty(newName)) {
+            return false;
+        }
+        if (isBuiltinPreset(oldName) || isBuiltinPreset(newName)) {
+            return false;
+        }
+        String from = oldName.trim();
+        String to = newName.trim();
+        if (from.equals(to)) {
+            return true;
+        }
+        try {
+            SharedPreferences p = sp();
+            String val = p.getString(PRESET_PREFIX + from, null);
+            if (val == null) {
+                return false;
+            }
+            // 改名不改坐标：直接搬过去，不重新解析字符串，避免精度折损。
+            p.edit()
+                    .remove(PRESET_PREFIX + from)
+                    .putString(PRESET_PREFIX + to, val)
+                    .apply();
+            return true;
+        } catch (Throwable e) {
+            return false;
+        }
+    }
+
     /** 当前登录账号 id，日志/调试用 */
     public static int account() {
         try {
