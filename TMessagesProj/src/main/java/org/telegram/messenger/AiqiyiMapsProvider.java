@@ -42,10 +42,32 @@ import java.util.Map;
 public class AiqiyiMapsProvider implements IMapsProvider {
 
     /**
-     * 免 key 底图：OpenStreetMap HOT 镜像，国内直连可用。
-     * 官方 tile.openstreetmap.org 在国内经常超时，实测镜像 ~1.6s。
+     * 免 key 底图。
+     *
+     * 曾经只用 a.tile.openstreetmap.fr/hot 一个源，实测两个坑：
+     *   1) 该镜像在高 zoom 级别瓦片缺失/极慢，放大地图后批量请求全部挂起，
+     *      页面只剩白底 + 图钉，看起来「地图渲染不出来」。
+     *   2) 单源无冗余，网络抖动一次就整片空白。
+     *
+     * 改成多源并用 MapLibre 的自动轮询：数组里的源会按请求轮转，
+     * 某个源超时/404 时其余源仍能补上。
+     * 顺序按实测可用性排，OSM 官方在前，HOT 镜像退到备用。
      */
-    static final String OSM_HOT = "https://a.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png";
+    static final String[] OSM_TILES = new String[]{
+            "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+            "https://a.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png",
+            "https://b.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png",
+            "https://tile.opentopomap.org/{z}/{x}/{y}.png"
+    };
+
+    /**
+     * 真实可用的最大缩放级别。
+     *
+     * 上游瓦片最高一般到 19，但 18~19 在多数镜像上缺失率很高。
+     * 这里压到 18：视觉上已经能看清街区，又能显著减少白块。
+     * 超过 maxzoom 后 MapLibre 会自动放大最深层瓦片，不会留空。
+     */
+    static final int OSM_MAX_ZOOM = 18;
 
     /** 不带注记的约束底图：仅用于食服时的极简档 */
     static final String DEFAULT_STYLE_URL = "https://demotiles.maplibre.org/style.json";
@@ -65,10 +87,17 @@ public class AiqiyiMapsProvider implements IMapsProvider {
         sb.append(q).append("sources").append(q).append(":{");
         sb.append(q).append("osm").append(q).append(":{");
         sb.append(q).append("type").append(q).append(':').append(q).append("raster").append(q).append(',');
-        sb.append(q).append("tiles").append(q).append(":[").append(q).append(OSM_HOT).append(q).append(']').append(',');
+        sb.append(q).append("tiles").append(q).append(":[");
+        for (int i = 0; i < OSM_TILES.length; i++) {
+            if (i > 0) {
+                sb.append(',');
+            }
+            sb.append(q).append(OSM_TILES[i]).append(q);
+        }
+        sb.append("],");
         sb.append(q).append("tileSize").append(q).append(":256,");
         sb.append(q).append("minzoom").append(q).append(":0,");
-        sb.append(q).append("maxzoom").append(q).append(":19,");
+        sb.append(q).append("maxzoom").append(q).append(':').append(OSM_MAX_ZOOM).append(',');
         sb.append(q).append("attribution").append(q).append(':').append(q).append("(c) OpenStreetMap contributors").append(q).append("}},");
         sb.append(q).append("layers").append(q).append(":[");
         sb.append('{').append(q).append("id").append(q).append(':').append(q).append("bg").append(q).append(',');
