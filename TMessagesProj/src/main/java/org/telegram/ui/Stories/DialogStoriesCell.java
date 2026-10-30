@@ -637,7 +637,19 @@ public class DialogStoriesCell extends FrameLayout implements NotificationCenter
         }
 
         if (!hasOverlayText) {
-            titleView.setText(currentTitle, animated && !LocaleController.isRTL);
+            // Aiqiyi: 自定义标题最高优先级，动态/我的动态 不得覆盖
+            String aiqiyiCustomTitle = null;
+            try {
+                aiqiyiCustomTitle = uz.unnarsx.cherrygram.core.configs.CherrygramAppearanceConfig.INSTANCE.getCustomAppTitle();
+            } catch (Throwable ignored) {
+            }
+            if (aiqiyiCustomTitle != null && !aiqiyiCustomTitle.trim().isEmpty()) {
+                titleView.setText(aiqiyiCustomTitle.trim(), animated && !LocaleController.isRTL);
+                hasOverlayText = true;
+                animatorHasTitleText.setValue(true, animated);
+            } else {
+                titleView.setText(currentTitle, animated && !LocaleController.isRTL);
+            }
         }
 
         animatorHasTitleText.setValue(!TextUtils.isEmpty(currentTitle) || hasOverlayText, animated);
@@ -1281,6 +1293,21 @@ public class DialogStoriesCell extends FrameLayout implements NotificationCenter
         subtitleOverlayContainer.setText(subtitleToSet, true);
 
         boolean hasEllipsizedText = false;
+        // Aiqiyi: 自定义标题最高优先级，动态刷新时不允许覆盖
+        String aiqiyiCustomTitle = null;
+        try {
+            aiqiyiCustomTitle = uz.unnarsx.cherrygram.core.configs.CherrygramAppearanceConfig.INSTANCE.getCustomAppTitle();
+        } catch (Throwable ignored) {
+        }
+        if (aiqiyiCustomTitle != null && !aiqiyiCustomTitle.trim().isEmpty()) {
+            hasOverlayText = true;
+            overlayTextId = textId;
+            titleView.setText(aiqiyiCustomTitle.trim(), !LocaleController.isRTL);
+            ellipsizeSpanAnimator.addView(titleView);
+            ellipsizeSpanAnimator.addView(telegramLogoView);
+            animatorHasTitleText.setValue(hasOverlayText, true);
+            return;
+        }
         if (titleOverlayText != null) {
             hasOverlayText = true;
             if (overlayTextId != textId) {
@@ -2234,6 +2261,24 @@ public class DialogStoriesCell extends FrameLayout implements NotificationCenter
 
     /** Cherrygram start */
     public void setTitleOverlayText(CharSequence titleOverlayText, boolean showEmojiStatus) {
+        // Aiqiyi: 自定义标题最高优先级，动态刷新时不允许覆盖
+        String aiqiyiCustomTitle = null;
+        try {
+            aiqiyiCustomTitle = uz.unnarsx.cherrygram.core.configs.CherrygramAppearanceConfig.INSTANCE.getCustomAppTitle();
+        } catch (Throwable ignored) {
+        }
+        if (aiqiyiCustomTitle != null && !aiqiyiCustomTitle.trim().isEmpty()) {
+            hasOverlayText = true;
+            titleView.setText(aiqiyiCustomTitle.trim(), !LocaleController.isRTL);
+            ellipsizeSpanAnimator.addView(titleView);
+            ellipsizeSpanAnimator.addView(telegramLogoView);
+            if (emojiStatusView != null) {
+                emojiStatusView.setAlpha(showEmojiStatus && collapsed ? 1f : 0f);
+                emojiStatusView.setVisibility(showEmojiStatus && collapsed ? VISIBLE : GONE);
+            }
+            animatorHasTitleText.setValue(hasOverlayText, true);
+            return;
+        }
         if (titleOverlayText != null) {
             hasOverlayText = true;
 
