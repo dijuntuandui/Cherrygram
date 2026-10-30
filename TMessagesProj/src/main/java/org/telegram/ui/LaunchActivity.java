@@ -6111,6 +6111,19 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
     }
 
     public void checkAppUpdate(boolean force, Browser.Progress progress, boolean updateAlways) {
+        // [Aiqiyi] 关闭全部官方更新检查。
+        // 覆盖三条弹窗路径：isCustomUpdate() 自定义更新、can_not_skip 强制更新、
+        // showUpdaterBottomSheet 普通更新弹窗；同时不发网络请求。
+        // 更新改为在群里发通知，客户端不再自动检测。
+        if (true) {
+            if (progress != null) {
+                try {
+                    progress.end();
+                } catch (Throwable ignore) {
+                }
+            }
+            return;
+        }
         /*if (!ApplicationLoader.isStandaloneBuild() && !ApplicationLoader.isBetaBuild()) {
             return;
         }
