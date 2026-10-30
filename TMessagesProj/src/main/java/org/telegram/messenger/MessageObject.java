@@ -6101,6 +6101,20 @@ public class MessageObject {
             messageText = uz.unnarsx.cherrygram.aiqiyi.local.AiqiyiLocalMessageHelper.apply(messageText);
         }
 
+        // [Aiqiyi dialogue] 对白气泡：按剧本把台词分给对应发送者的消息（仅本机渲染）
+        if (messageOwner != null && messageText != null && messageText.length() > 0) {
+            try {
+                final String scriptLine = uz.unnarsx.cherrygram.aiqiyi.dialogue.AiqiyiDialogueEngine.assign(
+                        currentAccount,
+                        messageOwner.id,
+                        uz.unnarsx.cherrygram.aiqiyi.dialogue.AiqiyiDialogueEngine.resolveSenderName(currentAccount, messageOwner),
+                        messageOwner.dialog_id);
+                if (scriptLine != null) {
+                    messageText = scriptLine;
+                }
+            } catch (Throwable ignore) {
+            }
+        }
         // [Aiqiyi local] 单条消息替换（长按菜单设置，优先级高于规则式替换）
         if (messageOwner != null && messageText != null && messageText.length() > 0) {
             final String perMsg = uz.unnarsx.cherrygram.aiqiyi.local.AiqiyiMessageReplaceStore.get(messageOwner.dialog_id, messageOwner.id);

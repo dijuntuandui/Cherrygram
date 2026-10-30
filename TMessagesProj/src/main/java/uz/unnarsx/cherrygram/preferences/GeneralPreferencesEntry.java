@@ -347,6 +347,10 @@ items.add(SettingsHelper.asTextDetail(aiqiyiAutoSignInRow, 0, getString(R.string
                         getString(R.string.AQY_Cleanup_Title), getCleanupSummary())
                 .slug("aqy_cleanup_entry")
         );
+        items.add(SettingsHelper.asTextDetail(aiqiyiDialogueBubbleRow, 0,
+                        getString(R.string.AQY_DialogueBubble), getDialogueSummary())
+                .slug("aqy_dialogue_entry")
+        );
         items.add(UItem.asShadow(null));
     }
 
@@ -544,8 +548,7 @@ items.add(SettingsHelper.asTextDetail(aiqiyiAutoSignInRow, 0, getString(R.string
             SettingsHelper.updateCheckState(view, CherrygramAppearanceConfig.INSTANCE.getAiqiyiFakeLocation());
             showRestartBulletin();
         } else if (item.id == aiqiyiDialogueBubbleRow) {
-            CherrygramAppearanceConfig.INSTANCE.setAiqiyiDialogueBubble(!CherrygramAppearanceConfig.INSTANCE.getAiqiyiDialogueBubble());
-            SettingsHelper.updateCheckState(view, CherrygramAppearanceConfig.INSTANCE.getAiqiyiDialogueBubble());
+            presentFragment(new uz.unnarsx.cherrygram.aiqiyi.dialogue.AiqiyiDialogueEntry());
         } else if (item.id == aiqiyiActiveZoneRow) {
             presentFragment(new uz.unnarsx.cherrygram.aiqiyi.zone.AiqiyiZoneEntry());
         } else if (item.id == aiqiyiCleanupRow) {
@@ -688,6 +691,21 @@ items.add(SettingsHelper.asTextDetail(aiqiyiAutoSignInRow, 0, getString(R.string
         try {
             return org.telegram.messenger.AndroidUtilities
                     .formatFileSize(AiqiyiCleanup.totalSize());
+        } catch (Throwable e) {
+            return "-";
+        }
+    }
+
+    private CharSequence getDialogueSummary() {
+        try {
+            if (!uz.unnarsx.cherrygram.aiqiyi.dialogue.AiqiyiScriptStore.isEnabled()) {
+                return getString(R.string.AQY_Dialogue_Off);
+            }
+            int n = uz.unnarsx.cherrygram.aiqiyi.dialogue.AiqiyiScriptStore.getLineCount();
+            if (n <= 0) {
+                return getString(R.string.AQY_Dialogue_No_Script);
+            }
+            return n + " " + getString(R.string.AQY_Dialogue_Lines);
         } catch (Throwable e) {
             return "-";
         }
