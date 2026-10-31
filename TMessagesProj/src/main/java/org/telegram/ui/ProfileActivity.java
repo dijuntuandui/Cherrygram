@@ -1247,6 +1247,8 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
         }
 
         private boolean hasColorById;
+        // [Aiqiyi] 本资料页是否佩戴了本地礼物；onDraw 用它兜底强制绘制底纹
+        private boolean aiqiyiHasGiftForGradient;
         private final AnimatedFloat hasColorAnimated = new AnimatedFloat(this, 350, CubicBezierInterpolator.EASE_OUT_QUINT);
         public int color1, color2;
         private final AnimatedColor color1Animated = new AnimatedColor(this, 350, CubicBezierInterpolator.EASE_OUT_QUINT);
@@ -1284,6 +1286,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
             } catch (Throwable t) {
                 android.util.Log.d("AQY_LOCAL_GIFT", "setBackgroundColorId probe failed: " + t);
             }
+            aiqiyiHasGiftForGradient = aiqiyiHasWornGift;
             if ((peerColor != null && CherrygramAppearanceConfig.INSTANCE.getProfileBackgroundColor()) || aiqiyiHasWornGift) {
                 hasColorById = true;
                 if (peerColor != null) {
@@ -1350,16 +1353,21 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                     color2 = (c2 != 0xFF000000) ? c2 : c1;
                     actionBarBackgroundColor = ColorUtils.blendARGB(color1, color2, 0.25f);
                     hasColorById = true;
-                    color1Animated.set(color1, true);
-                    color2Animated.set(color2, true);
                     // [Aiqiyi] 按钮与头部同色：戴礼物时按钮底色跟礼物 backdrop 走，
                     // 否则会停留在 peerColor.patternColor（深红），与头部渐变脱节。
                     btnColor = Theme.multAlpha(color1, .45f);
+                    // [Aiqiyi] 不能在这里 return：下面那段 if (!animated) 的强制跳变会被跳过，
+                    // 于是 color1Animated/color2Animated 停在旧值（通常是 0 或黑色），
+                    // onDraw 里 progressToGradient = ... * hasColorAnimated.set(true) 拿不到 1，
+                    // 底纹和佩戴礼物环统统被压在透明里 -> 表现为「礼物和底纹消失」。
+                    // 强制把动画值跳到目标色，礼物色必须立刻生效。
+                    color1Animated.set(color1, true);
+                    color2Animated.set(color2, true);
+                    hasColorAnimated.set(hasColorById);
                     android.util.Log.d("AQY_LOCAL_GIFT", "B-final override APPLIED "
                             + Integer.toHexString(color1) + " -> " + Integer.toHexString(color2)
                             + " did=" + getDialogId() + " animated=" + animated);
                     invalidate();
-                    return;
                 }
             } catch (Throwable t) {
                 android.util.Log.d("AQY_LOCAL_GIFT", "B-final override failed: " + t);
@@ -1471,7 +1479,13 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
             if (y1 != 0) {
                 paint.setColor(currentColor);
                 updateBackgroundPaint();
-                final float progressToGradient = (playProfileAnimation == 0 ? 1f : avatarAnimationProgress) * hasColorAnimated.set(hasColorById);
+                // [Aiqiyi] 佩戴了本地礼物时，底纹/礼物环必须无条件绘制。
+                // 原来这里乘 avatarAnimationProgress，从非聊天列表入口进资料页时该值不在 1，
+                // progressToGradient 被压小 -> 底纹 alpha 近 0 -> 「礼物和底纹全部显示不出来」。
+                // 关掉「资料颜色」开关后没戴礼物时拍照正常，正是绕开了这条。
+                final float progressToGradient = aiqiyiHasGiftForGradient
+                        ? 1f
+                        : (playProfileAnimation == 0 ? 1f : avatarAnimationProgress) * hasColorAnimated.set(hasColorById);
                 if (progressToGradient < 1) {
                     canvas.drawRect(0, 0, getMeasuredWidth(), y1, paint);
                 }
