@@ -1249,6 +1249,9 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
         private boolean hasColorById;
         // [Aiqiyi] 本资料页是否佩戴了本地礼物；onDraw 用它兜底强制绘制底纹
         private boolean aiqiyiHasGiftForGradient;
+        // [Aiqiyi] 佩戴礼物本体兜底绘制用
+        private AnimatedEmojiDrawable aiqiyiDrawable;
+        private long aiqiyiDrawableId;
         private final AnimatedFloat hasColorAnimated = new AnimatedFloat(this, 350, CubicBezierInterpolator.EASE_OUT_QUINT);
         public int color1, color2;
         private final AnimatedColor color1Animated = new AnimatedColor(this, 350, CubicBezierInterpolator.EASE_OUT_QUINT);
@@ -1420,7 +1423,19 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
             if (!animated) {
                 emojiFullT.force(isCollectible);
             }
-            hasEmoji = (hasEmoji || emojiId != 0 && emojiId != -1) && (CherrygramAppearanceConfig.INSTANCE.getProfileBackgroundEmoji());
+            // [Aiqiyi] 原逻辑：(hasEmoji || id有效) && 主页图标开关。
+            //   - 用 || 累加，hasEmoji 只会 false->true，永不复位，状态脏；
+            //   - && 主页图标开关：开关关掉后即使佩戴了礼物，图案层整段不画，
+            //     表现为「佩戴了礼物但资料页什么都没有」。
+            // 现在：只要佩戴了本地礼物就强制为 true，与开关无关；
+            // 没有本地礼物时才尊重原开关。
+            final boolean aiqiyiHasGift = aiqiyiHasGiftForGradient;
+            final boolean hasValidEmojiId = (emojiId != 0 && emojiId != -1);
+            if (aiqiyiHasGift) {
+                hasEmoji = true;
+            } else {
+                hasEmoji = hasValidEmojiId && CherrygramAppearanceConfig.INSTANCE.getProfileBackgroundEmoji();
+            }
             invalidate();
         }
 
@@ -1494,8 +1509,15 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                     canvas.drawRect(0, 0, getMeasuredWidth(), y1, backgroundPaint);
                 }
                 if (hasEmoji) {
-                    final float loadedScale = emojiLoadedT.set(isEmojiLoaded());
+                    // [Aiqiyi] 佩戴本地礼物时强制画图案层。
+                    // 原逻辑要求 AnimatedEmojiDrawable 真正下载并解码成功(loadedScale>0)，
+                    // 本地礼物的 pattern 文档 id 是本地伪造的，官方文档拉不到 -> 永远加载失败
+                    // -> loadedScale 恒为 0 -> 底纹和礼物本体一次都不画。
+                    // 这里对本地佩戴礼物直接给满值，绕开下载依赖。
+                    final boolean aiqiyiForce = aiqiyiHasGiftForGradient;
+                    final float loadedScale = aiqiyiForce ? 1f : emojiLoadedT.set(isEmojiLoaded());
                     boolean shoudIgnore = openAnimationInProgress && playProfileAnimation == 2;
+                    if (aiqiyiForce) shoudIgnore = false;
                     if (!shoudIgnore && loadedScale > 0 && avatarContainer != null) {
                         canvas.save();
                         canvas.clipRect(0, 0, getMeasuredWidth(), y1);
@@ -1504,6 +1526,31 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                         StarGiftPatterns.drawProfileAnimatedPattern(canvas, emoji, getMeasuredWidth(), maxExpand, calculateHeaderExtraDiff(), avatarContainer, 1.0f);
                         canvas.restore();
                     }
+                }
+                // [Aiqiyi] 佩戴礼物兜底绘制：不依赖 ProfileGiftsView 是否初始化。
+                // 实测日志显示 setBackgroundColorId 能拿到佩戴数据(lastWorn=-19)，
+                // 但 ProfileGiftsView 从未执行 injectLocalGifts，头像周围一圈礼物全是空的。
+                // 这里直接从 LocalGiftStore 取贴纸，在头部背景上画一份本体。
+                if (aiqiyiHasGiftForGradient) {
+                    try {
+                        final uz.unnarsx.cherrygram.core.helpers.localdata.LocalGiftData lw =
+                                uz.unnarsx.cherrygram.core.helpers.localdata.LocalGiftStore.getLastWornForUser(getDialogId());
+                        final long wantId = (lw == null ? 0L : lw.getDocumentId());
+                        if (wantId != 0 && (aiqiyiDrawable == null || aiqiyiDrawableId != wantId)) {
+                            aiqiyiDrawableId = wantId;
+                            aiqiyiDrawable = AnimatedEmojiDrawable.make(UserConfig.selectedAccount,
+                                    AnimatedEmojiDrawable.CACHE_TYPE_MESSAGES, wantId);
+                            if (aiqiyiDrawable != null) aiqiyiDrawable.preload();
+                        }
+                        if (aiqiyiDrawable != null) {
+                            final int gsz = dp(120);
+                            final int gx = getMeasuredWidth() / 2;
+                            final int gy = (int) (y1 * 0.62f);
+                            aiqiyiDrawable.setBounds(gx - gsz / 2, gy - gsz / 2, gx + gsz / 2, gy + gsz / 2);
+                            aiqiyiDrawable.setAlpha(0xFF);
+                            aiqiyiDrawable.draw(canvas);
+                        }
+                    } catch (Throwable ignore) {}
                 }
                 if (previousTransitionFragment != null) {
                     ActionBar actionBar = previousTransitionFragment.getActionBar();
