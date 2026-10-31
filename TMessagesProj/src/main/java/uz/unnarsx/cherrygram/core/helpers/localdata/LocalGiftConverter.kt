@@ -638,8 +638,15 @@ object LocalGiftConverter {
             if (d != null) return d
         }
         // 2. 本地 base64 还原
+        // Aiqiyi: 清洗历史脏数据。旧版本的 ?: unique.sticker 把帖纸写进了 pattern 字段，
+        // 特征是 patternDocumentId 与礼物本体 documentId 相等。这种缓存全部作废，否则读回来还是满屏大图。
+        if (data.patternDocumentId != 0L && data.patternDocumentId == data.documentId) {
+            FileLog.e("Aiqiyi pattern: dirty cache (patternDocumentId == documentId), reset")
+            data.patternDocumentId = 0L
+            data.patternDocumentData = null
+        }
         val persisted = getPersistedPatternDocument(data)
-        if (persisted != null) return persisted
+        if (persisted != null && persisted.id != data.documentId) return persisted
         // 2.5 按哈希到父目录找文件（买的时候下过就一定有）
         if (data.patternDocumentId != 0L) {
             val fromDisk = findDocumentByCachedFile(data.patternDocumentId)
