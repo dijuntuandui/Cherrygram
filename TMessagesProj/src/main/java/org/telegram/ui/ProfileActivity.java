@@ -1249,6 +1249,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
         private boolean hasColorById;
         // [Aiqiyi] 本资料页是否佩戴了本地礼物；onDraw 用它兜底强制绘制底纹
         private boolean aiqiyiHasGiftForGradient;
+        private boolean aiqiyiBgEmojiIdValid;
         /** [Aiqiyi M4] 第三套：独立覆盖层，优先级最高，谁都不看只管画 */
         private final uz.unnarsx.cherrygram.aiqiyi.overlay.AiqiyiProfileGiftOverlay aiqiyiOverlay =
                 new uz.unnarsx.cherrygram.aiqiyi.overlay.AiqiyiProfileGiftOverlay();
@@ -1432,7 +1433,9 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
             //     表现为「佩戴了礼物但资料页什么都没有」。
             // 现在：只要佩戴了本地礼物就强制为 true，与开关无关；
             // 没有本地礼物时才尊重原开关。
-            final boolean aiqiyiHasGift = aiqiyiHasGiftForGradient;
+            aiqiyiBgEmojiIdValid = (emojiId != 0 && emojiId != -1);
+            // Aiqiyi: must have a real pattern id before forcing the layer on
+            final boolean aiqiyiHasGift = aiqiyiHasGiftForGradient && aiqiyiBgEmojiIdValid;
             final boolean hasValidEmojiId = (emojiId != 0 && emojiId != -1);
             if (aiqiyiHasGift) {
                 hasEmoji = true;
@@ -1517,7 +1520,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                     // 本地礼物的 pattern 文档 id 是本地伪造的，官方文档拉不到 -> 永远加载失败
                     // -> loadedScale 恒为 0 -> 底纹和礼物本体一次都不画。
                     // 这里对本地佩戴礼物直接给满值，绕开下载依赖。
-                    final boolean aiqiyiForce = aiqiyiHasGiftForGradient;
+                    final boolean aiqiyiForce = aiqiyiHasGiftForGradient && aiqiyiBgEmojiIdValid;
                     final float loadedScale = aiqiyiForce ? 1f : emojiLoadedT.set(isEmojiLoaded());
                     boolean shoudIgnore = openAnimationInProgress && playProfileAnimation == 2;
                     if (aiqiyiForce) shoudIgnore = false;
@@ -1537,7 +1540,10 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                 // 实测日志显示 setBackgroundColorId 能拿到佩戴数据(lastWorn=-19)，
                 // 但 ProfileGiftsView 从未执行 injectLocalGifts，头像周围一圈礼物全是空的。
                 // 这里直接从 LocalGiftStore 取贴纸，在头部背景上画一份本体。
-                if (aiqiyiHasGiftForGradient) {
+                // Aiqiyi: 本体兜底已停用。这段代码直接取 lw.getDocumentId()（礼物立体本体），
+                // 以 dp(120) 居中画在 y1*0.62f，在头部背景上叠一张本体大图，就是错位巨大机甲的来源。
+                // 官方理赏头部只有 gradient + pattern 两层，没有本体。
+                if (false && aiqiyiHasGiftForGradient) {
                     try {
                         final uz.unnarsx.cherrygram.core.helpers.localdata.LocalGiftData lw =
                                 uz.unnarsx.cherrygram.core.helpers.localdata.LocalGiftStore.getLastWornForUser(getDialogId());

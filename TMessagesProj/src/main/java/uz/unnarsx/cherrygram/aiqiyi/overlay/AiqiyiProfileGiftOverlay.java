@@ -164,8 +164,12 @@ public class AiqiyiProfileGiftOverlay {
         Entry e = obtain(userId);
         if (e == null || !e.active) return false;
         drawGradient(canvas, w, h, e);
-        drawPattern(canvas, w, h, e);
-        drawBody(canvas, w, h, e);
+        // Aiqiyi: 原本这里还有 drawPattern 和 drawBody 两层，后果：
+        //   drawPattern -> setBounds(0,0,w,h) 把一张图整层拉伸铺满；
+        //   drawBody    -> size=min(w,h)/2、cy=h*0.62 把礼物立体大图画在偏下，
+        //                  且在 onDraw 最后一步，盖住了原生图案层。
+        // 官方理赏底纹是 StarGiftPatterns.drawProfileAnimatedPattern 的 24 小位平铺，
+        // 这里只留渐变底色，pattern 和本体交给原生链路。
         return true;
     }
 
