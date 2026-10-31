@@ -11913,8 +11913,17 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                     aiqiyiBgEmojiId = UserObject.getProfileEmojiId(user);
                     aiqiyiBgIsCollectible = user != null && user.emoji_status instanceof TLRPC.TL_emojiStatusCollectible;
                 }
+                // 注意：这里在外层 ProfileActivity.updateProfileData() 里，
+                // aiqiyiHasGiftForGradient 是 TopView 内部类字段，作用域够不到。
+                // 改为直接判定：本地有佩戴数据就算 forceGift。
+                boolean aiqiyiForceGift = false;
+                try {
+                    aiqiyiForceGift = uz.unnarsx.cherrygram.core.helpers.localdata.LocalGiftStore
+                            .getLastWornForUser(userId) != null;
+                } catch (Throwable ignore) {
+                }
                 android.util.Log.d("AQY_GIFT_DBG", "setBackgroundEmojiId final id=" + aiqiyiBgEmojiId
-                        + " collectible=" + aiqiyiBgIsCollectible + " forceGift=" + aiqiyiHasGiftForGradient);
+                        + " collectible=" + aiqiyiBgIsCollectible + " forceGift=" + aiqiyiForceGift);
                 topView.setBackgroundEmojiId(aiqiyiBgEmojiId, aiqiyiBgIsCollectible, true, aiqiyiBgTint);
             }
             if (ratingView != null) {
