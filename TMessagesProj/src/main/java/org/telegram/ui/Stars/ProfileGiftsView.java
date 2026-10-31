@@ -366,21 +366,19 @@ public class ProfileGiftsView extends View implements NotificationCenter.Notific
                 }
             }
             if (worn != null) {
+                // Aiqiyi: 头部底纹只接受真正的 starGiftAttributePattern。
+                // 这里曾经退回 worn.document / worn.documentId（礼物本体贴纸），
+                // 结果彩色本体图被 setBackgroundEmojiId 当成底纹整层放大铺满，
+                // 看起来就是一只巨大的礼物图糊在头像后面。本体不是图案，禁止流入。
                 if (worn.patternDoc != null && worn.patternDoc.id != 0) return worn.patternDoc.id;
-                if (worn.document != null && worn.document.id != 0) return worn.document.id;
-                if (worn.documentId != 0) return worn.documentId;
+                org.telegram.messenger.FileLog.e("Aiqiyi pattern: worn gift has no patternDoc, skip head pattern");
+                return 0;
             }
-            // 兜底：一个都没匹配上（旧数据缺 pinned 标记等），保持旧行为
+            // 兜底：只扫 pattern，绝不扫本体
             for (int i = 0; i < localGifts.size(); i++) {
                 final Gift g = localGifts.get(i);
                 if (g == null) continue;
                 if (g.patternDoc != null && g.patternDoc.id != 0) return g.patternDoc.id;
-            }
-            for (int i = 0; i < localGifts.size(); i++) {
-                final Gift g = localGifts.get(i);
-                if (g == null) continue;
-                if (g.document != null && g.document.id != 0) return g.document.id;
-                if (g.documentId != 0) return g.documentId;
             }
         } catch (Throwable t) {
             org.telegram.messenger.FileLog.e("Aiqiyi getWornLocalPatternDocId failed", t);
