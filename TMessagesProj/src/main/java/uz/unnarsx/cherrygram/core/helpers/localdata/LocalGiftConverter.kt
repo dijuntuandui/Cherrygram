@@ -146,6 +146,14 @@ object LocalGiftConverter {
                     }
                 }
             }
+            android.util.Log.d("AQY_GIFT_DBG", "toWornStatus uid=" + userId
+                    + " data.documentId=" + data.documentId
+                    + " data.patternDocumentId=" + data.patternDocumentId
+                    + " data.catalogGiftId=" + data.catalogGiftId
+                    + " data.modelName=" + data.modelName
+                    + " -> status.doc=" + status.document_id
+                    + " status.pattern=" + status.pattern_document_id
+                    + " cacheHit=false")
             val result: TLRPC.TL_emojiStatusCollectible? = if (status.document_id == 0L) null else status
             wornStatusCache = if (result == null) null else Triple(userId, result, now)
             result

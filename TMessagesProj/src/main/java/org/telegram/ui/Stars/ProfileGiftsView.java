@@ -508,11 +508,14 @@ public class ProfileGiftsView extends View implements NotificationCenter.Notific
             java.util.Collections.synchronizedSet(new java.util.HashSet<Long>());
 
     public void update() {
-        if (CherrygramAppearanceConfig.INSTANCE.getDisablePremiumStatuses()) return;
+        // [Aiqiyi M2] 原来这里遇到「禁用 Premium 状态显示」直接 return，
+        // 导致整个礼物层（含本地礼物）都不初始化、injectLocalGifts 一次都不跑。
+        // 本地礼物是本机伪造的，跟 Premium 状态无关，必须照常画。
+        // 注意：这里刻意不再 return。原版一旦 return，礼物层什么都不画。
 
-        if (!MessagesController.getInstance(currentAccount).enableGiftsInProfile) {
-            return;
-        }
+        // [Aiqiyi M2] enableGiftsInProfile 是服务端开关，关掉时本地礼物也会被连坐。
+        // 改成只约束真实礼物，本地礼物走 injectLocalGifts，不受此限制。
+        final boolean aiqiyiGiftsInProfile = MessagesController.getInstance(currentAccount).enableGiftsInProfile;
 
         maxCount = MessagesController.getInstance(currentAccount).stargiftsPinnedToTopLimit;
         oldGifts.clear();
@@ -531,7 +534,7 @@ public class ProfileGiftsView extends View implements NotificationCenter.Notific
         if (emojiStatus instanceof TLRPC.TL_emojiStatusCollectible) {
             giftIds.add(((TLRPC.TL_emojiStatusCollectible) emojiStatus).collectible_id);
         }
-        list = StarsController.getInstance(currentAccount).getProfileGiftsList(dialogId);
+        list = aiqiyiGiftsInProfile ? StarsController.getInstance(currentAccount).getProfileGiftsList(dialogId) : null;
         if (list != null) {
             for (int i = 0; i < list.gifts.size(); i++) {
                 final TL_stars.SavedStarGift savedGift = list.gifts.get(i);
@@ -713,12 +716,9 @@ public class ProfileGiftsView extends View implements NotificationCenter.Notific
     private void injectLocalGifts() {
         try {
             localGifts.clear();
-            if (!AiqiyiLocalDataConfig.INSTANCE.getLocalGiftEnabled()
-                    || !AiqiyiLocalDataConfig.INSTANCE.getLocalGiftShowOnProfile()) {
-                android.util.Log.d("AQY_LOCAL_GIFT", "injectLocalGifts skip: switch off");
-                lastLocalGiftCount = 0;
-                return;
-            }
+            // [Aiqiyi M2] 按需求：不管「本地礼物」「在资料页显示」开关是否关闭，
+            // 只要本机佩戴了礼物就强制注入。用户原话：不管是否关闭图标，强制显示礼物。
+            android.util.Log.d("AQY_LOCAL_GIFT", "injectLocalGifts entered (switch bypassed) did=" + dialogId);
 
             // Aiqiyi 性能: LocalGiftStore.getPinnedForUser() 走 getDataForUser()，
             // 首次访问某 userId 时会在调用线程同步 prefs.getString + gson.fromJson。
