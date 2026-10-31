@@ -649,12 +649,17 @@ object LocalGiftConverter {
         // 否则贴纸因为精确匹配失败留空了，pattern 却拿基础款的纹路画上去，
         // 视觉上就是「这只狗穿着别人的花纹」，等于变相画成了基础款。
         // 宁可不画这一层（draw() 会整层跳过，退回改动前的表现），也不越界。
-        if (!data.modelName.isNullOrEmpty()) {
-            FileLog.e("Aiqiyi resolvePatternDocument: model=" + data.modelName + " 前三层未命中，不使用目录基础款 pattern")
-            return null
-        }
         try {
-            val catalog = findCatalogGift(data.catalogGiftId) ?: findCatalogGiftByTitle(data.title)
+            // Aiqiyi: giftId 是精确主键，命中即为同一只，允许取它的 pattern。
+            // 只有走标题模糊匹配时才需要 modelName 把关，避免“穿着别人的花纹”。
+            var catalog = findCatalogGift(data.catalogGiftId)
+            if (catalog == null) {
+                if (!data.modelName.isNullOrEmpty()) {
+                    FileLog.e("Aiqiyi resolvePatternDocument: model=" + data.modelName + " 前三层未命中，不使用标题模糊匹配的 pattern")
+                    return null
+                }
+                catalog = findCatalogGiftByTitle(data.title)
+            }
             if (catalog != null) {
                 val pd = StarsController.findAttribute(
                     catalog.attributes,

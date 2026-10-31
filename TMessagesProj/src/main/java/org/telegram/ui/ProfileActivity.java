@@ -11896,9 +11896,10 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                             if (aiqiyiPatId != 0) {
                                 aiqiyiBgEmojiId = aiqiyiPatId;
                                 aiqiyiBgTint = aiqiyiWorn.getPatternColor();
-                            } else if (aiqiyiBodyId != 0) {
-                                aiqiyiBgEmojiId = aiqiyiBodyId;
                             }
+                            // Aiqiyi: 不再拿礼物本体当底纹。
+                            // 官方底纹层只认 starGiftAttributePattern，铺到 24 个 17-24dp 小位上，
+                            // 拿彩色大图顶会糊成满屏重复大图。取不到 pattern 就不出底纹层，与官方同口径。
                             if (aiqiyiBgEmojiId != 0) {
                                 aiqiyiBgIsCollectible = true;
                             }
