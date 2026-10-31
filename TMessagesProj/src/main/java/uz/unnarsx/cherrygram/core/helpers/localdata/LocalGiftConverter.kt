@@ -365,9 +365,11 @@ object LocalGiftConverter {
             unique.attributes.add(model)
         }
 
-        // Aiqiyi: 底图（pattern）。三层兜底，全失败就拿贴纸自己顶上，
-        // 保证详情页背景永远有平铺图案，不会只剩一片渐变色。
-        val patDoc = resolvePatternDocument(data) ?: unique.sticker
+        // Aiqiyi: 严禁拿贴纸冒充 pattern。
+        // 旧代码在这里写了 ?: unique.sticker，把彩色本体大图当成 starGiftAttributePattern
+        // 写进 attributes，而 Gift(TL_starGiftUnique) 构造函数又从 attributes 里把它读回来，
+        // 最终被当成头部隐纹整层铺满。取不到就不写这一属性。
+        val patDoc = resolvePatternDocument(data)
         if (patDoc != null) {
             val pattern = TL_stars.starGiftAttributePattern()
             pattern.name = if (!data.patternName.isNullOrEmpty()) data.patternName else safeTitle(data)

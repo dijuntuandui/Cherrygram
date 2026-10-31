@@ -842,12 +842,15 @@ public class ProfileGiftsView extends View implements NotificationCenter.Notific
                 // 取不到就留 null，draw() 跳过 pattern 层，表现等同改动前。
                 try {
                     gift.patternDoc = LocalGiftConverter.resolvePatternDocument(data);
-                    // [Aiqiyi] 与 LocalGiftConverter.createUnique 里的兜底保持一致的思路：
-                    // 真 pattern 取不到时退用礼物本体贴纸，保证头部那层隐纹永远有图可铺，
-                    // 不会因为 pattern 缺失导致"戴了礼物但背景一片死色"。
-                    if (gift.patternDoc == null) gift.patternDoc = doc;
+                    // Aiqiyi: 严禁拿礼物本体当 pattern。
+                    // 旧代码在这里写了 gift.patternDoc = doc 作兜底，
+                    // 结果彩色本体贴纸被当成隐纹整层铺满头部背景。
+                    // patternDoc 为 null 时 draw() 会跳过这一层，与官方无 pattern 礼物的表现一致。
+                    if (gift.patternDoc == null) {
+                        org.telegram.messenger.FileLog.e("Aiqiyi pattern: no patternDoc for worn gift, skip pattern layer");
+                    }
                 } catch (Throwable ignore) {
-                    gift.patternDoc = doc;
+                    gift.patternDoc = null;
                 }
                 // Aiqiyi: 本地礼物与官方佩戴礼物共用同一套 0..maxCount-1 环绕坐标。
                 // 分配顺序：先让官方礼物吃满自己的槽位，本地礼物再取剩下的空位，
