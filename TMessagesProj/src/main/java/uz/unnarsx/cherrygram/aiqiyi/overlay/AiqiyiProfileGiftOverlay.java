@@ -61,6 +61,9 @@ public class AiqiyiProfileGiftOverlay {
     private long patternRetryAt;
     private long bodyRetryAt;
     private int patternRetryCount;
+    /** [Aiqiyi M4-fix] pattern 反查缓存：避免每帧重复查库 */
+    private boolean patternResolveMissed;
+    private long patternResolveFor;
     private int bodyRetryCount;
     private static final long RETRY_MS = 1500L;
 
@@ -197,20 +200,67 @@ public class AiqiyiProfileGiftOverlay {
         Log.d(TAG, "drawGradient c=" + Integer.toHexString(c1) + " e=" + Integer.toHexString(c2));
     }
 
+    /**
+     * [Aiqiyi M4-fix] 反查真实 pattern 文档 id。
+     *
+     * 老数据的 patternDocId 往往是 0（存的时候只复制了字段，没把 doc 钉进本地），
+     * 原实现直接 return，底纹永远画不出来——表现就是「只有礼物本体、没有底纹」。
+     *
+     * 这里走 LocalGiftConverter.resolvePatternDocument 的三层兜底：
+     *   ① patternDocumentId 命中内存缓存
+     *   ② patternDocumentData（本地 base64）反序列化
+     *   ③ 缓存文件按哈希捞 / 目录同款 pattern
+     * 捞到后把真实 id 回写进内存 Entry，下一次绘制就不用再查。
+     */
+    private long resolvePatternDocId(Entry e) {
+        if (e == null) return 0L;
+        if (e.patternDocId != 0L) return e.patternDocId;
+        // 已经查过且确认没有，就不再反复查（避免每帧都读 prefs / 反序列化）
+        if (patternResolveMissed && patternResolveFor == e.collectibleId) return 0L;
+        try {
+            uz.unnarsx.cherrygram.core.helpers.localdata.LocalGiftData d =
+                    uz.unnarsx.cherrygram.core.helpers.localdata.LocalGiftStore
+                            .findLocalGift(e.userId, e.collectibleId);
+            if (d == null) {
+                Log.d(TAG, "resolvePat: no local gift cid=" + e.collectibleId);
+                patternResolveMissed = true;
+                patternResolveFor = e.collectibleId;
+                return 0L;
+            }
+            org.telegram.tgnet.TLRPC.Document doc =
+                    uz.unnarsx.cherrygram.core.helpers.localdata.LocalGiftConverter
+                            .resolvePatternDocument(d);
+            if (doc != null && doc.id != 0L) {
+                e.patternDocId = doc.id;
+                Log.d(TAG, "resolvePat: hit cid=" + e.collectibleId + " doc=" + doc.id);
+                return doc.id;
+            }
+            Log.d(TAG, "resolvePat: miss cid=" + e.collectibleId
+                    + " patId=" + d.getPatternDocumentId()
+                    + " hasB64=" + (!d.getPatternDocumentData().isEmpty()));
+            patternResolveMissed = true;
+            patternResolveFor = e.collectibleId;
+        } catch (Throwable t) {
+            FileLog.e(TAG + " resolvePatternDocId failed", t);
+        }
+        return 0L;
+    }
+
     private void drawPattern(Canvas canvas, int w, int h, Entry e) {
-        if (e.patternDocId == 0L) {
+        final long patId = resolvePatternDocId(e);
+        if (patId == 0L) {
             Log.d(TAG, "drawPattern skip no patternDocId");
             return;
         }
-        if (patternDrawable == null || patternDrawableId != e.patternDocId) {
-            patternDrawableId = e.patternDocId;
+        if (patternDrawable == null || patternDrawableId != patId) {
+            patternDrawableId = patId;
             patternDrawable = AnimatedEmojiDrawable.make(UserConfig.selectedAccount,
-                    AnimatedEmojiDrawable.CACHE_TYPE_EMOJI_STATUS, e.patternDocId);
+                    AnimatedEmojiDrawable.CACHE_TYPE_EMOJI_STATUS, patId);
             if (patternDrawable != null) patternDrawable.preload();
-            Log.d(TAG, "drawPattern new id=" + e.patternDocId + " ok=" + (patternDrawable != null));
+            Log.d(TAG, "drawPattern new id=" + patId + " ok=" + (patternDrawable != null));
         }
         if (patternDrawable == null) {
-            Log.d(TAG, "drawPattern drawable null id=" + e.patternDocId);
+            Log.d(TAG, "drawPattern drawable null id=" + patId);
             return;
         }
         // 先画，不要因为「暂时没加载好」就跳过。
