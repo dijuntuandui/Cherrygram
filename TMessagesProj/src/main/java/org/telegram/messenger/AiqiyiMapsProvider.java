@@ -527,21 +527,44 @@ public class AiqiyiMapsProvider implements IMapsProvider {
                 }
             };
             // MapLibre 要求 MapView.onCreate() 先于 getMapAsync() 执行，
-            // 否则渲染器不启动：图钉（annotation 层）能画出来，
-            // 但底图瓦片管线从不建立，地图永远白底。
-            // 调用方（LocationActivity 等）从不调 onCreate，这里自己兜底。
-            mapView.onCreate(null);
-            created = true;
-            mapView.getMapAsync(map -> {
-                currentMap = new AqyMap(map, this);
-                // 直接应用样式；回调里再调 setStyle 会无限循环
-                try {
-                    map.setStyle(buildStyle(false));
-                } catch (Throwable e) {
-                    FileLog.e(e);
+            // 否则渲染器不启动、瓦片管线不建立（地图白底）。
+            //
+            // 但 onCreate() 绝不能放在构造器里：
+            // 构造器执行时 View 尚未 attach 到窗口，Vulkan surface 还不存在，
+            // MapRenderer 会以脏状态启动；onDestroy() 之后 MapLibre 的单例仍存活，
+            // 第二次 new MapView 再在构造器里 onCreate()，render 线程拿到悬空
+            // native renderer，直接在 MapRenderer::render 段错误崩溃
+            // （日志：libmaplibre.so MapRenderer::render + VulkanThread.guardedRun）。
+            //
+            // 正确时机：attach 到窗口后再 onCreate()，保证 surface 已就绪。
+            mapView.addOnAttachStateChangeListener(new android.view.View.OnAttachStateChangeListener() {
+                @Override
+                public void onViewAttachedToWindow(android.view.View v) {
+                    if (created) {
+                        return;
+                    }
+                    created = true;
+                    try {
+                        mapView.onCreate(null);
+                    } catch (Throwable e) {
+                        FileLog.e(e);
+                    }
+                    // onCreate() 之后才能注册 getMapAsync，顺序不能颠倒
+                    mapView.getMapAsync(map -> {
+                        currentMap = new AqyMap(map, AqyMapView.this);
+                        // 直接应用样式；回调里再调 setStyle 会无限循环
+                        try {
+                            map.setStyle(buildStyle(false));
+                        } catch (Throwable e) {
+                            FileLog.e(e);
+                        }
+                        if (readyCallback != null) {
+                            readyCallback.accept(currentMap);
+                        }
+                    });
                 }
-                if (readyCallback != null) {
-                    readyCallback.accept(currentMap);
+                @Override
+                public void onViewDetachedFromWindow(android.view.View v) {
                 }
             });
         }
@@ -561,26 +584,44 @@ public class AiqiyiMapsProvider implements IMapsProvider {
 
         @Override
         public void onResume() {
-            mapView.onResume();
+            if (!created) {
+                // 尚未 attach，onCreate 还没跑，提前 onResume 会让 MapLibre 状态错乱
+                return;
+            }
+            try {
+                mapView.onResume();
+            } catch (Throwable e) {
+                FileLog.e(e);
+            }
         }
-
         @Override
         public void onPause() {
-            mapView.onPause();
+            if (!created) {
+                return;
+            }
+            try {
+                mapView.onPause();
+            } catch (Throwable e) {
+                FileLog.e(e);
+            }
         }
-
         @Override
         public void onCreate(Bundle savedInstance) {
-            // 构造器已经调过一次，这里宁可跳过也不能重复调
+            // attach 回调里已经调过一次，这里宁可跳过也不能重复调
             if (created) {
                 return;
             }
             created = true;
-            mapView.onCreate(savedInstance);
+            try {
+                mapView.onCreate(savedInstance);
+            } catch (Throwable e) {
+                FileLog.e(e);
+            }
         }
-
         @Override
         public void onDestroy() {
+            // 先把回调摘掉，避免销毁过程中 getMapAsync 的 lambda 回调到已释放的 map
+            readyCallback = null;
             if (currentMap != null) {
                 currentMap.destroy();
                 currentMap = null;
@@ -594,12 +635,17 @@ public class AiqiyiMapsProvider implements IMapsProvider {
                 }
             }
         }
-
         @Override
         public void onLowMemory() {
-            mapView.onLowMemory();
+            if (!created) {
+                return;
+            }
+            try {
+                mapView.onLowMemory();
+            } catch (Throwable e) {
+                FileLog.e(e);
+            }
         }
-
         @Override
         public void setOnDispatchTouchEventInterceptor(ITouchInterceptor touchInterceptor) {
             dispatchInterceptor = touchInterceptor;

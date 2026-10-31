@@ -834,12 +834,12 @@ public class ChatAttachAlertLocationLayout extends ChatAttachAlert.AttachAlertLa
         });
         final IMapsProvider.IMapView map = mapView;
         new Thread(() -> {
-            // 子线程预热对 MapLibre 无效且抛异常；
-            // onCreate 已在 AqyMapView 构造器主线程完成。
+            // onCreate 由 AqyMapView 在 attach 到窗口时自己完成（见 AiqiyiMapsProvider），
+            // 这里绝不能再调 onCreate，否则 MapLibre 的 Vulkan renderer 会被重复初始化，
+            // 第二次打开地图时 render 线程拿到悬空指针，在 MapRenderer::render 段错误。
             AndroidUtilities.runOnUIThread(() -> {
                 if (mapView != null && getParentActivity() != null) {
                     try {
-                        map.onCreate(null);
                         ApplicationLoader.getMapsProvider().initializeMaps(ApplicationLoader.applicationContext);
                         mapView.getMapAsync(map1 -> {
                             this.map = map1;

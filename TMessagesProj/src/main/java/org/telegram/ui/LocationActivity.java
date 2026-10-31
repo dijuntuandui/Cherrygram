@@ -1309,13 +1309,12 @@ public class LocationActivity extends BaseFragment implements NotificationCenter
         }));
         IMapsProvider.IMapView map = mapView;
         new Thread(() -> {
-            // 原代码在子线程调 onCreate 以 "预热 google maps"，
-            // MapLibre 不接受（必须主线程），且会抛异常污染状态。
-            // 现在 onCreate 已在 AqyMapView 构造器里主线程完成，这里直接回主线程。
+            // onCreate 由 AqyMapView 在 attach 到窗口时自己完成（见 AiqiyiMapsProvider），
+            // 这里绝不能再调 onCreate，否则 MapLibre 的 Vulkan renderer 会被重复初始化，
+            // 第二次打开地图时 render 线程拿到悬空指针，在 MapRenderer::render 段错误。
             AndroidUtilities.runOnUIThread(() -> {
                 if (mapView != null && getParentActivity() != null) {
                     try {
-                        map.onCreate(null);
                         ApplicationLoader.getMapsProvider().initializeMaps(ApplicationLoader.applicationContext);
                         mapView.getMapAsync(map1 -> {
                             this.map = map1;
