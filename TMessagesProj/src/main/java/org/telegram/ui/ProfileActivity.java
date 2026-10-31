@@ -1518,6 +1518,9 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                     final float loadedScale = aiqiyiForce ? 1f : emojiLoadedT.set(isEmojiLoaded());
                     boolean shoudIgnore = openAnimationInProgress && playProfileAnimation == 2;
                     if (aiqiyiForce) shoudIgnore = false;
+                    android.util.Log.d("AQY_GIFT_DBG", "pattern layer: hasEmoji=" + hasEmoji + " force=" + aiqiyiForce
+                            + " loadedScale=" + loadedScale + " shoudIgnore=" + shoudIgnore
+                            + " diff=" + calculateHeaderExtraDiff() + " avatarC=" + (avatarContainer != null));
                     if (!shoudIgnore && loadedScale > 0 && avatarContainer != null) {
                         canvas.save();
                         canvas.clipRect(0, 0, getMeasuredWidth(), y1);
@@ -1535,7 +1538,12 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                     try {
                         final uz.unnarsx.cherrygram.core.helpers.localdata.LocalGiftData lw =
                                 uz.unnarsx.cherrygram.core.helpers.localdata.LocalGiftStore.getLastWornForUser(getDialogId());
-                        final long wantId = (lw == null ? 0L : lw.getDocumentId());
+                        long wantId = (lw == null ? 0L : lw.getDocumentId());
+                        if (wantId == 0 && lw != null) wantId = lw.getPatternDocumentId();
+                        android.util.Log.d("AQY_GIFT_DBG", "drawBody: lw=" + (lw != null)
+                                + " bodyId=" + (lw == null ? 0 : lw.getDocumentId())
+                                + " patId=" + (lw == null ? 0 : lw.getPatternDocumentId())
+                                + " want=" + wantId + " cur=" + aiqiyiDrawableId);
                         if (wantId != 0 && (aiqiyiDrawable == null || aiqiyiDrawableId != wantId)) {
                             aiqiyiDrawableId = wantId;
                             aiqiyiDrawable = AnimatedEmojiDrawable.make(UserConfig.selectedAccount,
@@ -11861,10 +11869,38 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                         aiqiyiBgTint = giftsView.getWornLocalPatternColor();
                     }
                 }
+                // [Aiqiyi M3] 兜底：giftsView 没初始化或没取到图案时，直接问 LocalGiftStore。
+                // 图一（资料页头部）和 giftsView（礼物墙）是两套组件，不能互相依赖。
+                if (aiqiyiBgEmojiId == 0 && userId != 0 && userId == getUserConfig().getClientUserId()) {
+                    try {
+                        final uz.unnarsx.cherrygram.core.helpers.localdata.LocalGiftData aiqiyiWorn =
+                                uz.unnarsx.cherrygram.core.helpers.localdata.LocalGiftStore.getLastWornForUser(userId);
+                        if (aiqiyiWorn != null) {
+                            final long aiqiyiPatId = aiqiyiWorn.getPatternDocumentId();
+                            final long aiqiyiBodyId = aiqiyiWorn.getDocumentId();
+                            if (aiqiyiPatId != 0) {
+                                aiqiyiBgEmojiId = aiqiyiPatId;
+                                aiqiyiBgTint = aiqiyiWorn.getPatternColor();
+                            } else if (aiqiyiBodyId != 0) {
+                                aiqiyiBgEmojiId = aiqiyiBodyId;
+                            }
+                            if (aiqiyiBgEmojiId != 0) {
+                                aiqiyiBgIsCollectible = true;
+                            }
+                            android.util.Log.d("AQY_GIFT_DBG", "profile bg: pat=" + aiqiyiPatId + " body=" + aiqiyiBodyId
+                                    + " -> emojiId=" + aiqiyiBgEmojiId + " tint=" + Integer.toHexString(aiqiyiBgTint));
+                        } else {
+                            android.util.Log.d("AQY_GIFT_DBG", "profile bg: worn=null uid=" + userId);
+                        }
+                    } catch (Throwable ignore) {
+                    }
+                }
                 if (aiqiyiBgEmojiId == 0) {
                     aiqiyiBgEmojiId = UserObject.getProfileEmojiId(user);
                     aiqiyiBgIsCollectible = user != null && user.emoji_status instanceof TLRPC.TL_emojiStatusCollectible;
                 }
+                android.util.Log.d("AQY_GIFT_DBG", "setBackgroundEmojiId final id=" + aiqiyiBgEmojiId
+                        + " collectible=" + aiqiyiBgIsCollectible + " forceGift=" + aiqiyiHasGiftForGradient);
                 topView.setBackgroundEmojiId(aiqiyiBgEmojiId, aiqiyiBgIsCollectible, true, aiqiyiBgTint);
             }
             if (ratingView != null) {
