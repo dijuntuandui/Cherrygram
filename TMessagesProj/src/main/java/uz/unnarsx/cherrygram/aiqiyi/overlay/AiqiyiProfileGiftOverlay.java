@@ -58,6 +58,11 @@ public class AiqiyiProfileGiftOverlay {
 
     private Entry lastEntry;
     private long lastLoadTime;
+    private long patternRetryAt;
+    private long bodyRetryAt;
+    private int patternRetryCount;
+    private int bodyRetryCount;
+    private static final long RETRY_MS = 1500L;
 
     // ===================== 数据层 =====================
 
@@ -204,6 +209,24 @@ public class AiqiyiProfileGiftOverlay {
             if (patternDrawable != null) patternDrawable.preload();
             Log.d(TAG, "drawPattern new id=" + e.patternDocId + " ok=" + (patternDrawable != null));
         }
+        if (patternDrawable == null) {
+            Log.d(TAG, "drawPattern drawable null id=" + e.patternDocId);
+            return;
+        }
+        // 先画，不要因为「暂时没加载好」就跳过。
+        // AnimatedEmojiDrawable 内部会自己发起加载，第一帧没图是正常的。
+        // 只有连续多次都没图（真正的文档缺失）才重建，最多 3 次，避免无限重试。
+        final long nowPat = System.currentTimeMillis();
+        if (patternDrawable.getImageReceiver() != null
+                && patternDrawable.getImageReceiver().getCurrentDrawable() == null
+                && patternRetryCount < 3
+                && nowPat - patternRetryAt > RETRY_MS) {
+            patternRetryAt = nowPat;
+            patternRetryCount++;
+            patternDrawableId = 0L;
+            patternDrawable = null;
+            Log.d(TAG, "drawPattern retry #" + patternRetryCount + " id=" + e.patternDocId);
+        }
         if (patternDrawable == null) return;
         patternDrawable.setBounds(0, 0, w, h);
         patternDrawable.setAlpha(0xFF);
@@ -223,6 +246,22 @@ public class AiqiyiProfileGiftOverlay {
                     AnimatedEmojiDrawable.CACHE_TYPE_MESSAGES, id);
             if (bodyDrawable != null) bodyDrawable.preload();
             Log.d(TAG, "drawBody new id=" + id + " ok=" + (bodyDrawable != null));
+        }
+        if (bodyDrawable == null) {
+            Log.d(TAG, "drawBody drawable null id=" + id);
+            return;
+        }
+        // 与 drawPattern 一致：先画，只在连续失败时重建，绝不 return。
+        final long nowBody = System.currentTimeMillis();
+        if (bodyDrawable.getImageReceiver() != null
+                && bodyDrawable.getImageReceiver().getCurrentDrawable() == null
+                && bodyRetryCount < 3
+                && nowBody - bodyRetryAt > RETRY_MS) {
+            bodyRetryAt = nowBody;
+            bodyRetryCount++;
+            bodyDrawableId = 0L;
+            bodyDrawable = null;
+            Log.d(TAG, "drawBody retry #" + bodyRetryCount + " id=" + id);
         }
         if (bodyDrawable == null) return;
         final int size = Math.min(w, h) / 2;

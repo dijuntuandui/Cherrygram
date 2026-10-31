@@ -11125,7 +11125,13 @@ public void toggleWear() {
         }
     }
 
-    /** [Aiqiyi M4] 从 unique 礼物取本体文档 id（model 属性优先） */
+    /**
+     * [Aiqiyi M4] 本体文档 id，四层兜底：
+     *   ① attributes 里的 starGiftAttributeModel.document
+     *   ② attributes 里的 starGiftAttributePattern.document（有些礼物本体就是 pattern）
+     *   ③ TL_starGiftUnique.sticker
+     *   ④ 从 catalog（StarGiftsController）按 id / 标题反查，拿 model 或 sticker
+     */
     private static long resolveAiqiyiOvDoc(TL_stars.TL_starGiftUnique u) {
         if (u == null) return 0L;
         try {
@@ -11136,13 +11142,33 @@ public void toggleWear() {
                     if (m.document != null && m.document.id != 0) return m.document.id;
                 }
             }
+            for (int i = 0; i < u.attributes.size(); i++) {
+                Object at = u.attributes.get(i);
+                if (at instanceof TL_stars.starGiftAttributePattern) {
+                    TL_stars.starGiftAttributePattern pt = (TL_stars.starGiftAttributePattern) at;
+                    if (pt.document != null && pt.document.id != 0) return pt.document.id;
+                }
+            }
             if (u.sticker != null && u.sticker.id != 0) return u.sticker.id;
+        } catch (Throwable ignore) {
+        }
+        // ④ catalog 反查
+        try {
+            TL_stars.StarGift cat = findAiqiyiOvCatalog(u);
+            if (cat != null) {
+                if (cat.sticker != null && cat.sticker.id != 0) return cat.sticker.id;
+            }
         } catch (Throwable ignore) {
         }
         return 0L;
     }
 
-    /** [Aiqiyi M4] 从 unique 礼物取底纹文档 id（pattern 属性） */
+    /**
+     * [Aiqiyi M4] 底纹文档 id，三层兜底：
+     *   ① attributes 里的 starGiftAttributePattern.document
+     *   ② attributes 里的任何 document（有些礼物只有 model）
+     *   ③ catalog 里的 pattern 属性
+     */
     private static long resolveAiqiyiOvPattern(TL_stars.TL_starGiftUnique u) {
         if (u == null) return 0L;
         try {
@@ -11153,8 +11179,51 @@ public void toggleWear() {
                     if (pt.document != null && pt.document.id != 0) return pt.document.id;
                 }
             }
+            for (int i = 0; i < u.attributes.size(); i++) {
+                Object at = u.attributes.get(i);
+                if (at instanceof TL_stars.starGiftAttributeModel) {
+                    TL_stars.starGiftAttributeModel m = (TL_stars.starGiftAttributeModel) at;
+                    if (m.document != null && m.document.id != 0) return m.document.id;
+                }
+            }
+        } catch (Throwable ignore) {
+        }
+        try {
+            TL_stars.StarGift cat = findAiqiyiOvCatalog(u);
+            if (cat != null) {
+                for (int i = 0; i < cat.attributes.size(); i++) {
+                    Object at = cat.attributes.get(i);
+                    if (at instanceof TL_stars.starGiftAttributePattern) {
+                        TL_stars.starGiftAttributePattern pt = (TL_stars.starGiftAttributePattern) at;
+                        if (pt.document != null && pt.document.id != 0) return pt.document.id;
+                    }
+                }
+                if (cat.sticker != null && cat.sticker.id != 0) return cat.sticker.id;
+            }
         } catch (Throwable ignore) {
         }
         return 0L;
+    }
+
+    /** [Aiqiyi M4] 按 catalogGiftId / 标题到礼品目录里反查基础款定义 */
+    private static TL_stars.StarGift findAiqiyiOvCatalog(TL_stars.TL_starGiftUnique u) {
+        try {
+            java.util.ArrayList<TL_stars.StarGift> all = org.telegram.ui.Stars.StarsController
+                    .getInstance(UserConfig.selectedAccount).getStarGifts();
+            if (all == null) return null;
+            for (int i = 0; i < all.size(); i++) {
+                TL_stars.StarGift g = all.get(i);
+                if (g == null) continue;
+                if (u.gift_id != 0 && g.id == u.gift_id) return g;
+            }
+            if (u.title != null && !u.title.isEmpty()) {
+                for (int i = 0; i < all.size(); i++) {
+                    TL_stars.StarGift g = all.get(i);
+                    if (g != null && u.title.equals(g.title)) return g;
+                }
+            }
+        } catch (Throwable ignore) {
+        }
+        return null;
     }
 }
