@@ -1249,6 +1249,9 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
         private boolean hasColorById;
         // [Aiqiyi] 本资料页是否佩戴了本地礼物；onDraw 用它兜底强制绘制底纹
         private boolean aiqiyiHasGiftForGradient;
+        /** [Aiqiyi M4] 第三套：独立覆盖层，优先级最高，谁都不看只管画 */
+        private final uz.unnarsx.cherrygram.aiqiyi.overlay.AiqiyiProfileGiftOverlay aiqiyiOverlay =
+                new uz.unnarsx.cherrygram.aiqiyi.overlay.AiqiyiProfileGiftOverlay();
         // [Aiqiyi] 佩戴礼物本体兜底绘制用
         private AnimatedEmojiDrawable aiqiyiDrawable;
         private long aiqiyiDrawableId;
@@ -1559,6 +1562,17 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                             aiqiyiDrawable.draw(canvas);
                         }
                     } catch (Throwable ignore) {}
+                }
+                // ===== [Aiqiyi M4] 第三套：独立覆盖层，最高优先级 =====
+                // 不管原生渐变/图案层、不管 ProfileGiftsView、不管各种开关，
+                // 只要这一套存了数据，就在最后一步强行盖上去。
+                if (user != null && user.id != 0) {
+                    try {
+                        final long aiqiyiOvDid = getDialogId();
+                        uz.unnarsx.cherrygram.aiqiyi.overlay.AiqiyiProfileGiftOverlay.migrateIfEmpty(aiqiyiOvDid);
+                        aiqiyiOverlay.draw(canvas, getMeasuredWidth(), y1, aiqiyiOvDid);
+                    } catch (Throwable ignore) {
+                    }
                 }
                 if (previousTransitionFragment != null) {
                     ActionBar actionBar = previousTransitionFragment.getActionBar();

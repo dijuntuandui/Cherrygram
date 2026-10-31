@@ -1284,6 +1284,46 @@ public class StarGiftSheet extends BottomSheetWithRecyclerListView implements No
                     uz.unnarsx.cherrygram.core.helpers.localdata.LocalGiftStore.findLocalGift(did, gift.id);
                 aiqiyiReadBack = aiqiyiAfter != null && aiqiyiAfter.getPinned();
             } catch (Throwable ignore) {}
+            // [Aiqiyi M4] 同步到第三套覆盖层（独立存储，与上面那套互不影响）
+            try {
+                if (nowPinned) {
+                    uz.unnarsx.cherrygram.core.helpers.localdata.LocalGiftData aiqiyiOv =
+                        uz.unnarsx.cherrygram.core.helpers.localdata.LocalGiftStore.findLocalGift(did, gift.id);
+                    long aiqiyiOvBody = gift instanceof TL_stars.TL_starGiftUnique
+                        ? resolveAiqiyiOvDoc((TL_stars.TL_starGiftUnique) gift) : 0L;
+                    long aiqiyiOvPat = resolveAiqiyiOvPattern((TL_stars.TL_starGiftUnique) gift);
+                    int aiqiyiOvC = 0xFF363738, aiqiyiOvE = 0xFF0E0F0F, aiqiyiOvP = 0xFFFFFFFF, aiqiyiOvT = 0xFFFFFFFF;
+                    String aiqiyiOvTitle = gift.title == null ? "" : gift.title;
+                    int aiqiyiOvNum = gift.num;
+                    if (gift instanceof TL_stars.TL_starGiftUnique) {
+                        TL_stars.TL_starGiftUnique u = (TL_stars.TL_starGiftUnique) gift;
+                        for (int ai = 0; ai < u.attributes.size(); ai++) {
+                            Object at = u.attributes.get(ai);
+                            if (at instanceof TL_stars.starGiftAttributeBackdrop) {
+                                TL_stars.starGiftAttributeBackdrop bd = (TL_stars.starGiftAttributeBackdrop) at;
+                                aiqiyiOvC = bd.center_color | 0xFF000000;
+                                aiqiyiOvE = bd.edge_color | 0xFF000000;
+                                aiqiyiOvP = bd.pattern_color | 0xFF000000;
+                                aiqiyiOvT = bd.text_color | 0xFF000000;
+                            }
+                        }
+                    }
+                    if (aiqiyiOvBody == 0 && aiqiyiOv != null) aiqiyiOvBody = aiqiyiOv.getDocumentId();
+                    if (aiqiyiOvPat == 0 && aiqiyiOv != null) aiqiyiOvPat = aiqiyiOv.getPatternDocumentId();
+                    uz.unnarsx.cherrygram.aiqiyi.overlay.AiqiyiProfileGiftOverlay.Entry ov =
+                        uz.unnarsx.cherrygram.aiqiyi.overlay.AiqiyiProfileGiftOverlay.make(
+                            UserConfig.getInstance(currentAccount).getClientUserId(), gift.id,
+                            aiqiyiOvBody, aiqiyiOvPat, aiqiyiOvC, aiqiyiOvE, aiqiyiOvP, aiqiyiOvT,
+                            aiqiyiOvTitle, aiqiyiOvNum);
+                    uz.unnarsx.cherrygram.aiqiyi.overlay.AiqiyiProfileGiftOverlay.save(ov);
+                    android.util.Log.d("AQY_OVL", "wear sync body=" + aiqiyiOvBody + " pat=" + aiqiyiOvPat
+                        + " c=" + Integer.toHexString(aiqiyiOvC) + " e=" + Integer.toHexString(aiqiyiOvE));
+                } else {
+                    uz.unnarsx.cherrygram.aiqiyi.overlay.AiqiyiProfileGiftOverlay.clear(
+                        UserConfig.getInstance(currentAccount).getClientUserId());
+                }
+            } catch (Throwable ignore) {
+            }
             android.util.Log.d("AQY_LOCAL_GIFT", "toggleLocalWear id=" + gift.id
                 + " did=" + did + " wantPinned=" + nowPinned
                 + " beforePinned=" + aiqiyiPinnedBefore
@@ -11083,5 +11123,38 @@ public void toggleWear() {
         public int getOpacity() {
             return PixelFormat.TRANSPARENT;
         }
+    }
+
+    /** [Aiqiyi M4] 从 unique 礼物取本体文档 id（model 属性优先） */
+    private static long resolveAiqiyiOvDoc(TL_stars.TL_starGiftUnique u) {
+        if (u == null) return 0L;
+        try {
+            for (int i = 0; i < u.attributes.size(); i++) {
+                Object at = u.attributes.get(i);
+                if (at instanceof TL_stars.starGiftAttributeModel) {
+                    TL_stars.starGiftAttributeModel m = (TL_stars.starGiftAttributeModel) at;
+                    if (m.document != null && m.document.id != 0) return m.document.id;
+                }
+            }
+            if (u.sticker != null && u.sticker.id != 0) return u.sticker.id;
+        } catch (Throwable ignore) {
+        }
+        return 0L;
+    }
+
+    /** [Aiqiyi M4] 从 unique 礼物取底纹文档 id（pattern 属性） */
+    private static long resolveAiqiyiOvPattern(TL_stars.TL_starGiftUnique u) {
+        if (u == null) return 0L;
+        try {
+            for (int i = 0; i < u.attributes.size(); i++) {
+                Object at = u.attributes.get(i);
+                if (at instanceof TL_stars.starGiftAttributePattern) {
+                    TL_stars.starGiftAttributePattern pt = (TL_stars.starGiftAttributePattern) at;
+                    if (pt.document != null && pt.document.id != 0) return pt.document.id;
+                }
+            }
+        } catch (Throwable ignore) {
+        }
+        return 0L;
     }
 }
