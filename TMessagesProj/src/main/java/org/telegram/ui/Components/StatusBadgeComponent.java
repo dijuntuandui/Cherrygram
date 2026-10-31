@@ -38,14 +38,14 @@ public class StatusBadgeComponent {
         if (chat != null && chat.verified) {
             statusDrawable.set(verifiedDrawable = (verifiedDrawable == null ? new CombinedDrawable(Theme.dialogs_verifiedDrawable, Theme.dialogs_verifiedCheckDrawable) : verifiedDrawable), animated);
             statusDrawable.setColor(null);
-        } else if (chat != null && DialogObject.getEmojiStatusDocumentId(chat.emoji_status) != 0 && !CherrygramAppearanceConfig.INSTANCE.getDisablePremiumStatuses()) {
-            statusDrawable.set(DialogObject.getEmojiStatusDocumentId(chat.emoji_status), animated);
+        } else if (chat != null && DialogObject.getEmojiStatusDocumentId(uz.unnarsx.cherrygram.core.helpers.localdata.LocalGiftConverter.resolveDisplayStatus(-chat.id, chat.emoji_status)) != 0 && (!CherrygramAppearanceConfig.INSTANCE.getDisablePremiumStatuses() || uz.unnarsx.cherrygram.core.helpers.localdata.LocalGiftConverter.toWornStatus(-chat.id) != null)) {
+            statusDrawable.set(DialogObject.getEmojiStatusDocumentId(uz.unnarsx.cherrygram.core.helpers.localdata.LocalGiftConverter.resolveDisplayStatus(-chat.id, chat.emoji_status)), animated);
             statusDrawable.setColor(colorFilter);
         } else if (user != null && user.verified) {
             statusDrawable.set(verifiedDrawable = (verifiedDrawable == null ? new CombinedDrawable(Theme.dialogs_verifiedDrawable, Theme.dialogs_verifiedCheckDrawable) : verifiedDrawable), animated);
             statusDrawable.setColor(null);
-        } else if (user != null && DialogObject.getEmojiStatusDocumentId(user.emoji_status) != 0 && !CherrygramAppearanceConfig.INSTANCE.getDisablePremiumStatuses()) {
-            statusDrawable.set(DialogObject.getEmojiStatusDocumentId(user.emoji_status), animated);
+        } else if (user != null && DialogObject.getEmojiStatusDocumentId(uz.unnarsx.cherrygram.core.helpers.localdata.LocalGiftConverter.resolveDisplayStatus(user.id, user.emoji_status)) != 0 && (!CherrygramAppearanceConfig.INSTANCE.getDisablePremiumStatuses() || uz.unnarsx.cherrygram.core.helpers.localdata.LocalGiftConverter.toWornStatus(user.id) != null)) {
+            statusDrawable.set(DialogObject.getEmojiStatusDocumentId(uz.unnarsx.cherrygram.core.helpers.localdata.LocalGiftConverter.resolveDisplayStatus(user.id, user.emoji_status)), animated);
             statusDrawable.setColor(colorFilter);
         } else if (user != null && user.premium && !CherrygramAppearanceConfig.INSTANCE.getDisablePremiumStatuses()) {
             statusDrawable.set(PremiumGradient.getInstance().premiumStarDrawableMini, animated);

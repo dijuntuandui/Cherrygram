@@ -101,6 +101,92 @@ object LocalGiftConverter {
     }
 
     /**
+     * 爱琦艺 M1：把「当前佩戴的本地礼物」解析成完整的 EmojiStatus。
+     *
+     * 对齐芒果 getLocalVirtualGiftEmojiStatus 的语义：
+     * 原生链路上所有读 user.emoji_status 的地方（资料页配色、底纹、名字旁礼物位、
+     * 会话列表角标）都靠这一个出口，不再各自打补丁。
+     *
+     * 与 toStatus 的区别：toStatus 直接用 LocalGiftData 里存的 documentId，
+     * 老数据里这个值可能是 0 或已失效；这里再用 buildUniqueGift 的三层兜底补一次，
+     * 保证 document_id / pattern_document_id / 四色都不为 0，否则原生画不出东西。
+     */
+    @JvmStatic
+    fun toWornStatus(userId: Long): TLRPC.TL_emojiStatusCollectible? {
+        if (!AiqiyiLocalDataConfig.localGiftEnabled) {
+            return null
+        }
+        // 资料页 onDraw / 列表滚动会高频调用，加一层 600ms 短缓存，
+        // 避免每次都走 SharedPreferences + Gson 反序列化。佩戴变化 600ms 内可见。
+        val now = System.currentTimeMillis()
+        val cache = wornStatusCache
+        if (cache != null && cache.first == userId && now - cache.third < WORN_STATUS_CACHE_MS) {
+            return cache.second
+        }
+        val data = try {
+            LocalGiftStore.getLastWornForUser(userId)
+        } catch (e: Exception) {
+            FileLog.e("LocalGiftConverter toWornStatus failed", e)
+            null
+        } ?: return null
+        return try {
+            val status = toStatus(data) as TLRPC.TL_emojiStatusCollectible
+            // documentId 为空/失效时，用 buildUniqueGift 的三层兜底补
+            if (status.document_id == 0L || status.pattern_document_id == 0L) {
+                val unique = buildUniqueGift(data)
+                if (status.document_id == 0L && unique.sticker != null) {
+                    status.document_id = unique.sticker!!.id
+                }
+                if (status.pattern_document_id == 0L) {
+                    for (attr in unique.attributes) {
+                        if (attr is TL_stars.starGiftAttributePattern && attr.document != null) {
+                            status.pattern_document_id = attr.document!!.id
+                            break
+                        }
+                    }
+                }
+            }
+            val result: TLRPC.TL_emojiStatusCollectible? = if (status.document_id == 0L) null else status
+            wornStatusCache = if (result == null) null else Triple(userId, result, now)
+            result
+        } catch (e: Exception) {
+            FileLog.e("LocalGiftConverter toWornStatus failed", e)
+            null
+        }
+    }
+
+    /** 佩戴礼物状态短缓存（userId, status, 时间戳） */
+    private const val WORN_STATUS_CACHE_MS = 600L
+    @Volatile
+    private var wornStatusCache: Triple<Long, TLRPC.TL_emojiStatusCollectible, Long>? = null
+
+    /** 佩戴关系变化后主动清缓存 */
+    @JvmStatic
+    fun invalidateWornStatusCache() {
+        wornStatusCache = null
+    }
+
+    /**
+     * 爱琦艺 M1：原生读取 emoji_status 的统一入口。
+     *
+     * 自己的账号且佩戴了本地礼物时返回伪造的 collectible，其余情况原样返回。
+     * 只对本机自己的资料生效，不影响别人看到的资料。
+     */
+    @JvmStatic
+    fun resolveDisplayStatus(userId: Long, original: TLRPC.EmojiStatus?): TLRPC.EmojiStatus? {
+        return try {
+            val myId = UserConfig.getInstance(UserConfig.selectedAccount).getClientUserId()
+            if (userId == 0L || userId != myId) {
+                return original
+            }
+            toWornStatus(userId) ?: original
+        } catch (e: Exception) {
+            FileLog.e("LocalGiftConverter resolveDisplayStatus failed", e)
+            original
+        }
+    }
+
+    /**
      * 判断某个 collectibleId 是否属于本地礼物
      */
     @JvmStatic

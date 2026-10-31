@@ -509,6 +509,9 @@ object LocalGiftStore {
     @JvmStatic
     fun notifyChanged(userId: Long) {
         try {
+            // 佩戴关系变了，伪造的 emoji_status 缓存必须立刻作废，
+            // 否则资料页会拿着上一个礼物的配色和底纹多挂几百毫秒。
+            LocalGiftConverter.invalidateWornStatusCache()
             NotificationCenter.getInstance(UserConfig.selectedAccount).postNotificationName(
                 NotificationCenter.aiqiyiLocalGiftUpdated, userId
             )

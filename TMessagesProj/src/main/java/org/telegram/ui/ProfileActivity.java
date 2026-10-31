@@ -11833,7 +11833,9 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
             avatarDrawable.setInfo(currentAccount, user);
 
             final MessagesController.PeerColor wasPeerColor = peerColor;
-            peerColor = MessagesController.PeerColor.fromCollectible(user.emoji_status);
+            // [Aiqiyi M1] 佩戴本地礼物时，资料页配色取自伪造的 collectible（对齐芒果）
+            final TLRPC.EmojiStatus aiqiyiDisplayStatus = uz.unnarsx.cherrygram.core.helpers.localdata.LocalGiftConverter.resolveDisplayStatus(user.id, user.emoji_status);
+            peerColor = MessagesController.PeerColor.fromCollectible(aiqiyiDisplayStatus);
             if (peerColor == null) {
                 final int colorId = UserObject.getProfileColorId(user);
                 final MessagesController.PeerColors peerColors = MessagesController.getInstance(currentAccount).profilePeerColors;
@@ -11868,7 +11870,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
             if (ratingView != null) {
                 ratingView.updateColors(peerColor);
             }
-            setCollectibleGiftStatus(user.emoji_status instanceof TLRPC.TL_emojiStatusCollectible ? (TLRPC.TL_emojiStatusCollectible) user.emoji_status : null);
+            setCollectibleGiftStatus(aiqiyiDisplayStatus instanceof TLRPC.TL_emojiStatusCollectible ? (TLRPC.TL_emojiStatusCollectible) aiqiyiDisplayStatus : null);
 
 
             final ImageLocation imageLocation = ImageLocation.getForUserOrChat(user, ImageLocation.TYPE_BIG);
