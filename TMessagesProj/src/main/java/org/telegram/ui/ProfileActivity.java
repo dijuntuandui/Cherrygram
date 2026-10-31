@@ -1566,7 +1566,8 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                 // ===== [Aiqiyi M4] 第三套：独立覆盖层，最高优先级 =====
                 // 不管原生渐变/图案层、不管 ProfileGiftsView、不管各种开关，
                 // 只要这一套存了数据，就在最后一步强行盖上去。
-                if (user != null && user.id != 0) {
+                // TopView 里没有 user 字段，用 getDialogId() 取当前资料页对象 id
+                if (getDialogId() != 0) {
                     try {
                         final long aiqiyiOvDid = getDialogId();
                         uz.unnarsx.cherrygram.aiqiyi.overlay.AiqiyiProfileGiftOverlay.migrateIfEmpty(aiqiyiOvDid);

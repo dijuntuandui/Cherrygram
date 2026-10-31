@@ -218,7 +218,7 @@ public class AiqiyiProfileGiftOverlay {
         // 只有连续多次都没图（真正的文档缺失）才重建，最多 3 次，避免无限重试。
         final long nowPat = System.currentTimeMillis();
         if (patternDrawable.getImageReceiver() != null
-                && patternDrawable.getImageReceiver().getCurrentDrawable() == null
+                && !patternDrawable.getImageReceiver().hasImageLoaded()
                 && patternRetryCount < 3
                 && nowPat - patternRetryAt > RETRY_MS) {
             patternRetryAt = nowPat;
@@ -254,7 +254,7 @@ public class AiqiyiProfileGiftOverlay {
         // 与 drawPattern 一致：先画，只在连续失败时重建，绝不 return。
         final long nowBody = System.currentTimeMillis();
         if (bodyDrawable.getImageReceiver() != null
-                && bodyDrawable.getImageReceiver().getCurrentDrawable() == null
+                && !bodyDrawable.getImageReceiver().hasImageLoaded()
                 && bodyRetryCount < 3
                 && nowBody - bodyRetryAt > RETRY_MS) {
             bodyRetryAt = nowBody;

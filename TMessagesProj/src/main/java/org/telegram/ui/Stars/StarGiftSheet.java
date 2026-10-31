@@ -11208,18 +11208,23 @@ public void toggleWear() {
     /** [Aiqiyi M4] 按 catalogGiftId / 标题到礼品目录里反查基础款定义 */
     private static TL_stars.StarGift findAiqiyiOvCatalog(TL_stars.TL_starGiftUnique u) {
         try {
-            java.util.ArrayList<TL_stars.StarGift> all = org.telegram.ui.Stars.StarsController
-                    .getInstance(UserConfig.selectedAccount).getStarGifts();
-            if (all == null) return null;
-            for (int i = 0; i < all.size(); i++) {
-                TL_stars.StarGift g = all.get(i);
-                if (g == null) continue;
-                if (u.gift_id != 0 && g.id == u.gift_id) return g;
+            if (u == null) return null;
+            final org.telegram.ui.Stars.StarsController ctl =
+                    org.telegram.ui.Stars.StarsController.getInstance(UserConfig.selectedAccount);
+            if (ctl == null) return null;
+            // ① 按 catalog gift_id 精确查
+            if (u.gift_id != 0) {
+                TL_stars.StarGift g = ctl.getStarGift(u.gift_id);
+                if (g != null) return g;
             }
+            // ② 按标题在目录里扫一遍
             if (u.title != null && !u.title.isEmpty()) {
-                for (int i = 0; i < all.size(); i++) {
-                    TL_stars.StarGift g = all.get(i);
-                    if (g != null && u.title.equals(g.title)) return g;
+                java.util.ArrayList<TL_stars.StarGift> all = ctl.gifts;
+                if (all != null) {
+                    for (int i = 0; i < all.size(); i++) {
+                        TL_stars.StarGift g = all.get(i);
+                        if (g != null && u.title.equals(g.title)) return g;
+                    }
                 }
             }
         } catch (Throwable ignore) {
