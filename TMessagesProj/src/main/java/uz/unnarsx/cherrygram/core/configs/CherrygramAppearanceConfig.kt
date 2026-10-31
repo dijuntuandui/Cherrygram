@@ -93,7 +93,7 @@ object CherrygramAppearanceConfig {
     var aiqiyiSyntaxHighlight by sharedPreferences.boolean("AP_AiqiyiSyntaxHighlight", true)
     /** 爱琦艺插件 - 扩展清理 */
     var aiqiyiExtensionCleanup by sharedPreferences.boolean("AP_AiqiyiExtensionCleanup", false)
-    /** 爱琦艺插件 - 本地坐标伪造 */
+    /** 爱琦艺插件 - 坐标伪造 */
     var aiqiyiFakeLocation by sharedPreferences.boolean("AP_AiqiyiFakeLocation", false)
     /** 爱琦艺插件 - 对白气泡 */
     var aiqiyiDialogueBubble by sharedPreferences.boolean("AP_AiqiyiDialogueBubble", false)
