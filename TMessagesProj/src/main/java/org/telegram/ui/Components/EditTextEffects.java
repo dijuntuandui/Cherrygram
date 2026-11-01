@@ -287,7 +287,18 @@ public class EditTextEffects extends EditText {
     private static Boolean allowHackingTextCanvasCache;
     public static boolean allowHackingTextCanvas() {
         if (allowHackingTextCanvasCache == null) {
-            allowHackingTextCanvasCache = Build.VERSION.SDK_INT > Build.VERSION_CODES.KITKAT_WATCH && (
+            final String aiqiyiMf = Build.MANUFACTURER == null ? "" : Build.MANUFACTURER.toLowerCase();
+            final String aiqiyiBr = Build.BRAND == null ? "" : Build.BRAND.toLowerCase();
+            // [Aiqiyi FIX-CAPSULE] vivo / iQOO（Funtouch、OriginOS 同源渲染栈）的 GPU 对
+            // “外层 canvas.clipRect + 内层 RenderNode”的裁剪继承实现与其他厂商不同，
+            // 内层会被二次裁成 0 高。表现为输入框胶囊里既无占位提示也无正文，
+            // 但光标可见、打字能发出去、胶囊高度不随字号变化。
+            // 原名单只排除了 honor / huawei / alps，漏了这两家。此处一并降级到
+            // wrapCanvasToFixClipping = false 的路径，绕开问题裁剪。
+            final boolean aiqiyiVivoLike = aiqiyiMf.contains("vivo") || aiqiyiMf.contains("iqoo")
+                    || aiqiyiBr.contains("vivo") || aiqiyiBr.contains("iqoo");
+            allowHackingTextCanvasCache = Build.VERSION.SDK_INT > Build.VERSION_CODES.KITKAT_WATCH
+                && !aiqiyiVivoLike && (
                 Build.MANUFACTURER == null ||
                 !Build.MANUFACTURER.toLowerCase().contains("honor") &&
                 !Build.MANUFACTURER.toLowerCase().contains("huawei") &&
@@ -296,6 +307,9 @@ public class EditTextEffects extends EditText {
                 Build.MODEL == null ||
                 !Build.MODEL.toLowerCase().contains("mediapad")
             );
+            try {
+                org.telegram.messenger.FileLog.d("[Aiqiyi] allowHackingTextCanvas mf=" + aiqiyiMf + " br=" + aiqiyiBr + " vivoLike=" + aiqiyiVivoLike + " -> " + allowHackingTextCanvasCache);
+            } catch (Throwable ignore) {}
         }
         return allowHackingTextCanvasCache;
     }
