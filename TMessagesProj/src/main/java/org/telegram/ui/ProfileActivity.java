@@ -1325,6 +1325,8 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
         private boolean aiqiyiHasGiftForGradient;
         private boolean aiqiyiBgEmojiIdValid;
         /** [Aiqiyi M4] 第三套：独立覆盖层，优先级最高，谁都不看只管画 */
+        /** [Aiqiyi 性能修复] onDraw 内调试日志开关，默认关，排查时在代码里改 true 即可 */
+        private static final boolean aiqiyiDebugDrawLog = false;
         // [Aiqiyi 性能修复] onDraw 里的迁移只跑一次
         private boolean aiqiyiOvMigrated;
         private long aiqiyiOvMigratedId;
@@ -1623,9 +1625,13 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                     final float loadedScale = aiqiyiForce ? 1f : emojiLoadedT.set(isEmojiLoaded());
                     boolean shoudIgnore = openAnimationInProgress && playProfileAnimation == 2;
                     if (aiqiyiForce) shoudIgnore = false;
-                    android.util.Log.d("AQY_GIFT_DBG", "pattern layer: hasEmoji=" + hasEmoji + " force=" + aiqiyiForce
-                            + " loadedScale=" + loadedScale + " shoudIgnore=" + shoudIgnore
-                            + " diff=" + calculateHeaderExtraDiff() + " avatarC=" + (avatarContainer != null));
+                    // [Aiqiyi 性能修复] onDraw 里每帧拼 6 段字符串 + 调 calculateHeaderExtraDiff() 再写 log，
+                    // 实测把主线程 CPU 拖满整机发烫。改为仅首次或显式调试时输出。
+                    if ( aiqiyiDebugDrawLog ) {
+                        android.util.Log.d("AQY_GIFT_DBG", "pattern layer: hasEmoji=" + hasEmoji + " force=" + aiqiyiForce
+                                + " loadedScale=" + loadedScale + " shoudIgnore=" + shoudIgnore
+                                + " diff=" + calculateHeaderExtraDiff() + " avatarC=" + (avatarContainer != null));
+                    }
                     if (!shoudIgnore && loadedScale > 0 && avatarContainer != null) {
                         canvas.save();
                         canvas.clipRect(0, 0, getMeasuredWidth(), y1);
