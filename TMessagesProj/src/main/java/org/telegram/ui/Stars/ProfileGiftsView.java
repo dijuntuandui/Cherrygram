@@ -371,6 +371,14 @@ public class ProfileGiftsView extends View implements NotificationCenter.Notific
                 final Gift g = localGifts.get(i);
                 if (g != null && g.patternDoc != null && g.patternDoc.id != 0) return g.patternDoc;
             }
+            // Aiqiyi 兜底: localGifts 还没填充时（updateProfileData 跑在 injectLocalGifts 之前），
+            // 直接问 LocalGiftStore 要本地文档。这条路不依赖绘制组件初始化顺序。
+            final LocalGiftData lw = LocalGiftStore.getLastWornForUser(dialogId);
+            if (lw != null) {
+                final org.telegram.tgnet.TLRPC.Document d =
+                        uz.unnarsx.cherrygram.core.helpers.localdata.LocalGiftConverter.INSTANCE.resolvePatternDocument(lw);
+                if (d != null && d.id != 0) return d;
+            }
         } catch (Throwable t) {
             org.telegram.messenger.FileLog.e("Aiqiyi getWornLocalPatternDocument failed", t);
         }
