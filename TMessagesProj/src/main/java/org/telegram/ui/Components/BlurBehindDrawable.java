@@ -70,7 +70,13 @@ public class BlurBehindDrawable {
     }
 
     public void draw(Canvas canvas) {
-        if (parentView == null || parentView.getMeasuredHeight() == 0 && parentView.getMeasuredWidth() == 0) {
+        // [Aiqiyi FIX-BLUR] 原写法 `a == 0 && b == 0` 受运算符优先级影响，
+        // 只在宽高同时为 0 时才拦截。宽度为 0、高度非 0 时会漏过去，
+        // 到后面 canvas.scale(measuredW / bitmapW, ...) 算成 0，画面被压成零宽而"消失"。
+        // 改为单边为 0 即跳过绘制。
+        if (parentView == null
+                || parentView.getMeasuredHeight() <= 0
+                || parentView.getMeasuredWidth() <= 0) {
             return;
         }
         if (type == 1 && !wasDraw && !animateAlpha) {
@@ -111,17 +117,28 @@ public class BlurBehindDrawable {
             if (type == 1) {
                 canvas.translate(0, panTranslationY);
             }
-            canvas.save();
-            canvas.scale( parentView.getMeasuredWidth() / (float) bitmap[1].getWidth(),  parentView.getMeasuredHeight() / (float) bitmap[1].getHeight());
-            canvas.drawBitmap(bitmap[1], 0, 0, emptyPaint);
-            canvas.restore();
-            canvas.save();
-            if (type == 0) {
-                canvas.translate(0, panTranslationY);
+            // [Aiqiyi FIX-BLUR] 双缓冲交换后 bitmap 的尺寸是异步任务提交那刻的快照，
+            // 可能与视图当前尺寸不一致；若任一宽度为 0，canvas.scale 会得到 0/Infinity，
+            // 表现就是毛玻璃横向拉丝或整体消失。先做尺寸合法性检查再画。
+            final int aiqiyiViewW = parentView.getMeasuredWidth();
+            final int aiqiyiViewH = parentView.getMeasuredHeight();
+            if (bitmap[1] != null && bitmap[1].getWidth() > 0 && bitmap[1].getHeight() > 0
+                    && aiqiyiViewW > 0 && aiqiyiViewH > 0) {
+                canvas.save();
+                canvas.scale(aiqiyiViewW / (float) bitmap[1].getWidth(), aiqiyiViewH / (float) bitmap[1].getHeight());
+                canvas.drawBitmap(bitmap[1], 0, 0, emptyPaint);
+                canvas.restore();
             }
-            canvas.scale(parentView.getMeasuredWidth() / (float) bitmap[0].getWidth(),toolbarH / (float) bitmap[0].getHeight());
-            canvas.drawBitmap(bitmap[0], 0, 0, emptyPaint);
-            canvas.restore();
+            if (bitmap[0] != null && bitmap[0].getWidth() > 0 && bitmap[0].getHeight() > 0
+                    && aiqiyiViewW > 0 && toolbarH > 0) {
+                canvas.save();
+                if (type == 0) {
+                    canvas.translate(0, panTranslationY);
+                }
+                canvas.scale(aiqiyiViewW / (float) bitmap[0].getWidth(), toolbarH / (float) bitmap[0].getHeight());
+                canvas.drawBitmap(bitmap[0], 0, 0, emptyPaint);
+                canvas.restore();
+            }
             wasDraw = true;
 
             canvas.drawColor(0x1a000000);
@@ -283,7 +300,20 @@ public class BlurBehindDrawable {
             toolbarH = AndroidUtilities.statusBarHeight + AndroidUtilities.dp(200);
             int h = i == 0 ? toolbarH : lastH;
 
-            if (bitmap[i] == null || bitmap[i].getHeight() != h || bitmap[i].getWidth() != parentView.getMeasuredWidth()) {
+            // [Aiqiyi FIX-BLUR] 原判断只看 renderingBitmap(bitmap[i]) 的尺寸，
+            // 但本块重建的是 blurredBitmapTmp[i] 以及 renderingBitmap[i]。
+            // 若 renderingBitmap 尺寸刚好匹配、而 blurredBitmapTmp 是旧尺寸，
+            // 该 if 会被跳过，导致 tmp 与渲染位图尺寸不一致，
+            // 后续异步 scale 计算错配 -> 毛玻璃横向拉丝/错位。
+            final int aiqiyiTargetW = (int) (lastW / DOWN_SCALE);
+            final int aiqiyiTargetH = (int) (h / DOWN_SCALE);
+            final Bitmap aiqiyiTmpCur = blurredBitmapTmp[i];
+            final boolean aiqiyiTmpBad = aiqiyiTmpCur == null
+                    || aiqiyiTmpCur.getWidth() != aiqiyiTargetW
+                    || aiqiyiTmpCur.getHeight() != aiqiyiTargetH;
+            if (bitmap[i] == null || bitmap[i].getHeight() != h
+                    || bitmap[i].getWidth() != parentView.getMeasuredWidth()
+                    || aiqiyiTmpBad) {
                 if (queue != null) {
                     queue.cleanupQueue();
                 }
@@ -374,10 +404,36 @@ public class BlurBehindDrawable {
                     try {
                         backgroundBitmap[i] = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888);
                         backgroundBitmapCanvas[i] = new Canvas(backgroundBitmap[i]);
-                        backgroundBitmapCanvas[i].scale(bitmapWidth / (float) blurredBitmapTmp[i].getWidth(), h / (float) blurredBitmapTmp[i].getHeight());
+                        // [Aiqiyi FIX-BLUR] 原代码直接用 bitmapWidth/width 与 blurredBitmapTmp 比，
+                        // 二者可能来自不同时刻（width 是 run() 执行时读的字段，tmp 是提交时建的），
+                        // 且 blurredBitmapTmp[i] 可能为 null 或宽度为 0，除零得到 Infinity
+                        // 会直接变成“拉丝/错位”。这里统一改用 tmp 的真实尺寸反推，
+                        // 保证 scale 恒等于“把 tmp 铺满目标位图”。
+                        final Bitmap aiqiyiTmp = blurredBitmapTmp[i];
+                        final float aiqiyiTmpW = (aiqiyiTmp != null) ? aiqiyiTmp.getWidth() : 0;
+                        final float aiqiyiTmpH = (aiqiyiTmp != null) ? aiqiyiTmp.getHeight() : 0;
+                        if (aiqiyiTmpW > 0 && aiqiyiTmpH > 0 && w > 0 && h > 0) {
+                            backgroundBitmapCanvas[i].scale(w / aiqiyiTmpW, h / aiqiyiTmpH);
+                        } else {
+                            // 尺寸不可用，直接跳过本次绘制，避免 Infinity / 0 缩放
+                            backgroundBitmapCanvas[i] = null;
+                        }
                     } catch (Throwable e) {
                         FileLog.e(e);
+                        backgroundBitmapCanvas[i] = null;
                     }
+                }
+                // [Aiqiyi FIX-BLUR] canvas 因尺寸非法被置 null 时，位图内容不可用，
+                // 直接回收并置空，让下一帧重新进入创建分支，避免长期输出空白玻璃。
+                if (backgroundBitmapCanvas[i] == null) {
+                    if (backgroundBitmap[i] != null && !backgroundBitmap[i].isRecycled()) {
+                        backgroundBitmap[i].recycle();
+                    }
+                    backgroundBitmap[i] = null;
+                    if (canceled) {
+                        return;
+                    }
+                    continue;
                 }
                 if (i == 1) {
                     backgroundBitmap[i].eraseColor(getThemedColor(Theme.key_windowBackgroundWhite));
