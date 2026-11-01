@@ -47,6 +47,13 @@ public class LiquidGlassEffect {
     ) {
         float resolutionX = node.getWidth();
         float resolutionY = node.getHeight();
+        // [Aiqiyi FIX-GLASS] RenderNode 尚未录制时 getWidth/getHeight 返回 0，
+        // 若此时把 resolution=(0,0) 灌进 shader，后面的归一化换算会得到 NaN/Inf，
+        // 采样坐标漂移，表现为毛玻璃背景被横向拉丝、文字扭曲成斜线。
+        // 尺寸无效时直接跳过，等真正布局完成后再更新。
+        if (resolutionX <= 0 || resolutionY <= 0) {
+            return;
+        }
         float centerX = (left + right) / 2;
         float centerY = (top + bottom) / 2;
         float width = right - left, height = bottom - top;
@@ -64,7 +71,11 @@ public class LiquidGlassEffect {
             radiusRightBottom = height * (1.0f - a);
         }
 
+        // [Aiqiyi FIX-GLASS] 首次（字段均为 0）必须强制更新，否则 shader 会长期停留在
+        // 构造时那套全 0 默认 uniform 上，模糊一直异常。
+        final boolean aiqiyiFirstInit = this.resolutionX == 0f || this.resolutionY == 0f;
         if (
+            aiqiyiFirstInit ||
             Math.abs(this.resolutionX - resolutionX) > 0.1f ||
             Math.abs(this.resolutionY - resolutionY) > 0.1f ||
             Math.abs(this.centerX - centerX) > 0.1f ||

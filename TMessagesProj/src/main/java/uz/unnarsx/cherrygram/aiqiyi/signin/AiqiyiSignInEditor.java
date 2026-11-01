@@ -229,6 +229,9 @@ public class AiqiyiSignInEditor {
      */
     private void pickTarget() {
         try {
+            // [Aiqiyi FIX-PICK] 关键节点日志：原实现整段被 catch(Throwable) 静默吞掉，
+            // 用户只看到“点了没反应”，无法定位是构造失败、delegate 未回调，还是 dids 为空。
+            org.telegram.messenger.FileLog.d("[Aiqiyi] pickTarget: enter");
             android.os.Bundle args = new android.os.Bundle();
             args.putBoolean("onlySelect", true);
             args.putBoolean("canSelectTopics", false);
@@ -239,6 +242,7 @@ public class AiqiyiSignInEditor {
 
             org.telegram.ui.DialogsActivity picker = new org.telegram.ui.DialogsActivity(args);
             picker.setDelegate((fragment1, dids, message, param, notify, scheduleDate, scheduleRepeatPeriod, topicsFragment) -> {
+                org.telegram.messenger.FileLog.d("[Aiqiyi] pickTarget: delegate called, size=" + (dids == null ? -1 : dids.size()));
                 if (dids == null || dids.isEmpty()) {
                     return true;
                 }
@@ -254,6 +258,8 @@ public class AiqiyiSignInEditor {
             fragment.presentFragment(picker);
         } catch (Throwable e) {
             org.telegram.messenger.FileLog.e(e);
+            // [Aiqiyi FIX-PICK] 原先只 FileLog.e，正式包里看不到；补一条明确标记便于现场取证。
+            org.telegram.messenger.FileLog.e("[Aiqiyi] pickTarget FAILED: " + e.getClass().getSimpleName() + ": " + e.getMessage());
         }
     }
 

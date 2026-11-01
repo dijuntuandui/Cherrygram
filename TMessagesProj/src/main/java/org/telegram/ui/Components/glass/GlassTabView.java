@@ -462,7 +462,9 @@ public class GlassTabView extends FrameLayout implements MainTabsLayout.Tab, Fac
         GlassTabView tab = new GlassTabView(context);
         tab.resourcesProvider = resourcesProvider;
         tab.selfMeasure = true;
-        tab.textView.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 11);
+        // [Aiqiyi FIX-TEXT] 原先直接改 textView 字号，defaultTextPaint 不跟随，
+        // 导致这两个 tab 的测量值永远停在构造函数的 12f。统一走 setTextSizeDp。
+        tab.setTextSizeDp(11f);
         tab.textView.setPadding(dp(8), 0, dp(8), 0);
         tab.checkPlayAnimation(false);
         tab.imageView.setLayoutParams(LayoutHelper.createFrame(24, 24, Gravity.CENTER_HORIZONTAL | Gravity.TOP, 0, 4, 0, 0));
@@ -477,7 +479,9 @@ public class GlassTabView extends FrameLayout implements MainTabsLayout.Tab, Fac
         GlassTabView tab = new GlassTabView(context);
         tab.resourcesProvider = resourcesProvider;
         tab.selfMeasure = true;
-        tab.textView.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 11);
+        // [Aiqiyi FIX-TEXT] 原先直接改 textView 字号，defaultTextPaint 不跟随，
+        // 导致这两个 tab 的测量值永远停在构造函数的 12f。统一走 setTextSizeDp。
+        tab.setTextSizeDp(11f);
         tab.textView.setPadding(dp(8), 0, dp(8), 0);
         tab.imageView.setVisibility(GONE);
         tab.checkPlayAnimation(false);
@@ -534,8 +538,15 @@ public class GlassTabView extends FrameLayout implements MainTabsLayout.Tab, Fac
 
     @Override
     public float measureTextWidth() {
-        return defaultTextPaint.measureText(textView.getText().toString());
+        // [Aiqiyi FIX-TEXT] 测量必须跟随 textView 的真实字号，而不是可能过期的 defaultTextPaint。
+        final CharSequence text = textView.getText();
+        if (text == null) return 0f;
+        measurePaint.setTextSize(textView.getTextSize());
+        measurePaint.setTypeface(textView.getTypeface());
+        measurePaint.setLetterSpacing(textView.getLetterSpacing());
+        return measurePaint.measureText(text.toString());
     }
+    private final TextPaint measurePaint = new TextPaint(Paint.ANTI_ALIAS_FLAG);
 
     private TextPaint scaledTextPaint;
 
@@ -550,11 +561,14 @@ public class GlassTabView extends FrameLayout implements MainTabsLayout.Tab, Fac
 
     @Override
     public void setTextSizeDp(float textSizeDp) {
+        // [Aiqiyi FIX-TEXT] 原实现用 textView.getTextSize() != px 做浮点相等判断，
+        // dp() 换算存在精度误差，判定会间歇性失真：一旦“看起来相等”就跳过同步，
+        // 使 defaultTextPaint 停留在构造函数里的 12f 快照，而 textView 实际是别的字号。
+        // measureTextWidth() 用旧 paint 量新文字，宽度算错 -> 文字挤压/重叠/被裁 = 毛玻璃字体抽风。
         final float px = dp(textSizeDp);
-        if (textView.getTextSize() != px) {
-            textView.setTextSize(TypedValue.COMPLEX_UNIT_DIP, textSizeDp);
-            defaultTextPaint.setTextSize(px);
-        }
+        textView.setTextSize(TypedValue.COMPLEX_UNIT_DIP, textSizeDp);
+        defaultTextPaint.setTextSize(px);
+        scaledTextPaint = null;
     }
 
     private enum TabAnimationType {

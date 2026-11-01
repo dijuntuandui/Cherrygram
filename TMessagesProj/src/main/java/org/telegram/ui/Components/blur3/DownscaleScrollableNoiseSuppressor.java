@@ -31,6 +31,20 @@ public class DownscaleScrollableNoiseSuppressor {
     private final boolean simpleMode;
     private final int k;
 
+    /** [Aiqiyi FIX-GLASS] vivo / iQOO 的 GPU 在 RenderNode 降采样路径上采样坐标错误，需禁用降采样。 */
+    private static Boolean aiqiyiNoDownscaleVendorCache;
+    private static boolean isAiqiyiNoDownscaleVendor() {
+        if (aiqiyiNoDownscaleVendorCache == null) {
+            final String mf = Build.MANUFACTURER == null ? "" : Build.MANUFACTURER.toLowerCase();
+            final String br = Build.BRAND == null ? "" : Build.BRAND.toLowerCase();
+            aiqiyiNoDownscaleVendorCache = mf.contains("vivo") || mf.contains("iqoo")
+                    || br.contains("vivo") || br.contains("iqoo");
+            try {
+                org.telegram.messenger.FileLog.d("[Aiqiyi] blur downscale disabled for manufacturer=" + mf + " brand=" + br + " -> " + aiqiyiNoDownscaleVendorCache);
+            } catch (Throwable ignore) {}
+        }
+        return aiqiyiNoDownscaleVendorCache;
+    }
     public DownscaleScrollableNoiseSuppressor() {
         this(true, false);
     }
@@ -38,7 +52,11 @@ public class DownscaleScrollableNoiseSuppressor {
     public DownscaleScrollableNoiseSuppressor(boolean simple, boolean allowNoiseSuppress) {
         isLiquidGlassEnabled = LiteMode.isEnabled(LiteMode.FLAG_LIQUID_GLASS);
         simpleMode = simple;
-        k = isLiquidGlassEnabled || allowNoiseSuppress ? 1 : 8; // 1
+        // [Aiqiyi FIX-GLASS] vivo / iQOO（均为 Funtouch/OriginOS 渲染栈）在 k=8 降采样
+        // 再放回原尺寸时会采错坐标，表现为背景被横向拉丝、文字扭曲成斜线。
+        // 这两家强制走 k=1（不降采样），代价是多占一点显存，换来画面正确。
+        final boolean aiqiyiNoDownscale = isAiqiyiNoDownscaleVendor();
+        k = (aiqiyiNoDownscale || isLiquidGlassEnabled || allowNoiseSuppress) ? 1 : 8;
 
         this.allowNoiseSuppress = allowNoiseSuppress;
         resultRenderNodes = new RenderNode[isLiquidGlassEnabled || !simpleMode ? 2 : 1];
