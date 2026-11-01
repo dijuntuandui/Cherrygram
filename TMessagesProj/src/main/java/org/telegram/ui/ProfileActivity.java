@@ -1250,15 +1250,34 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
          * 与 updateProfileData() 里那段保持同一口径：优先 Document，拿不到才回退 id。
          */
         void aiqiyiRefreshHeaderPattern() {
+            aiqiyiRefreshHeaderPattern(0);
+        }
+
+        /**
+         * Aiqiyi: 带重试的补刷。
+         * 实测时序：aiqiyiLocalGiftUpdated 到达时 localGifts 里还只有一半数据
+         * （日志里 refresh header pattern 比 ADDED local idx=0 早 4ms），
+         * getWornLocalPatternColor() 拿不到 worn 就返回 0，底纹被染成全透明。
+         * 这里最多退避重试 5 次，每次 120ms，等列表真正填完。
+         */
+        void aiqiyiRefreshHeaderPattern(final int attempt) {
             try {
                 final ProfileGiftsView gv = ProfileActivity.this.giftsView;
                 if (gv == null) return;
                 final org.telegram.tgnet.TLRPC.Document doc = gv.getWornLocalPatternDocument();
                 final int tint = gv.getWornLocalPatternColor();
-                android.util.Log.d("AQY_GIFT_DBG", "refresh header pattern: doc="
-                        + (doc == null ? "null" : String.valueOf(doc.id)) + " tint=" + Integer.toHexString(tint));
-                if (doc != null) {
+                android.util.Log.d("AQY_GIFT_DBG", "refresh header pattern: attempt=" + attempt
+                        + " doc=" + (doc == null ? "null" : String.valueOf(doc.id))
+                        + " tint=" + Integer.toHexString(tint));
+                if (doc != null && tint != 0) {
                     setBackgroundEmojiDocument(doc, true, tint);
+                    return;
+                }
+                if (attempt < 5) {
+                    postDelayed(() -> aiqiyiRefreshHeaderPattern(attempt + 1), 120);
+                } else if (doc != null) {
+                    // 颜色始终取不到也不能让底纹整层消失，用默认浅色兜底。
+                    setBackgroundEmojiDocument(doc, true, 0x66FFFFFF);
                 }
             } catch (Throwable t) {
                 org.telegram.messenger.FileLog.e("Aiqiyi refresh header pattern failed", t);
