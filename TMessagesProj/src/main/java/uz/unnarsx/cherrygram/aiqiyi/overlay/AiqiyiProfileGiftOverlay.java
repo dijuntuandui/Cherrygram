@@ -25,6 +25,8 @@ import org.telegram.ui.Components.AnimatedEmojiDrawable;
 public class AiqiyiProfileGiftOverlay {
 
     private static final String TAG = "AQY_OVL";
+    /** [Aiqiyi 性能修复] onDraw 路径上的日志一律关闭，字符串拼接+logd 会拖死渲染线程 */
+    private static final boolean LOG_DRAW = false;
     private static final String PREFS = "aqy_gift_overlay";
     private static final long RELOAD_MS = 800L;
 
@@ -204,7 +206,7 @@ public class AiqiyiProfileGiftOverlay {
         gradientPaint.setAlpha(0x66);
         canvas.drawRect(0, 0, w, h, gradientPaint);
         gradientPaint.setShader(null);
-        Log.d(TAG, "drawGradient c=" + Integer.toHexString(c1) + " e=" + Integer.toHexString(c2));
+        if (LOG_DRAW) Log.d(TAG, "drawGradient c=" + Integer.toHexString(c1) + " e=" + Integer.toHexString(c2));
     }
 
     /**
@@ -229,7 +231,7 @@ public class AiqiyiProfileGiftOverlay {
                     uz.unnarsx.cherrygram.core.helpers.localdata.LocalGiftStore
                             .findLocalGift(e.userId, e.collectibleId);
             if (d == null) {
-                Log.d(TAG, "resolvePat: no local gift cid=" + e.collectibleId);
+                if (LOG_DRAW) Log.d(TAG, "resolvePat: no local gift cid=" + e.collectibleId);
                 patternResolveMissed = true;
                 patternResolveFor = e.collectibleId;
                 return 0L;
@@ -239,10 +241,10 @@ public class AiqiyiProfileGiftOverlay {
                             .resolvePatternDocument(d);
             if (doc != null && doc.id != 0L) {
                 e.patternDocId = doc.id;
-                Log.d(TAG, "resolvePat: hit cid=" + e.collectibleId + " doc=" + doc.id);
+                if (LOG_DRAW) Log.d(TAG, "resolvePat: hit cid=" + e.collectibleId + " doc=" + doc.id);
                 return doc.id;
             }
-            Log.d(TAG, "resolvePat: miss cid=" + e.collectibleId
+            if (LOG_DRAW) Log.d(TAG, "resolvePat: miss cid=" + e.collectibleId
                     + " patId=" + d.getPatternDocumentId()
                     + " hasB64=" + (!d.getPatternDocumentData().isEmpty()));
             patternResolveMissed = true;
@@ -256,7 +258,7 @@ public class AiqiyiProfileGiftOverlay {
     private void drawPattern(Canvas canvas, int w, int h, Entry e) {
         final long patId = resolvePatternDocId(e);
         if (patId == 0L) {
-            Log.d(TAG, "drawPattern skip no patternDocId");
+            if (LOG_DRAW) Log.d(TAG, "drawPattern skip no patternDocId");
             return;
         }
         if (patternDrawable == null || patternDrawableId != patId) {
@@ -264,10 +266,10 @@ public class AiqiyiProfileGiftOverlay {
             patternDrawable = AnimatedEmojiDrawable.make(UserConfig.selectedAccount,
                     AnimatedEmojiDrawable.CACHE_TYPE_EMOJI_STATUS, patId);
             if (patternDrawable != null) patternDrawable.preload();
-            Log.d(TAG, "drawPattern new id=" + patId + " ok=" + (patternDrawable != null));
+            if (LOG_DRAW) Log.d(TAG, "drawPattern new id=" + patId + " ok=" + (patternDrawable != null));
         }
         if (patternDrawable == null) {
-            Log.d(TAG, "drawPattern drawable null id=" + patId);
+            if (LOG_DRAW) Log.d(TAG, "drawPattern drawable null id=" + patId);
             return;
         }
         // 先画，不要因为「暂时没加载好」就跳过。
@@ -282,19 +284,19 @@ public class AiqiyiProfileGiftOverlay {
             patternRetryCount++;
             patternDrawableId = 0L;
             patternDrawable = null;
-            Log.d(TAG, "drawPattern retry #" + patternRetryCount + " id=" + e.patternDocId);
+            if (LOG_DRAW) Log.d(TAG, "drawPattern retry #" + patternRetryCount + " id=" + e.patternDocId);
         }
         if (patternDrawable == null) return;
         patternDrawable.setBounds(0, 0, w, h);
         patternDrawable.setAlpha(0xFF);
         patternDrawable.draw(canvas);
-        Log.d(TAG, "drawPattern done");
+        if (LOG_DRAW) Log.d(TAG, "drawPattern done");
     }
 
     private void drawBody(Canvas canvas, int w, int h, Entry e) {
         long id = e.bodyDocId != 0L ? e.bodyDocId : e.patternDocId;
         if (id == 0L) {
-            Log.d(TAG, "drawBody skip no id");
+            if (LOG_DRAW) Log.d(TAG, "drawBody skip no id");
             return;
         }
         if (bodyDrawable == null || bodyDrawableId != id) {
@@ -302,10 +304,10 @@ public class AiqiyiProfileGiftOverlay {
             bodyDrawable = AnimatedEmojiDrawable.make(UserConfig.selectedAccount,
                     AnimatedEmojiDrawable.CACHE_TYPE_MESSAGES, id);
             if (bodyDrawable != null) bodyDrawable.preload();
-            Log.d(TAG, "drawBody new id=" + id + " ok=" + (bodyDrawable != null));
+            if (LOG_DRAW) Log.d(TAG, "drawBody new id=" + id + " ok=" + (bodyDrawable != null));
         }
         if (bodyDrawable == null) {
-            Log.d(TAG, "drawBody drawable null id=" + id);
+            if (LOG_DRAW) Log.d(TAG, "drawBody drawable null id=" + id);
             return;
         }
         // 与 drawPattern 一致：先画，只在连续失败时重建，绝不 return。
@@ -318,7 +320,7 @@ public class AiqiyiProfileGiftOverlay {
             bodyRetryCount++;
             bodyDrawableId = 0L;
             bodyDrawable = null;
-            Log.d(TAG, "drawBody retry #" + bodyRetryCount + " id=" + id);
+            if (LOG_DRAW) Log.d(TAG, "drawBody retry #" + bodyRetryCount + " id=" + id);
         }
         if (bodyDrawable == null) return;
         final int size = Math.min(w, h) / 2;
@@ -327,7 +329,7 @@ public class AiqiyiProfileGiftOverlay {
         bodyDrawable.setBounds(cx - size / 2, cy - size / 2, cx + size / 2, cy + size / 2);
         bodyDrawable.setAlpha(0xFF);
         bodyDrawable.draw(canvas);
-        Log.d(TAG, "drawBody done size=" + size);
+        if (LOG_DRAW) Log.d(TAG, "drawBody done size=" + size);
     }
 
     /**

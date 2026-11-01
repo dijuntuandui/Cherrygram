@@ -1325,6 +1325,9 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
         private boolean aiqiyiHasGiftForGradient;
         private boolean aiqiyiBgEmojiIdValid;
         /** [Aiqiyi M4] 第三套：独立覆盖层，优先级最高，谁都不看只管画 */
+        // [Aiqiyi 性能修复] onDraw 里的迁移只跑一次
+        private boolean aiqiyiOvMigrated;
+        private long aiqiyiOvMigratedId;
         private final uz.unnarsx.cherrygram.aiqiyi.overlay.AiqiyiProfileGiftOverlay aiqiyiOverlay =
                 new uz.unnarsx.cherrygram.aiqiyi.overlay.AiqiyiProfileGiftOverlay();
         // [Aiqiyi] 佩戴礼物本体兜底绘制用
@@ -1672,7 +1675,16 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                 if (getDialogId() != 0) {
                     try {
                         final long aiqiyiOvDid = getDialogId();
-                        uz.unnarsx.cherrygram.aiqiyi.overlay.AiqiyiProfileGiftOverlay.migrateIfEmpty(aiqiyiOvDid);
+                        // [Aiqiyi 性能修复] migrateIfEmpty 会读 prefs + 查本地库，绝不能在 onDraw 每帧跑。
+                        // 每个资料页只迁一次，迁完打标。
+                        if (!aiqiyiOvMigrated || aiqiyiOvMigratedId != aiqiyiOvDid) {
+                            aiqiyiOvMigrated = true;
+                            aiqiyiOvMigratedId = aiqiyiOvDid;
+                            try {
+                                uz.unnarsx.cherrygram.aiqiyi.overlay.AiqiyiProfileGiftOverlay.migrateIfEmpty(aiqiyiOvDid);
+                            } catch (Throwable ignore) {
+                            }
+                        }
                         aiqiyiOverlay.draw(canvas, getMeasuredWidth(), y1, aiqiyiOvDid);
                     } catch (Throwable ignore) {
                     }
