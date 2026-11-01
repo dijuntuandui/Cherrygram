@@ -1776,6 +1776,10 @@ public class SharedConfig {
     }
 
     public static boolean canBlurChat() {
+        // [Aiqiyi] 放宽设备性能硬门槛：Android 13+ 机型普遍具备足够 GPU 能力，
+        // 原判定因 SOC 哈希黑名单 / cpuinfo_max_freq 读取受限而被误判为 LOW，
+        // 导致底栏与聊天页玻璃退化为实心色块。
+        if (Build.VERSION.SDK_INT >= 33) return true;
         return getDevicePerformanceClass() >= (Build.VERSION.SDK_INT >= 31 ? PERFORMANCE_CLASS_AVERAGE : PERFORMANCE_CLASS_HIGH) || BuildVars.DEBUG_PRIVATE_VERSION;
     }
 

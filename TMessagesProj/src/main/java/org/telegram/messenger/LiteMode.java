@@ -293,6 +293,13 @@ public class LiteMode {
                 preferences.edit().putInt("lite_mode6", value).apply();
             }
         }
+        // [Aiqiyi] 输入栏毛玻璃强制开启：chatBlurEnabled() = canBlurChat() && isEnabled(FLAG_CHAT_BLUR)，
+        // 而 lite_mode6 持久化会吞掉这一位，导致底栏退化成实心色块（无模糊）。
+        // canBlurChat() 在 Android 13+ 恒为 true（见 SharedConfig），低版本仍按性能档判定。
+        if ((value & FLAG_CHAT_BLUR) == 0) {
+            value |= FLAG_CHAT_BLUR;
+            preferences.edit().putInt("lite_mode6", value).apply();
+        }
         if (loaded) {
             onFlagsUpdate(prevValue, value);
         }
