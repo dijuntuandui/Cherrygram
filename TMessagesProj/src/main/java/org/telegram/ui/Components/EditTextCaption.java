@@ -901,6 +901,14 @@ public class EditTextCaption extends EditTextBoldCursor implements FloatingToolb
 
     @Override
     protected void onDraw(Canvas canvas) {
+        // [Aiqiyi] 修复输入框文字消失：动画被打断时 offsetY 可能永久卡在非零值，
+        // 导致正文被 translate 出可视区，表现为“能输入、能发送，但完全看不见文字”。
+        if (offsetY != 0 && Math.abs(offsetY) > getMeasuredHeight() * 0.5f) {
+            if (BuildVars.DEBUG_VERSION) {
+                FileLog.d("[Aiqiyi] offsetY 异常(" + offsetY + ")，已归零，size=" + getMeasuredWidth() + "x" + getMeasuredHeight());
+            }
+            offsetY = 0;
+        }
         canvas.save();
         canvas.translate(0, offsetY);
         super.onDraw(canvas);

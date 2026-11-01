@@ -7216,6 +7216,18 @@ public class ChatActivityEnterView extends FrameLayout implements
     }
 
     public void updateFieldHint(boolean animated) {
+        // [Aiqiyi FIX-ALPHA] 录音/语音切回文字时，messageEditText 的 alpha 依赖
+        // exitAnimation 的延迟动画（startDelay 750ms）拉回 1；若动画被取消（快速切页、
+        // 退出 Fragment、动画被 interrupt），alpha 会永久停在 0，表现为：
+        // 光标可见（cursorDrawable 独立绘制）、文字与 hint 全不见、但能正常输入发送。
+        // 这里做兜底：非录音/非试听态强制 alpha=1。
+        if (messageEditText != null
+                && !isRecordingAudioVideo()
+                && recordState != RECORD_STATE_PREPARING
+                && recordState != RECORD_STATE_RECORDING
+                && (recordedAudioPanel == null || recordedAudioPanel.getVisibility() != VISIBLE)) {
+            messageEditText.setAlpha(1f);
+        }
         // [Aiqiyi] 自定义提示文字：开启时直接替换输入框占位符（「输入消息」等）
         if (applyAiqiyiInputHint(animated)) {
             return;

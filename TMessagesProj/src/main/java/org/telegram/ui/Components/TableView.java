@@ -81,7 +81,7 @@ public class TableView extends TableLayout {
         TableRow row = new TableRow(getContext());
         TableRow.LayoutParams lp;
         lp = new TableRow.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.MATCH_PARENT);
-        row.addView(new TableRowTitle(this, title), lp);
+        row.addView(new TableRowTitle(this, title == null ? "" : title), lp);
         lp = new TableRow.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f);
         row.addView(new TableRowContent(this, content), lp);
         addView(row);
@@ -92,7 +92,7 @@ public class TableView extends TableLayout {
         TableRow row = new TableRow(getContext());
         TableRow.LayoutParams lp;
         lp = new TableRow.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.MATCH_PARENT);
-        row.addView(new TableRowTitle(this, title), lp);
+        row.addView(new TableRowTitle(this, title == null ? "" : title), lp);
         lp = new TableRow.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f);
         row.addView(new TableRowContent(this, content, true), lp);
         addView(row);
@@ -404,7 +404,11 @@ public class TableView extends TableLayout {
         final ButtonSpan.TextViewButtons textView = new ButtonSpan.TextViewButtons(getContext());
         textView.setTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteBlackText, resourcesProvider));
         textView.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 14);
-        final SpannableStringBuilder ssb = new SpannableStringBuilder(Emoji.replaceEmoji(text, textView.getPaint().getFontMetricsInt(), false));
+        // [Aiqiyi FIX-NPE] 本地伪造礼物缺少 owner_name 等字段，text 可能为 null，
+        // Emoji.replaceEmoji 对 null 返回 null，直接丢进 SpannableStringBuilder 会 NPE。
+        // 统一在底层兜底，覆盖所有 addRow 调用点。
+        final CharSequence aiqiyiSafeText = text == null ? "" : text;
+        final SpannableStringBuilder ssb = new SpannableStringBuilder(Emoji.replaceEmoji(aiqiyiSafeText, textView.getPaint().getFontMetricsInt(), false));
         if (buttonText != null) {
             ssb.append(" ").append(ButtonSpan.make(buttonText, buttonOnClick, resourcesProvider, buttonColor));
         }
@@ -414,7 +418,7 @@ public class TableView extends TableLayout {
         final TableRow row = new TableRow(getContext());
         TableRow.LayoutParams lp;
         lp = new TableRow.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.MATCH_PARENT);
-        row.addView(new TableRowTitle(this, title), lp);
+        row.addView(new TableRowTitle(this, title == null ? "" : title), lp);
         lp = new TableRow.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f);
         row.addView(new TableRowContent(this, textView), lp);
         addView(row);
