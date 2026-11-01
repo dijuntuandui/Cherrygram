@@ -198,7 +198,10 @@ public class AiqiyiProfileGiftOverlay {
                     new int[]{c1, c2}, new float[]{0f, 1f}, Shader.TileMode.CLAMP);
         }
         gradientPaint.setShader(gradient);
-        gradientPaint.setAlpha(0xFF);
+        // Aiqiyi: 原来这里是 0xFF 不透明整屏填充，压在 TopView 原生图案层的最后一步，
+        // 结果是底纹明明画了却看不见，只剩一片灰。
+        // 官方资料页的礼物底色本来就是半透明垫在 pattern 下面的，这里改成 0x66（40%）贴合。
+        gradientPaint.setAlpha(0x66);
         canvas.drawRect(0, 0, w, h, gradientPaint);
         gradientPaint.setShader(null);
         Log.d(TAG, "drawGradient c=" + Integer.toHexString(c1) + " e=" + Integer.toHexString(c2));
