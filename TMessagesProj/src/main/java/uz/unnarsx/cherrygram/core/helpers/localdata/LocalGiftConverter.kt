@@ -146,7 +146,7 @@ object LocalGiftConverter {
                     }
                 }
             }
-            android.util.Log.d("AQY_GIFT_DBG", "toWornStatus uid=" + userId
+            if (uz.unnarsx.cherrygram.aiqiyi.AiqiyiDebug.LOG) android.util.Log.d("AQY_GIFT_DBG", "toWornStatus uid=" + userId
                     + " data.documentId=" + data.documentId
                     + " data.patternDocumentId=" + data.patternDocumentId
                     + " data.catalogGiftId=" + data.catalogGiftId

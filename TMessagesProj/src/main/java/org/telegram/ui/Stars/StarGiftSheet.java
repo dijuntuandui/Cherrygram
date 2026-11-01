@@ -1316,7 +1316,7 @@ public class StarGiftSheet extends BottomSheetWithRecyclerListView implements No
                             aiqiyiOvBody, aiqiyiOvPat, aiqiyiOvC, aiqiyiOvE, aiqiyiOvP, aiqiyiOvT,
                             aiqiyiOvTitle, aiqiyiOvNum);
                     uz.unnarsx.cherrygram.aiqiyi.overlay.AiqiyiProfileGiftOverlay.save(ov);
-                    android.util.Log.d("AQY_OVL", "wear sync body=" + aiqiyiOvBody + " pat=" + aiqiyiOvPat
+                    if (uz.unnarsx.cherrygram.aiqiyi.AiqiyiDebug.LOG) android.util.Log.d("AQY_OVL", "wear sync body=" + aiqiyiOvBody + " pat=" + aiqiyiOvPat
                         + " c=" + Integer.toHexString(aiqiyiOvC) + " e=" + Integer.toHexString(aiqiyiOvE));
                 } else {
                     uz.unnarsx.cherrygram.aiqiyi.overlay.AiqiyiProfileGiftOverlay.clear(
@@ -1324,7 +1324,7 @@ public class StarGiftSheet extends BottomSheetWithRecyclerListView implements No
                 }
             } catch (Throwable ignore) {
             }
-            android.util.Log.d("AQY_LOCAL_GIFT", "toggleLocalWear id=" + gift.id
+            if (uz.unnarsx.cherrygram.aiqiyi.AiqiyiDebug.LOG) android.util.Log.d("AQY_LOCAL_GIFT", "toggleLocalWear id=" + gift.id
                 + " did=" + did + " wantPinned=" + nowPinned
                 + " beforePinned=" + aiqiyiPinnedBefore
                 + " writeOk=" + aiqiyiWriteOk + " readBack=" + aiqiyiReadBack
@@ -1433,7 +1433,7 @@ public class StarGiftSheet extends BottomSheetWithRecyclerListView implements No
             uz.unnarsx.cherrygram.core.helpers.localdata.LocalGiftStore
                     .removeLocalGift(targetDid, collectibleId);
             uz.unnarsx.cherrygram.core.helpers.localdata.LocalGiftStore.resetPrefetchMarks();
-            android.util.Log.d("AQY_LOCAL_GIFT", "deleted id=" + collectibleId + " did=" + targetDid);
+            if (uz.unnarsx.cherrygram.aiqiyi.AiqiyiDebug.LOG) android.util.Log.d("AQY_LOCAL_GIFT", "deleted id=" + collectibleId + " did=" + targetDid);
         } catch (Throwable t) {
             FileLog.e("Aiqiyi delete local gift failed", t);
         }
@@ -7339,7 +7339,7 @@ public void toggleWear() {
             uz.unnarsx.cherrygram.core.helpers.localdata.LocalGiftConverter.preloadGiftFiles(data);
             uz.unnarsx.cherrygram.core.helpers.localdata.LocalGiftStore.addLocalGift(to, data);
             uz.unnarsx.cherrygram.core.helpers.localdata.LocalGiftStore.notifyChanged(to);
-            android.util.Log.d("AQY_LOCAL_GIFT", "C4 unique buy ok: giftId=" + gift.id
+            if (uz.unnarsx.cherrygram.aiqiyi.AiqiyiDebug.LOG) android.util.Log.d("AQY_LOCAL_GIFT", "C4 unique buy ok: giftId=" + gift.id
                 + " slug=" + gift.slug + " to=" + to);
 
             button.setLoading(false);

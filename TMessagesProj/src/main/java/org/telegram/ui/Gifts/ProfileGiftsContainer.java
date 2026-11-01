@@ -628,7 +628,7 @@ public class ProfileGiftsContainer extends FrameLayout implements NotificationCe
 
         private void aiqiyiDbg(String msg) {
             try {
-                android.util.Log.d("AQY_LOCAL_GIFT", msg);
+                if (uz.unnarsx.cherrygram.aiqiyi.AiqiyiDebug.LOG) android.util.Log.d("AQY_LOCAL_GIFT", msg);
             } catch (Throwable ignored) {}
         }
 

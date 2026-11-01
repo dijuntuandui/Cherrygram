@@ -747,7 +747,7 @@ public class SendGiftSheet extends BottomSheetWithRecyclerListView implements No
                     LocalGiftStore.addLocalGift(dialogId, data);
                     // Aiqiyi 性能(C18): 买完直接读缓存核对，不再触发第二发 gson
                     final ArrayList<LocalGiftData> after = LocalGiftStore.peekForUser(dialogId);
-                    android.util.Log.d("AQY_LOCAL_GIFT", "C4 buy: self=" + self + " did=" + dialogId
+                    if (uz.unnarsx.cherrygram.aiqiyi.AiqiyiDebug.LOG) android.util.Log.d("AQY_LOCAL_GIFT", "C4 buy: self=" + self + " did=" + dialogId
                         + " giftId=" + (starGift == null ? -1 : starGift.id)
                         + " docId=" + (data.getDocumentId()) + " before=" + before
                         + " after=" + (after == null ? -1 : after.size()));

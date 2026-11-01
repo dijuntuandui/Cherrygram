@@ -1275,7 +1275,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                 if (gv == null) return;
                 final org.telegram.tgnet.TLRPC.Document doc = gv.getWornLocalPatternDocument();
                 final int tint = gv.getWornLocalPatternColor();
-                android.util.Log.d("AQY_GIFT_DBG", "refresh header pattern: attempt=" + attempt
+                if (uz.unnarsx.cherrygram.aiqiyi.AiqiyiDebug.LOG) android.util.Log.d("AQY_GIFT_DBG", "refresh header pattern: attempt=" + attempt
                         + " doc=" + (doc == null ? "null" : String.valueOf(doc.id))
                         + " tint=" + Integer.toHexString(tint));
                 if (doc != null) {
@@ -1361,7 +1361,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                     aiqiyiGiftEdge = aiqiyiLW.getEdgeColor() | 0xFF000000;
                     aiqiyiHasWornGift = true;
                 }
-                android.util.Log.d("AQY_LOCAL_GIFT", "setBackgroundColorId hasWornGift=" + aiqiyiHasWornGift
+                if (uz.unnarsx.cherrygram.aiqiyi.AiqiyiDebug.LOG) android.util.Log.d("AQY_LOCAL_GIFT", "setBackgroundColorId hasWornGift=" + aiqiyiHasWornGift
                         + " did=" + getDialogId()
                         + " lastWorn=" + (aiqiyiLW == null ? "null" : String.valueOf(aiqiyiLW.getCollectibleId()))
                         + " c=" + (aiqiyiHasWornGift ? Integer.toHexString(aiqiyiGiftCenter) : "-")
@@ -1370,7 +1370,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                         + " switchOn=" + CherrygramAppearanceConfig.INSTANCE.getProfileBackgroundColor()
                         + " animated=" + animated);
             } catch (Throwable t) {
-                android.util.Log.d("AQY_LOCAL_GIFT", "setBackgroundColorId probe failed: " + t);
+                if (uz.unnarsx.cherrygram.aiqiyi.AiqiyiDebug.LOG) android.util.Log.d("AQY_LOCAL_GIFT", "setBackgroundColorId probe failed: " + t);
             }
             aiqiyiHasGiftForGradient = aiqiyiHasWornGift;
             if ((peerColor != null && CherrygramAppearanceConfig.INSTANCE.getProfileBackgroundColor()) || aiqiyiHasWornGift) {
@@ -1420,7 +1420,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                     actionBarBackgroundColor = ColorUtils.blendARGB(color1, color2, 0.25f);
                     hasColorById = true;
                     aiqiyiGiftColorApplied = true;
-                    android.util.Log.d("AQY_LOCAL_GIFT", "gift color APPLIED " + Integer.toHexString(color1) + " -> " + Integer.toHexString(color2));
+                    if (uz.unnarsx.cherrygram.aiqiyi.AiqiyiDebug.LOG) android.util.Log.d("AQY_LOCAL_GIFT", "gift color APPLIED " + Integer.toHexString(color1) + " -> " + Integer.toHexString(color2));
                 }
                 // 礼物色必须立刻生效，不能等 animated 动画过渡
                 if (aiqiyiGiftColorApplied) {
@@ -1450,13 +1450,13 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                     color1Animated.set(color1, true);
                     color2Animated.set(color2, true);
                     hasColorAnimated.set(hasColorById);
-                    android.util.Log.d("AQY_LOCAL_GIFT", "B-final override APPLIED "
+                    if (uz.unnarsx.cherrygram.aiqiyi.AiqiyiDebug.LOG) android.util.Log.d("AQY_LOCAL_GIFT", "B-final override APPLIED "
                             + Integer.toHexString(color1) + " -> " + Integer.toHexString(color2)
                             + " did=" + getDialogId() + " animated=" + animated);
                     invalidate();
                 }
             } catch (Throwable t) {
-                android.util.Log.d("AQY_LOCAL_GIFT", "B-final override failed: " + t);
+                if (uz.unnarsx.cherrygram.aiqiyi.AiqiyiDebug.LOG) android.util.Log.d("AQY_LOCAL_GIFT", "B-final override failed: " + t);
             }
             if (!animated) {
                 color1Animated.set(color1, true);
@@ -1628,7 +1628,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                     // [Aiqiyi 性能修复] onDraw 里每帧拼 6 段字符串 + 调 calculateHeaderExtraDiff() 再写 log，
                     // 实测把主线程 CPU 拖满整机发烫。改为仅首次或显式调试时输出。
                     if ( aiqiyiDebugDrawLog ) {
-                        android.util.Log.d("AQY_GIFT_DBG", "pattern layer: hasEmoji=" + hasEmoji + " force=" + aiqiyiForce
+                        if (uz.unnarsx.cherrygram.aiqiyi.AiqiyiDebug.LOG) android.util.Log.d("AQY_GIFT_DBG", "pattern layer: hasEmoji=" + hasEmoji + " force=" + aiqiyiForce
                                 + " loadedScale=" + loadedScale + " shoudIgnore=" + shoudIgnore
                                 + " diff=" + calculateHeaderExtraDiff() + " avatarC=" + (avatarContainer != null));
                     }
@@ -1654,7 +1654,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                                 uz.unnarsx.cherrygram.core.helpers.localdata.LocalGiftStore.getLastWornForUser(getDialogId());
                         long wantId = (lw == null ? 0L : lw.getDocumentId());
                         if (wantId == 0 && lw != null) wantId = lw.getPatternDocumentId();
-                        android.util.Log.d("AQY_GIFT_DBG", "drawBody: lw=" + (lw != null)
+                        if (uz.unnarsx.cherrygram.aiqiyi.AiqiyiDebug.LOG) android.util.Log.d("AQY_GIFT_DBG", "drawBody: lw=" + (lw != null)
                                 + " bodyId=" + (lw == null ? 0 : lw.getDocumentId())
                                 + " patId=" + (lw == null ? 0 : lw.getPatternDocumentId())
                                 + " want=" + wantId + " cur=" + aiqiyiDrawableId);
@@ -12027,10 +12027,10 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                             if (aiqiyiBgEmojiId != 0) {
                                 aiqiyiBgIsCollectible = true;
                             }
-                            android.util.Log.d("AQY_GIFT_DBG", "profile bg: pat=" + aiqiyiPatId + " body=" + aiqiyiBodyId
+                            if (uz.unnarsx.cherrygram.aiqiyi.AiqiyiDebug.LOG) android.util.Log.d("AQY_GIFT_DBG", "profile bg: pat=" + aiqiyiPatId + " body=" + aiqiyiBodyId
                                     + " -> emojiId=" + aiqiyiBgEmojiId + " tint=" + Integer.toHexString(aiqiyiBgTint));
                         } else {
-                            android.util.Log.d("AQY_GIFT_DBG", "profile bg: worn=null uid=" + userId);
+                            if (uz.unnarsx.cherrygram.aiqiyi.AiqiyiDebug.LOG) android.util.Log.d("AQY_GIFT_DBG", "profile bg: worn=null uid=" + userId);
                         }
                     } catch (Throwable ignore) {
                     }
@@ -12048,7 +12048,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                             .getLastWornForUser(userId) != null;
                 } catch (Throwable ignore) {
                 }
-                android.util.Log.d("AQY_GIFT_DBG", "setBackgroundEmojiId final id=" + aiqiyiBgEmojiId
+                if (uz.unnarsx.cherrygram.aiqiyi.AiqiyiDebug.LOG) android.util.Log.d("AQY_GIFT_DBG", "setBackgroundEmojiId final id=" + aiqiyiBgEmojiId
                         + " collectible=" + aiqiyiBgIsCollectible + " forceGift=" + aiqiyiForceGift);
                 if (aiqiyiBgPatternDoc != null) {
                     // 本地 pattern 文档存在，直接用它画（不查缓存、不发 RPC）。

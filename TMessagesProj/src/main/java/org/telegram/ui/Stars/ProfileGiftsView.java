@@ -482,7 +482,7 @@ public class ProfileGiftsView extends View implements NotificationCenter.Notific
         if (out == null || out.length < 2) return false;
         try {
             final LocalGiftData lastWorn = aiqiyiLastWorn();
-            android.util.Log.d("AQY_LOCAL_GIFT", "backdropColors: dialogId=" + dialogId + " lastWorn=" + (lastWorn == null ? "null" : (lastWorn.getCollectibleId() + "/" + Integer.toHexString(lastWorn.getCenterColor()) + "->" + Integer.toHexString(lastWorn.getEdgeColor()))) + " localGifts.size=" + localGifts.size());
+            if (uz.unnarsx.cherrygram.aiqiyi.AiqiyiDebug.LOG) android.util.Log.d("AQY_LOCAL_GIFT", "backdropColors: dialogId=" + dialogId + " lastWorn=" + (lastWorn == null ? "null" : (lastWorn.getCollectibleId() + "/" + Integer.toHexString(lastWorn.getCenterColor()) + "->" + Integer.toHexString(lastWorn.getEdgeColor()))) + " localGifts.size=" + localGifts.size());
             if (lastWorn == null) return false;
             Gift worn = null;
             for (int i = 0; i < localGifts.size(); i++) {
@@ -498,7 +498,7 @@ public class ProfileGiftsView extends View implements NotificationCenter.Notific
                     final Gift gg = localGifts.get(i);
                     if (gg != null) sb.append(gg.id).append(',');
                 }
-                android.util.Log.d("AQY_LOCAL_GIFT", "backdropColors: worn NOT FOUND for collectibleId=" + lastWorn.getCollectibleId() + " ids=[" + sb + "]");
+                if (uz.unnarsx.cherrygram.aiqiyi.AiqiyiDebug.LOG) android.util.Log.d("AQY_LOCAL_GIFT", "backdropColors: worn NOT FOUND for collectibleId=" + lastWorn.getCollectibleId() + " ids=[" + sb + "]");
                 return false;
             }
             // Gift.color 存的是 center_color，还需要 edge_color，
@@ -513,7 +513,7 @@ public class ProfileGiftsView extends View implements NotificationCenter.Notific
             }
             out[0] = d.getCenterColor() | 0xFF000000;
             out[1] = d.getEdgeColor() | 0xFF000000;
-            android.util.Log.d("AQY_LOCAL_GIFT", "backdropColors OK: " + Integer.toHexString(out[0]) + " -> " + Integer.toHexString(out[1]));
+            if (uz.unnarsx.cherrygram.aiqiyi.AiqiyiDebug.LOG) android.util.Log.d("AQY_LOCAL_GIFT", "backdropColors OK: " + Integer.toHexString(out[0]) + " -> " + Integer.toHexString(out[1]));
             return true;
         } catch (Throwable t) {
             org.telegram.messenger.FileLog.e("Aiqiyi getWornLocalBackdropColors failed", t);
@@ -585,7 +585,7 @@ public class ProfileGiftsView extends View implements NotificationCenter.Notific
 
         // Aiqiyi: 注入本地虚拟礼物（独立列表，不碰 gifts / maxCount）
         injectLocalGifts();
-        android.util.Log.d("AQY_LOCAL_GIFT", "after inject: real=" + gifts.size()
+        if (uz.unnarsx.cherrygram.aiqiyi.AiqiyiDebug.LOG) android.util.Log.d("AQY_LOCAL_GIFT", "after inject: real=" + gifts.size()
                 + " local=" + localGifts.size() + " maxCount=" + maxCount);
         // Aiqiyi: 通知里只有「数据变更」时才发，进资料页单纯读取不会发。
         // 所以这里在列表填完之后主动广播一次，让 TopView 去补刷头部底纹。
@@ -600,7 +600,7 @@ public class ProfileGiftsView extends View implements NotificationCenter.Notific
             changed = true;
             lastLocalGiftCount = localGifts.size();
             aiqiyiLocalRowsChanged = true;
-            android.util.Log.d("AQY_LOCAL_GIFT", "changed by local count = " + localGifts.size());
+            if (uz.unnarsx.cherrygram.aiqiyi.AiqiyiDebug.LOG) android.util.Log.d("AQY_LOCAL_GIFT", "changed by local count = " + localGifts.size());
         }
         if (gifts.size() != oldGifts.size()) {
             changed = true;
@@ -702,12 +702,12 @@ public class ProfileGiftsView extends View implements NotificationCenter.Notific
                     }
                 }
                 if (aiqiyiDup > 0) {
-                    android.util.Log.d("AQY_LOCAL_GIFT", "slots full, hidden local=" + aiqiyiDup
+                    if (uz.unnarsx.cherrygram.aiqiyi.AiqiyiDebug.LOG) android.util.Log.d("AQY_LOCAL_GIFT", "slots full, hidden local=" + aiqiyiDup
                             + " real=" + gifts.size() + " max=" + maxCount);
                 }
                 final StringBuilder sb = new StringBuilder();
                 for (int i = 0; i < localGifts.size(); i++) sb.append(localGifts.get(i).position).append(',');
-                android.util.Log.d("AQY_LOCAL_GIFT", "local positions=" + sb + " maxCount=" + maxCount);
+                if (uz.unnarsx.cherrygram.aiqiyi.AiqiyiDebug.LOG) android.util.Log.d("AQY_LOCAL_GIFT", "local positions=" + sb + " maxCount=" + maxCount);
             }
         } catch (Throwable t) {
             org.telegram.messenger.FileLog.e("Aiqiyi assign local positions failed", t);
@@ -726,7 +726,7 @@ public class ProfileGiftsView extends View implements NotificationCenter.Notific
                         ((android.view.View) vp).requestLayout();
                     }
                     requestLayout();
-                    android.util.Log.d("AQY_LOCAL_GIFT", "requestLayout for local rows");
+                    if (uz.unnarsx.cherrygram.aiqiyi.AiqiyiDebug.LOG) android.util.Log.d("AQY_LOCAL_GIFT", "requestLayout for local rows");
                 } catch (Throwable t) {
                     org.telegram.messenger.FileLog.e("Aiqiyi requestLayout failed", t);
                 }
@@ -759,7 +759,7 @@ public class ProfileGiftsView extends View implements NotificationCenter.Notific
             localGifts.clear();
             // [Aiqiyi M2] 按需求：不管「本地礼物」「在资料页显示」开关是否关闭，
             // 只要本机佩戴了礼物就强制注入。用户原话：不管是否关闭图标，强制显示礼物。
-            android.util.Log.d("AQY_LOCAL_GIFT", "injectLocalGifts entered (switch bypassed) did=" + dialogId);
+            if (uz.unnarsx.cherrygram.aiqiyi.AiqiyiDebug.LOG) android.util.Log.d("AQY_LOCAL_GIFT", "injectLocalGifts entered (switch bypassed) did=" + dialogId);
 
             // Aiqiyi 性能: LocalGiftStore.getPinnedForUser() 走 getDataForUser()，
             // 首次访问某 userId 时会在调用线程同步 prefs.getString + gson.fromJson。
@@ -791,7 +791,7 @@ public class ProfileGiftsView extends View implements NotificationCenter.Notific
                         });
                     });
                 }
-                android.util.Log.d("AQY_LOCAL_GIFT", "injectLocalGifts: data not loaded yet, deferring. did=" + dialogId);
+                if (uz.unnarsx.cherrygram.aiqiyi.AiqiyiDebug.LOG) android.util.Log.d("AQY_LOCAL_GIFT", "injectLocalGifts: data not loaded yet, deferring. did=" + dialogId);
                 lastLocalGiftCount = 0;
                 return;
             }
@@ -836,7 +836,7 @@ public class ProfileGiftsView extends View implements NotificationCenter.Notific
             // 未佩戴的本地礼物只在礼物列表里躺着，不参与资料页绘制。
             // 违规礼物佩戴入口写入时 pinned 直接为 true，所以表现上是「添加即挂上」。
             final ArrayList<LocalGiftData> localList = LocalGiftStore.getPinnedForUser(dialogId);
-            android.util.Log.d("AQY_LOCAL_GIFT", "injectLocalGifts enter dialogId=" + dialogId
+            if (uz.unnarsx.cherrygram.aiqiyi.AiqiyiDebug.LOG) android.util.Log.d("AQY_LOCAL_GIFT", "injectLocalGifts enter dialogId=" + dialogId
                     + " pinned.size=" + localList.size() + " real=" + gifts.size()
                     + " myId=" + UserConfig.getInstance(currentAccount).getClientUserId());
             if (localList.isEmpty()) {
@@ -857,18 +857,18 @@ public class ProfileGiftsView extends View implements NotificationCenter.Notific
             final int aiqiyiRealCount = gifts.size();
             final int aiqiyiRoom = Math.max(0, maxCount - aiqiyiRealCount);
             if (aiqiyiRoom <= 0) {
-                android.util.Log.d("AQY_LOCAL_GIFT", "injectLocalGifts: no free slot, real=" + aiqiyiRealCount + " max=" + maxCount);
+                if (uz.unnarsx.cherrygram.aiqiyi.AiqiyiDebug.LOG) android.util.Log.d("AQY_LOCAL_GIFT", "injectLocalGifts: no free slot, real=" + aiqiyiRealCount + " max=" + maxCount);
                 lastLocalGiftCount = 0;
                 return;
             }
             final int aiqiyiLimit = Math.min(localList.size(), aiqiyiRoom);
-            android.util.Log.d("AQY_LOCAL_GIFT", "injectLocalGifts slots: real=" + aiqiyiRealCount
+            if (uz.unnarsx.cherrygram.aiqiyi.AiqiyiDebug.LOG) android.util.Log.d("AQY_LOCAL_GIFT", "injectLocalGifts slots: real=" + aiqiyiRealCount
                     + " room=" + aiqiyiRoom + " willDraw=" + aiqiyiLimit + " of " + localList.size());
             for (int i = 0; i < aiqiyiLimit; i++) {
                 final LocalGiftData data = localList.get(i);
                 final TLRPC.EmojiStatus status = LocalGiftConverter.toStatus(data);
                 if (!(status instanceof TLRPC.TL_emojiStatusCollectible)) {
-                    android.util.Log.d("AQY_LOCAL_GIFT", "skip: not collectible");
+                    if (uz.unnarsx.cherrygram.aiqiyi.AiqiyiDebug.LOG) android.util.Log.d("AQY_LOCAL_GIFT", "skip: not collectible");
                     continue;
                 }
                 TLRPC.Document doc = null;
@@ -948,7 +948,7 @@ public class ProfileGiftsView extends View implements NotificationCenter.Notific
                     gift.animatedFloat.force(0.0f);
                 }
                 localGifts.add(gift);
-                android.util.Log.d("AQY_LOCAL_GIFT", "ADDED local idx=" + i + " gift.id=" + gift.id
+                if (uz.unnarsx.cherrygram.aiqiyi.AiqiyiDebug.LOG) android.util.Log.d("AQY_LOCAL_GIFT", "ADDED local idx=" + i + " gift.id=" + gift.id
                         + " pos=" + gift.position + " hasDoc=" + (gift.document != null));
             }
             lastLocalGiftCount = localGifts.size();

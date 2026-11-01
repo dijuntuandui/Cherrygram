@@ -2855,7 +2855,7 @@ public class StarsController {
             uz.unnarsx.cherrygram.core.helpers.localdata.LocalGiftConverter.preloadGiftFiles(data);
             uz.unnarsx.cherrygram.core.helpers.localdata.LocalGiftStore.addLocalGift(to, data);
             uz.unnarsx.cherrygram.core.helpers.localdata.LocalGiftStore.notifyChanged(to);
-            android.util.Log.d("AQY_LOCAL_GIFT", "C5 shop buy local ok: giftId=" + gift.id
+            if (uz.unnarsx.cherrygram.aiqiyi.AiqiyiDebug.LOG) android.util.Log.d("AQY_LOCAL_GIFT", "C5 shop buy local ok: giftId=" + gift.id
                 + " slug=" + gift.slug + " to=" + to + " self=" + self);
             invalidateStarGifts();
             invalidateProfileGifts(to);
