@@ -28,6 +28,11 @@ import java.util.List;
 public class DownscaleScrollableNoiseSuppressor {
     public final boolean isLiquidGlassEnabled;
     public final boolean allowNoiseSuppress;
+    // [Aiqiyi FIX-BLUR-STALE] 强制刷新节拍。背景哈希取自 View.getUniqueDrawingId()，
+    // RecyclerView 复用 View 时该 id 恒定，新消息挤进旧 View 不产生新 id → 哈希不变 → 复用旧图。
+    // 每 AIQIYI_FORCE_REFRESH_INTERVAL 次轮询强制丢弃一次哈希，保证最多 N 帧内必刷新。
+    private static final int AIQIYI_FORCE_REFRESH_INTERVAL = 6;
+    private int aiqiyiForceRefreshTick = 1;
     private final boolean simpleMode;
     private final int k;
 
@@ -385,6 +390,12 @@ public class DownscaleScrollableNoiseSuppressor {
 
     public boolean invalidateResultRenderNodes(IBlur3Capture capture, int width, int height) {
         int updatedCount = 0;
+        // [Aiqiyi FIX-BLUR-STALE] 节拍：每 N 次轮询强制重算一轮
+        aiqiyiForceRefreshTick++;
+        if (aiqiyiForceRefreshTick >= AIQIYI_FORCE_REFRESH_INTERVAL) {
+            aiqiyiForceRefreshTick = 0;
+        }
+        final boolean aiqiyiForceThisPass = aiqiyiForceRefreshTick == 0;
         for (int a = 0; a < rectRenderNodesCount; a++) {
             final SourcePart sourcePart = rectRenderNodes.get(a);
             final Rect position = sourcePart.position;
@@ -394,7 +405,8 @@ public class DownscaleScrollableNoiseSuppressor {
             capture.captureCalculateHash(builder, tmpRectF);
             final long hash = builder.get();
 
-            if (!builder.isUnsupported() && sourcePart.lastHash == hash && sourcePart.renderNode.hasDisplayList()) {
+            // [Aiqiyi FIX-BLUR-STALE] 命中哈希仍会复用陈旧图（消息 View 复用导致 drawingId 不变），按节拍强制重算。
+            if (!aiqiyiForceThisPass && !builder.isUnsupported() && sourcePart.lastHash == hash && sourcePart.renderNode.hasDisplayList()) {
                 continue;
             }
 
