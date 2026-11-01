@@ -347,6 +347,35 @@ public class ProfileGiftsView extends View implements NotificationCenter.Notific
      * 优先返回真正的 pattern 文档；没有再退回礼物本体贴纸（draw() 层已做同样兜底），
      * 两者都没有就返回 0，上层会按原逻辑走。
      */
+    /**
+     * Aiqiyi: 返回当前佩戴礼物的 pattern 文档对象本体（不是 id）。
+     *
+     * id 路径不行：AnimatedEmojiDrawable.make(…, documentId) 要去 emoji 缓存查文档，
+     * 本地礼物的 pattern 是本地造的，服务器不认，永远加载不出来。
+     * 直接把 Document 交给 set(TLRPC.Document) 就能用文档里的本地文件路径画。
+     */
+    public org.telegram.tgnet.TLRPC.Document getWornLocalPatternDocument() {
+        try {
+            final LocalGiftData lastWorn = aiqiyiLastWorn();
+            if (lastWorn != null) {
+                final long wantId = lastWorn.getCollectibleId();
+                for (int i = 0; i < localGifts.size(); i++) {
+                    final Gift g = localGifts.get(i);
+                    if (g != null && g.id == wantId) {
+                        if (g.patternDoc != null && g.patternDoc.id != 0) return g.patternDoc;
+                        return null;
+                    }
+                }
+            }
+            for (int i = 0; i < localGifts.size(); i++) {
+                final Gift g = localGifts.get(i);
+                if (g != null && g.patternDoc != null && g.patternDoc.id != 0) return g.patternDoc;
+            }
+        } catch (Throwable t) {
+            org.telegram.messenger.FileLog.e("Aiqiyi getWornLocalPatternDocument failed", t);
+        }
+        return null;
+    }
     public long getWornLocalPatternDocId() {
         try {
             // [Aiqiyi] 只认「最后一个戴上的」礼物底纹。
