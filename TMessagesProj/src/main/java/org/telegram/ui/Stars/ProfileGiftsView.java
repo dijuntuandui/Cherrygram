@@ -182,7 +182,7 @@ public class ProfileGiftsView extends View implements NotificationCenter.Notific
             }
         } else if (id == NotificationCenter.aiqiyiLocalGiftUpdated) {
             // Aiqiyi: 本地礼物变更，刷新当前资料页
-            if (args.length > 0 && (long) args[0] == dialogId) {
+            if (args.length > 0 && (long) args[0] == dialogId && !aiqiyiInUpdate) {
                 update();
             }
         }
@@ -523,6 +523,8 @@ public class ProfileGiftsView extends View implements NotificationCenter.Notific
 
     /** Aiqiyi: 上一次本地礼物数量，用于判断是否需要重绘 */
     private int lastLocalGiftCount = -1;
+    /** [Aiqiyi FIX-ANR] update() 正在执行的标记；防止 aiqiyiLocalGiftUpdated 自己把自己再喊起来形成死循环 */
+    private boolean aiqiyiInUpdate = false;
     /** Aiqiyi: 本地礼物行数变化标记，用于触发 header 重新测量 */
     private boolean aiqiyiLocalRowsChanged = false;
     /**
@@ -543,6 +545,9 @@ public class ProfileGiftsView extends View implements NotificationCenter.Notific
             java.util.Collections.synchronizedSet(new java.util.HashSet<Long>());
 
     public void update() {
+        if (aiqiyiInUpdate) return;   // [Aiqiyi FIX-ANR] 重入直接返回，断开 update<->notification 死循环
+        aiqiyiInUpdate = true;
+        try {
         // [Aiqiyi M2] 原来这里遇到「禁用 Premium 状态显示」直接 return，
         // 导致整个礼物层（含本地礼物）都不初始化、injectLocalGifts 一次都不跑。
         // 本地礼物是本机伪造的，跟 Premium 状态无关，必须照常画。
@@ -587,17 +592,18 @@ public class ProfileGiftsView extends View implements NotificationCenter.Notific
         injectLocalGifts();
         if (uz.unnarsx.cherrygram.aiqiyi.AiqiyiDebug.LOG) android.util.Log.d("AQY_LOCAL_GIFT", "after inject: real=" + gifts.size()
                 + " local=" + localGifts.size() + " maxCount=" + maxCount);
-        // Aiqiyi: 通知里只有「数据变更」时才发，进资料页单纯读取不会发。
-        // 所以这里在列表填完之后主动广播一次，让 TopView 去补刷头部底纹。
-        try {
-            org.telegram.messenger.NotificationCenter.getInstance(currentAccount)
-                    .postNotificationName(NotificationCenter.aiqiyiLocalGiftUpdated, dialogId);
-        } catch (Throwable ignore) {}
+        // [Aiqiyi FIX-ANR] 原先此处无条件广播 aiqiyiLocalGiftUpdated，
+        // 与本类 didReceivedNotification 形成 update->post->update 无限自激，
+        // 主线程死循环导致所有用户主页 ANR。现改为仅在数量变化时广播（见下方）。
 
         boolean changed = false;
         // Aiqiyi: 本地礼物数量变化也要触发重绘
         if (localGifts.size() != lastLocalGiftCount) {
             changed = true;
+            try {   // 只在这个分支广播一次；此时 aiqiyiInUpdate=true，自身回调会被拦截，其他观察者正常收到
+                org.telegram.messenger.NotificationCenter.getInstance(currentAccount)
+                        .postNotificationName(NotificationCenter.aiqiyiLocalGiftUpdated, dialogId);
+            } catch (Throwable ignore) {}
             lastLocalGiftCount = localGifts.size();
             aiqiyiLocalRowsChanged = true;
             if (uz.unnarsx.cherrygram.aiqiyi.AiqiyiDebug.LOG) android.util.Log.d("AQY_LOCAL_GIFT", "changed by local count = " + localGifts.size());
@@ -744,6 +750,9 @@ public class ProfileGiftsView extends View implements NotificationCenter.Notific
                 final Gift g = localGifts.get(i);
                 if (g.emojiDrawable != null) g.emojiDrawable.addView(this);
             }
+        }
+        } finally {
+            aiqiyiInUpdate = false;
         }
     }
 
