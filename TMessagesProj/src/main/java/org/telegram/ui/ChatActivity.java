@@ -16311,6 +16311,9 @@ public class ChatActivity extends BaseFragment implements
         if (chatListView == null || fragmentView == null) {
             return;
         }
+
+        // [Aiqiyi FIX-BLUR-STALE] 列表内容变动 → 标记脏，下一帧强制刷新玻璃源
+        aiqiyiBlurDirty = true;
         int count = chatListView.getChildCount();
         int height = chatListView.getMeasuredHeight();
         int minPositionHolder = Integer.MAX_VALUE;
@@ -48200,6 +48203,8 @@ public class ChatActivity extends BaseFragment implements
     }
 
     private OnPostDrawView invalidateBlurredSourcesView;
+    /** [Aiqiyi FIX-BLUR-STALE] 消息列表内容变动标记，用于绕开 View 复用导致的哈希误判。 */
+    private boolean aiqiyiBlurDirty;
 
     private static final int BLUR_INVALIDATE_FLAG_SCROLL = 1;
     private static final int BLUR_INVALIDATE_FLAG_POSITIONS = 1 << 1;
@@ -48240,7 +48245,10 @@ public class ChatActivity extends BaseFragment implements
         }
 
         //if (BitwiseUtils.hasFlag(flags, BLUR_INVALIDATE_FLAG_POSITIONS | BLUR_INVALIDATE_FLAG_SCROLL)) {
-        final boolean hasChanges = scrollableViewNoiseSuppressor.invalidateResultRenderNodes(contentView::drawList, contentView.getWidth(), contentView.getHeight());
+        // [Aiqiyi FIX-BLUR-STALE] 叠加脏标记：View 复用导致哈希不变时也能强制刷新
+        final boolean aiqiyiDirtyNow = aiqiyiBlurDirty;
+        aiqiyiBlurDirty = false;
+        final boolean hasChanges = scrollableViewNoiseSuppressor.invalidateResultRenderNodes(contentView::drawList, contentView.getWidth(), contentView.getHeight()) || aiqiyiDirtyNow;
         if (hasChanges) {
             if (glassBackgroundSourceRenderNode != null) {
                 glassBackgroundSourceRenderNode.invalidateDisplayListForDrawables();
