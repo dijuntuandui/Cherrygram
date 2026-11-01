@@ -3460,6 +3460,19 @@ public void toggleWear() {
         return isMineWithActions(currentAccount, DialogObject.getPeerDialogId(gift.owner_id));
     }
 
+    // [Aiqiyi] attr.name 服务器可能不下发，为 null 时 addRow 会 NPE crash，这里统一兜底
+    public static CharSequence safeAttrName(TL_stars.StarGiftAttribute attr) {
+        if (attr == null) return "";
+        if (!android.text.TextUtils.isEmpty(attr.name)) return attr.name;
+        if (attr instanceof TL_stars.starGiftAttributeModel) {
+            return getString(R.string.Gift2AttributeModel);
+        } else if (attr instanceof TL_stars.starGiftAttributePattern) {
+            return getString(R.string.Gift2AttributeSymbol);
+        } else if (attr instanceof TL_stars.starGiftAttributeBackdrop) {
+            return getString(R.string.Gift2AttributeBackdrop);
+        }
+        return "";
+    }
     public static void addAttributeRow(TableView tableView, TL_stars.StarGiftAttribute attr) {
         String name;
         if (attr instanceof TL_stars.starGiftAttributeModel) {
@@ -3472,7 +3485,7 @@ public void toggleWear() {
 
         final Integer[] color = new Integer[1];
         final CharSequence rarity = getRarityName(attr.rarity, color);
-        tableView.addRow(name, attr.name, rarity, null, color[0]);
+        tableView.addRow(name, safeAttrName(attr), rarity, null, color[0]); // [Aiqiyi] null-safe
     }
 
     public static CharSequence getRarityName(TL_stars.StarGiftAttributeRarity rarity) {
@@ -3559,7 +3572,7 @@ public void toggleWear() {
             } else {
                 onClick = null;
             }
-            row = tableView.addRow(name, attr.name, rarity, onClick, color[0]);
+            row = tableView.addRow(name, safeAttrName(attr), rarity, onClick, color[0]); // [Aiqiyi] null-safe
             textViewArr[0] = (ButtonSpan.TextViewButtons) ((TableView.TableRowContent) row.getChildAt(1)).getChildAt(0);
         }
     }
