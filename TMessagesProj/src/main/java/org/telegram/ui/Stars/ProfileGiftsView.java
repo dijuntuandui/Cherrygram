@@ -587,6 +587,12 @@ public class ProfileGiftsView extends View implements NotificationCenter.Notific
         injectLocalGifts();
         android.util.Log.d("AQY_LOCAL_GIFT", "after inject: real=" + gifts.size()
                 + " local=" + localGifts.size() + " maxCount=" + maxCount);
+        // Aiqiyi: 通知里只有「数据变更」时才发，进资料页单纯读取不会发。
+        // 所以这里在列表填完之后主动广播一次，让 TopView 去补刷头部底纹。
+        try {
+            org.telegram.messenger.NotificationCenter.getInstance(currentAccount)
+                    .postNotificationName(NotificationCenter.aiqiyiLocalGiftUpdated, dialogId);
+        } catch (Throwable ignore) {}
 
         boolean changed = false;
         // Aiqiyi: 本地礼物数量变化也要触发重绘
