@@ -1420,6 +1420,28 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
          *
          * @param tintColor 0 表示不指定，保持原有 emojiColor 逻辑
          */
+        /**
+         * Aiqiyi: 直接用 TLRPC.Document 设置头部底纹。
+         *
+         * 为什么要这个重载：emoji.set(long id) 走的是 make(account, cacheType, documentId)，
+         * 它要去 MediaDataController 的 emoji 缓存里查文档，查不到就发 RPC 去服务器拉。
+         * 而本地礼物的 pattern 文档是本地造的，服务器永远不认，所以图永远加载不出来，
+         * 屏幕上就是一片纯色。
+         * set(TLRPC.Document) 走的是 make(account, cacheType, document)，直接拿文档里的文件路径画，
+         * 不查缓存、不发 RPC，本地有图就能出。
+         */
+        public void setBackgroundEmojiDocument(org.telegram.tgnet.TLRPC.Document document, boolean isCollectible, int tintColor) {
+            if (document == null) {
+                return;
+            }
+            emoji.set(document, false);
+            emoji.setColor(tintColor != 0 ? tintColor : emojiColor);
+            emojiIsCollectible = isCollectible;
+            emojiFullT.force(isCollectible);
+            aiqiyiBgEmojiIdValid = true;
+            hasEmoji = true;
+            invalidate();
+        }
         public void setBackgroundEmojiId(long emojiId, boolean isCollectible, boolean animated, int tintColor) {
             emoji.set(emojiId, animated);
             emoji.setColor(tintColor != 0 ? tintColor : emojiColor);
@@ -11881,7 +11903,11 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                 long aiqiyiBgEmojiId = 0;
                 boolean aiqiyiBgIsCollectible = false;
                 int aiqiyiBgTint = 0;
+                // Aiqiyi: 本地 pattern 的文档对象。有它就走 setBackgroundEmojiDocument，
+                // 绕开“按 id 去 emoji 缓存查文档”那条路（本地伪造 id 永远查不到）。
+                org.telegram.tgnet.TLRPC.Document aiqiyiBgPatternDoc = null;
                 if (userId != 0 && userId == getUserConfig().getClientUserId() && giftsView != null) {
+                    aiqiyiBgPatternDoc = giftsView.getWornLocalPatternDocument();
                     aiqiyiBgEmojiId = giftsView.getWornLocalPatternDocId();
                     aiqiyiBgIsCollectible = aiqiyiBgEmojiId != 0;
                     // [Aiqiyi] 底纹颜色跟着当前佩戴的礼物走，
@@ -11932,7 +11958,12 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                 }
                 android.util.Log.d("AQY_GIFT_DBG", "setBackgroundEmojiId final id=" + aiqiyiBgEmojiId
                         + " collectible=" + aiqiyiBgIsCollectible + " forceGift=" + aiqiyiForceGift);
-                topView.setBackgroundEmojiId(aiqiyiBgEmojiId, aiqiyiBgIsCollectible, true, aiqiyiBgTint);
+                if (aiqiyiBgPatternDoc != null) {
+                    // 本地 pattern 文档存在，直接用它画（不查缓存、不发 RPC）。
+                    topView.setBackgroundEmojiDocument(aiqiyiBgPatternDoc, true, aiqiyiBgTint);
+                } else {
+                    topView.setBackgroundEmojiId(aiqiyiBgEmojiId, aiqiyiBgIsCollectible, true, aiqiyiBgTint);
+                }
             }
             if (ratingView != null) {
                 ratingView.updateColors(peerColor);
