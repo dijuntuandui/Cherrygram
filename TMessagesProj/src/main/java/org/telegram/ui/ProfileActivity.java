@@ -1232,6 +1232,37 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
         public TopView(Context context) {
             super(context);
             setWillNotDraw(false);
+            // Aiqiyi: 监听本地礼物数据到位。
+            // 进资料页时 updateProfileData() 先跑，injectLocalGifts() 后跑，
+            // 先跑那会儿 giftsView.localGifts 还是空的，getWornLocalPatternDocument() 返回 null，
+            // 结果就退回旧的 id 路径（本地伪造 id 在 emoji 缓存里查不到，画不出）。
+            // 这里在数据就绪后补一次，就能走上 Document 直通路径。
+            org.telegram.messenger.NotificationCenter.getInstance(currentAccount).addObserver(
+                    (id, account, args) -> {
+                        if (id == org.telegram.messenger.NotificationCenter.aiqiyiLocalGiftUpdated) {
+                            aiqiyiRefreshHeaderPattern();
+                        }
+                    }, org.telegram.messenger.NotificationCenter.aiqiyiLocalGiftUpdated);
+        }
+
+        /**
+         * Aiqiyi: 本地礼物数据到位后，重新取一次 pattern 文档并重画。
+         * 与 updateProfileData() 里那段保持同一口径：优先 Document，拿不到才回退 id。
+         */
+        void aiqiyiRefreshHeaderPattern() {
+            try {
+                final ProfileGiftsView gv = ProfileActivity.this.giftsView;
+                if (gv == null) return;
+                final org.telegram.tgnet.TLRPC.Document doc = gv.getWornLocalPatternDocument();
+                final int tint = gv.getWornLocalPatternColor();
+                android.util.Log.d("AQY_GIFT_DBG", "refresh header pattern: doc="
+                        + (doc == null ? "null" : String.valueOf(doc.id)) + " tint=" + Integer.toHexString(tint));
+                if (doc != null) {
+                    setBackgroundEmojiDocument(doc, true, tint);
+                }
+            } catch (Throwable t) {
+                org.telegram.messenger.FileLog.e("Aiqiyi refresh header pattern failed", t);
+            }
         }
 
         @Override
