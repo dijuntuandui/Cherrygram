@@ -1255,13 +1255,22 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
 
         /**
          * Aiqiyi: 带重试的补刷。
-         * 实测时序：aiqiyiLocalGiftUpdated 到达时 localGifts 里还只有一半数据
-         * （日志里 refresh header pattern 比 ADDED local idx=0 早 4ms），
+         * 实测时序：aiqiyiLocalGiftUpdated 到达时 localGifts 里还只有一半数据，
          * getWornLocalPatternColor() 拿不到 worn 就返回 0，底纹被染成全透明。
-         * 这里最多退避重试 5 次，每次 120ms，等列表真正填完。
+         *
+         * 安全约束（2026-11-01 崩溃回归）：
+         * 1. doc 为 null 才重试；doc 到手就立刻 set，绝不为等 tint 拖住。
+         * 2. 重试前确认 TopView 仍 attach 在窗口内，否则 postDelayed 的回调
+         *    会打到已销毁的 ProfileActivity 上。
+         * 3. 不再用假色兜底强行 set —— 若那份 doc 并非真正的
+         *    starGiftAttributePattern，setBackgroundEmojiDocument 内部反查
+         *    drawable 会崩掉整个资料页。
          */
         void aiqiyiRefreshHeaderPattern(final int attempt) {
             try {
+                if (!isAttachedToWindowNow()) {
+                    return;
+                }
                 final ProfileGiftsView gv = ProfileActivity.this.giftsView;
                 if (gv == null) return;
                 final org.telegram.tgnet.TLRPC.Document doc = gv.getWornLocalPatternDocument();
@@ -1269,20 +1278,35 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                 android.util.Log.d("AQY_GIFT_DBG", "refresh header pattern: attempt=" + attempt
                         + " doc=" + (doc == null ? "null" : String.valueOf(doc.id))
                         + " tint=" + Integer.toHexString(tint));
-                if (doc != null && tint != 0) {
-                    setBackgroundEmojiDocument(doc, true, tint);
+                if (doc != null) {
+                    final int useTint = tint != 0 ? tint : (aiqiyiLastTint != 0 ? aiqiyiLastTint : 0xFF96A6B8);
+                    setBackgroundEmojiDocument(doc, true, useTint);
                     return;
                 }
                 if (attempt < 5) {
-                    postDelayed(() -> aiqiyiRefreshHeaderPattern(attempt + 1), 120);
-                } else if (doc != null) {
-                    // 颜色始终取不到也不能让底纹整层消失，用默认浅色兜底。
-                    setBackgroundEmojiDocument(doc, true, 0x66FFFFFF);
+                    postDelayed(() -> {
+                        try {
+                            aiqiyiRefreshHeaderPattern(attempt + 1);
+                        } catch (Throwable t) {
+                            org.telegram.messenger.FileLog.e("Aiqiyi refresh retry failed", t);
+                        }
+                    }, 120);
                 }
             } catch (Throwable t) {
                 org.telegram.messenger.FileLog.e("Aiqiyi refresh header pattern failed", t);
             }
         }
+
+        /** Aiqiyi: 只有在窗口里才允许继续操作，避免已 detach 的回调引发崩溃 */
+        private boolean isAttachedToWindowNow() {
+            try {
+                return getWindowToken() != null && getParent() != null;
+            } catch (Throwable t) {
+                return false;
+            }
+        }
+
+        private int aiqiyiLastTint = 0xFF96A6B8;
 
         @Override
         public void setBackgroundColor(int color) {
