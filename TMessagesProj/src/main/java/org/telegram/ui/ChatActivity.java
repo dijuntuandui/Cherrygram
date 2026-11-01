@@ -16311,12 +16311,6 @@ public class ChatActivity extends BaseFragment implements
         if (chatListView == null || fragmentView == null) {
             return;
         }
-
-        // [Aiqiyi FIX-BLUR-STALE] 消息列表内容变动时主动失效毛玻璃源，
-        // 否则 RecyclerView 复用 View 导致 drawingId 哈希不变，模糊图会停在上一帧。
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            invalidateMergedVisibleBlurredPositionsAndSources(BLUR_INVALIDATE_FLAG_SCROLL);
-        }
         int count = chatListView.getChildCount();
         int height = chatListView.getMeasuredHeight();
         int minPositionHolder = Integer.MAX_VALUE;
