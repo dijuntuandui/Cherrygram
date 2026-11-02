@@ -316,13 +316,14 @@ public class AiqiyiSignInEditor {
             // [Aiqiyi FIX-RESOLVE] getUserOrChat 走的是本地缓存，
             // 从没私聊过的账号（比如第一次用的 @SpamBot）必然 miss。
             // 这里再扫一遍用户/群列表，命中就返回，避免无谓的网络请求。
+            // getUsers()/getChats() 返回的是 ConcurrentHashMap<Long, T>，需要走 values()。
             org.telegram.messenger.MessagesController mc = fragment.getMessagesController();
-            for (org.telegram.tgnet.TLRPC.User u : mc.getUsers()) {
+            for (org.telegram.tgnet.TLRPC.User u : mc.getUsers().values()) {
                 if (u != null && t.equalsIgnoreCase(u.username)) {
                     return u.id;
                 }
             }
-            for (org.telegram.tgnet.TLRPC.Chat c : mc.getChats()) {
+            for (org.telegram.tgnet.TLRPC.Chat c : mc.getChats().values()) {
                 if (c != null && t.equalsIgnoreCase(c.username)) {
                     return -c.id;
                 }
