@@ -11,6 +11,38 @@ jobs:
     timeout-minutes: 240
 
     steps:
+      # [Aiqiyi] runner 磁盘不够，mergeReleaseNativeLibs 会报 No space left on device。
+      # 先清掉 runner 预装的无关 SDK/NDK/Docker/大型工具链，能腾出一十几 GB。
+      - name: Free disk space
+        run: |
+          echo "=== before ==="
+          df -h /
+          sudo rm -rf /usr/share/dotnet || true
+          sudo rm -rf /usr/local/lib/android/sdk/ndk/26.* || true
+          sudo rm -rf /usr/local/lib/android/sdk/ndk/25.* || true
+          sudo rm -rf /usr/local/lib/android/sdk/ndk/24.* || true
+          sudo rm -rf /usr/local/lib/android/sdk/ndk/23.* || true
+          sudo rm -rf /usr/local/lib/android/sdk/platforms/android-2* || true
+          sudo rm -rf /usr/local/lib/android/sdk/system-images || true
+          sudo rm -rf /usr/local/lib/android/sdk/emulator || true
+          sudo rm -rf /opt/hostedtoolcache/CodeQL || true
+          sudo rm -rf /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/8* || true
+          sudo rm -rf /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/11* || true
+          sudo rm -rf /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/21* || true
+          sudo rm -rf /opt/ghc || true
+          sudo rm -rf /usr/local/share/chromium || true
+          sudo rm -rf /usr/local/share/powershell || true
+          sudo rm -rf /usr/local/aws-cli || true
+          sudo rm -rf /opt/microsoft || true
+          sudo rm -rf /usr/share/swift || true
+          sudo rm -rf /usr/local/.ghcup || true
+          sudo rm -rf /usr/local/lib/node_modules || true
+          sudo apt-get clean || true
+          docker image prune -af || true
+          docker system prune -af || true
+          echo "=== after ==="
+          df -h /
+
       - name: Checkout
         uses: actions/checkout@v4
         with:
