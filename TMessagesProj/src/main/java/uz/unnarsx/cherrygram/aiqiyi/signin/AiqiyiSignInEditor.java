@@ -203,6 +203,12 @@ public class AiqiyiSignInEditor {
         if (task.status == null || "未执行".equals(task.status) || task.status.startsWith("失败")) {
             task.status = "等待执行";
         }
+        // [Aiqiyi FIX-RESOLVE] 本地缓存没解析到，不直接判失败 ——
+        // 交给服务器 contacts.resolveUsername 去查，查到了再回填。
+        // 注意必须放在状态重置之后，否则「正在解析目标…」会被上面那段覆盖掉。
+        if (task.dialogId == 0) {
+            scheduleRemoteResolve(account, task, target);
+        }
         task.lastRunDay = 0;
         task.retryDay = 0;
         task.pendingMessageId = 0;
@@ -213,6 +219,52 @@ public class AiqiyiSignInEditor {
             onSaved.run();
         }
         return true;
+    }
+
+    /**
+     * [Aiqiyi FIX-RESOLVE] 异步解析用户名。
+     * <p>
+     * 原来的 resolveDialogId 只查本地缓存，从来没私聊过的账号一律返回 0，
+     * 于是手动输入 @SpamBot 也会报「目标无法解析」。
+     * 这里改为向服务器发起 contacts.resolveUsername，成功后回填 dialogId。
+     */
+    private void scheduleRemoteResolve(int account, AiqiyiSignInHelper.Task task, String target) {
+        try {
+            String userName = target.trim();
+            if (userName.startsWith("https://t.me/") || userName.startsWith("t.me/")) {
+                userName = userName.substring(userName.lastIndexOf('/') + 1);
+            }
+            while (userName.startsWith("@")) {
+                userName = userName.substring(1);
+            }
+            if (TextUtils.isEmpty(userName) || userName.matches("\\d+")) {
+                return;
+            }
+            final String finalName = userName;
+            task.status = "正在解析目标…";
+            org.telegram.messenger.FileLog.d("[Aiqiyi] resolve remote: " + finalName);
+            fragment.getMessagesController().getUserNameResolver().resolve(finalName, peerId -> {
+                try {
+                    if (peerId == null || peerId == 0 || peerId == Long.MAX_VALUE) {
+                        task.status = "失败：目标无法解析，请检查用户名";
+                        org.telegram.messenger.FileLog.e("[Aiqiyi] resolve failed: " + finalName);
+                    } else {
+                        task.dialogId = peerId;
+                        task.status = "等待执行";
+                        org.telegram.messenger.FileLog.d("[Aiqiyi] resolved " + finalName + " -> " + peerId);
+                    }
+                    AiqiyiSignInHelper.saveTasks(account, AiqiyiSignInHelper.getTasks(account));
+                    AiqiyiSignInScheduler.reschedule(account);
+                    if (onSaved != null) {
+                        onSaved.run();
+                    }
+                } catch (Throwable e) {
+                    org.telegram.messenger.FileLog.e(e);
+                }
+            });
+        } catch (Throwable e) {
+            org.telegram.messenger.FileLog.e(e);
+        }
     }
 
     /**
@@ -260,6 +312,20 @@ public class AiqiyiSignInEditor {
             }
             if (resolved instanceof org.telegram.tgnet.TLRPC.Chat) {
                 return -((org.telegram.tgnet.TLRPC.Chat) resolved).id;
+            }
+            // [Aiqiyi FIX-RESOLVE] getUserOrChat 走的是本地缓存，
+            // 从没私聊过的账号（比如第一次用的 @SpamBot）必然 miss。
+            // 这里再扫一遍用户/群列表，命中就返回，避免无谓的网络请求。
+            org.telegram.messenger.MessagesController mc = fragment.getMessagesController();
+            for (org.telegram.tgnet.TLRPC.User u : mc.getUsers()) {
+                if (u != null && t.equalsIgnoreCase(u.username)) {
+                    return u.id;
+                }
+            }
+            for (org.telegram.tgnet.TLRPC.Chat c : mc.getChats()) {
+                if (c != null && t.equalsIgnoreCase(c.username)) {
+                    return -c.id;
+                }
             }
         } catch (Throwable ignored) {
         }

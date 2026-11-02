@@ -503,11 +503,81 @@ public final class AiqiyiSignInHelper {
         return submitted;
     }
 
+    /**
+     * [Aiqiyi FIX-RESOLVE] 把 task.target 交给服务器解析成 dialogId，成功后立刻重投一次。
+     * 解析是异步的，所以本次调用返回 false，状态由回调更新。
+     */
+    private static void resolveThenRetry(int account, Task task) {
+        try {
+            String userName = task.target == null ? "" : task.target.trim();
+            if (userName.startsWith("https://t.me/") || userName.startsWith("t.me/")) {
+                userName = userName.substring(userName.lastIndexOf('/') + 1);
+            }
+            while (userName.startsWith("@")) {
+                userName = userName.substring(1);
+            }
+            // 纯数字直接当 id 用
+            if (userName.matches("\\d+")) {
+                long id = Long.parseLong(userName);
+                task.dialogId = id;
+                task.status = "等待执行";
+                resubmitLater(account, task);
+                return;
+            }
+            if (TextUtils.isEmpty(userName)) {
+                task.status = "失败：目标为空";
+                return;
+            }
+            final String finalName = userName;
+            AccountInstance.getInstance(account).getMessagesController()
+                    .getUserNameResolver()
+                    .resolve(finalName, peerId -> {
+                        try {
+                            ArrayList<Task> tasks = getTasks(account);
+                            if (peerId == null || peerId == 0 || peerId == Long.MAX_VALUE) {
+                                task.status = "失败：目标无法解析，请检查用户名";
+                                FileLog.e("[Aiqiyi] resolve failed: " + finalName);
+                                saveTasksWithoutReschedule(account, tasks);
+                                return;
+                            }
+                            task.dialogId = peerId;
+                            task.status = "等待执行";
+                            FileLog.d("[Aiqiyi] resolved " + finalName + " -> " + peerId);
+                            saveTasksWithoutReschedule(account, tasks);
+                            resubmitLater(account, task);
+                        } catch (Throwable e) {
+                            FileLog.e(e);
+                        }
+                    });
+        } catch (Throwable e) {
+            FileLog.e(e);
+            task.status = "失败：解析异常";
+        }
+    }
+
+    /** 解析成功后稍等一拍再发，避免和 putUsers/putChats 抢时序。 */
+    private static void resubmitLater(int account, Task task) {
+        org.telegram.messenger.AndroidUtilities.runOnUIThread(() -> {
+            try {
+                ArrayList<Task> tasks = getTasks(account);
+                submit(account, task);
+                saveTasksWithoutReschedule(account, tasks);
+                AiqiyiSignInScheduler.reschedule(account);
+            } catch (Throwable e) {
+                FileLog.e(e);
+            }
+        }, 600);
+    }
+
     /** Shared submission path for manual execution. */
     private static boolean submit(int account, Task task) {
         try {
             if (task.dialogId == 0) {
-                task.status = "失败：目标无法解析，请重新选择";
+                // [Aiqiyi FIX-RESOLVE] 原实现直接判死，用户改完用户名后点「重发」永远失败。
+                // 这里先向服务器解析一次，拿到 dialogId 后自动重投。
+                task.status = "正在解析目标…";
+                FileLog.d("[Aiqiyi] submit: resolving " + task.target);
+                resolveThenRetry(account, task);
                 return false;
             }
             if (!isConnected(account)) {
