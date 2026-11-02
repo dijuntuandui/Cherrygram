@@ -401,7 +401,19 @@ public class AiqiyiSignInEditor {
                 });
                 return true;
             });
-            fragment.presentFragment(picker);
+            // [Aiqiyi FIX-PICK-4] 不用 fragment.presentFragment：Editor 只是个 AlertDialog，
+            // 它的宿主 AiqiyiSignInTasksEntry 一旦被压到栈底，弹窗与 picker 的层级关系就乱了，
+            // 实机上表现为「点了没反应」。改走 Activity 层压栈，与弹窗解耦。
+            org.telegram.ui.LaunchActivity la =
+                    (org.telegram.ui.LaunchActivity) fragment.getParentActivity();
+            boolean pushed;
+            if (la != null) {
+                // LaunchActivity 只有 (fragment, removeLast, forceWithoutAnimation) 三参版本。
+                pushed = la.presentFragment(picker, false, false);
+            } else {
+                pushed = fragment.presentFragment(picker);
+            }
+            org.telegram.messenger.FileLog.d("[Aiqiyi] pickTarget: pushed=" + pushed);
         } catch (Throwable e) {
             org.telegram.messenger.FileLog.e(e);
             // [Aiqiyi FIX-PICK] 原先只 FileLog.e，正式包里看不到；补一条明确标记便于现场取证。
