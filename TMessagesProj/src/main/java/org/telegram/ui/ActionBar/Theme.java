@@ -9108,11 +9108,15 @@ public class Theme {
     private static final int GLASS_NO_OVERRIDE = 0x80000000;
 
     private static int getAiqiyiGlassBubbleColor(int key) {
+        // [Aiqiyi GLASS-BUBBLE] alpha 调低到跟黄昏图片差不多的程度：
+        // 0x36(54) 太厚，背景看不清；改 0x22(34) 为常态。
+        // 选中时提一点到 0x30(48)，保留选中可感知。
+        // 带一点冷灰而不是纯白，否则在暗色壁纸上会发白斑。
         if (key == key_chat_inBubble || key == key_chat_outBubble) {
-            return 0x36FFFFFF;
+            return 0x22EFF3F8;
         }
         if (key == key_chat_inBubbleSelected || key == key_chat_outBubbleSelected) {
-            return 0x4AFFFFFF;
+            return 0x30EFF3F8;
         }
         if (key == key_chat_inBubbleSelectedOverlay || key == key_chat_outBubbleSelectedOverlay
                 || key == key_chat_inBubbleShadow || key == key_chat_outBubbleShadow
