@@ -121,8 +121,12 @@ public class AiqiyiSignInEditor {
             targetField.setText(editing.target);
             contentField.setText(editing.content);
             timeField.setText(TextUtils.isEmpty(editing.time) ? "00:01" : editing.time);
+            // [Aiqiyi FIX-PICK-2] 编辑已有任务时沿用其 dialogId，
+            // 用户若重新点选择器则会覆盖成新的。
+            pickedDialogId = editing.dialogId;
         } else {
             timeField.setText("00:01");
+            pickedDialogId = 0;
         }
 
         AlertDialog.Builder builder = new AlertDialog.Builder(fragment.getParentActivity());
@@ -171,7 +175,10 @@ public class AiqiyiSignInEditor {
         task.target = target;
         task.content = content;
         task.time = time;
-        task.dialogId = resolveDialogId(target);
+        // [Aiqiyi FIX-PICK-2] 选择器给出的 id 最可信，直接用它；
+        // 只有当目标被手动改写过（与选择结果不一致）时才回退到字符串解析。
+        long resolved = resolveDialogId(target);
+        task.dialogId = pickedDialogId != 0 ? pickedDialogId : resolved;
         // A changed schedule deserves a clean slate.
         if (task.status == null || "未执行".equals(task.status) || task.status.startsWith("失败")) {
             task.status = "等待执行";
@@ -193,6 +200,13 @@ public class AiqiyiSignInEditor {
      * Falls back to 0 (unresolved) which simply means the task cannot fire
      * until the peer is resolved by the sender at run time.
      */
+    /**
+     * [Aiqiyi FIX-PICK-2] 选择器直接拿到的 dialogId。
+     * 存下来可以让 save() 跳过「字符串反解析」这一步，
+     * 避免对没有本地缓存的用户名解析失败返回 0 的情况。
+     */
+    private long pickedDialogId = 0;
+
     private long resolveDialogId(String target) {
         try {
             String t = target.trim();
@@ -237,22 +251,41 @@ public class AiqiyiSignInEditor {
             args.putBoolean("canSelectTopics", false);
             args.putBoolean("allowSwitchAccount", false);
             args.putInt("dialogsType", org.telegram.ui.DialogsActivity.DIALOGS_TYPE_FORWARD);
-            args.putString("selectAlertString", getString(R.string.AQY_SignIn_TargetLabel));
-            args.putString("selectAlertStringGroup", getString(R.string.AQY_SignIn_TargetLabel));
+            // [Aiqiyi FIX-PICK-2] 原先这里传了 selectAlertString / selectAlertStringGroup，
+            // 导致 DialogsActivity 走进两条致命分支：
+            //   1) onItemClick 里 `initialDialogsType == FORWARD && selectAlertString != null`
+            //      -> 仅执行 addOrRemoveSelectedDialog() 打勾，不回调 delegate；
+            //   2) 即便到达 didSelectResult，也会命中
+            //      `useAlert && selectAlertString != null && selectAlertStringGroup != null`
+            //      -> 弹出「发送到 xxx？」确认框，与签到无关。
+            // 而 doneItem（右上角完成）只在 `!onlySelect` 时才创建，
+            // 于是勾上了却没有任何按钮可以确认 —— 用户看到的就是「点了没反应」。
+            // 置空后点击直接落到 didSelectResult 的纯 delegate 分支，一次即回。
+            args.putString("selectAlertString", null);
+            args.putString("selectAlertStringGroup", null);
 
             org.telegram.ui.DialogsActivity picker = new org.telegram.ui.DialogsActivity(args);
             picker.setDelegate((fragment1, dids, message, param, notify, scheduleDate, scheduleRepeatPeriod, topicsFragment) -> {
                 org.telegram.messenger.FileLog.d("[Aiqiyi] pickTarget: delegate called, size=" + (dids == null ? -1 : dids.size()));
                 if (dids == null || dids.isEmpty()) {
+                    // [Aiqiyi FIX-PICK-2] 空结果说明选择流程没把 TopicKey 带回来，
+                    // 保底也要退出选择页，否则会卡在 picker 里。
+                    fragment1.finishFragment();
                     return true;
                 }
                 long dialogId = dids.get(0).dialogId;
+                pickedDialogId = dialogId;
                 String handle = resolveHandle(dialogId);
+                org.telegram.messenger.FileLog.d("[Aiqiyi] pickTarget: dialogId=" + dialogId + " handle=" + handle);
                 if (!TextUtils.isEmpty(handle) && targetField != null) {
                     targetField.setText(handle);
                     targetField.setSelection(handle.length());
                 }
-                fragment1.finishFragment();
+                // [Aiqiyi FIX-PICK-2] 以 picker 自身为出栈目标；Editor 是弹窗不是 fragment，
+                // 直接 finish 掉 picker 即可回到 Editor。
+                if (fragment1 != null) {
+                    fragment1.finishFragment();
+                }
                 return true;
             });
             fragment.presentFragment(picker);
