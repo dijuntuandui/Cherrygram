@@ -403,6 +403,12 @@ public class AiqiyiSignInEditor {
             org.telegram.ui.DialogsActivity picker = new org.telegram.ui.DialogsActivity(args);
             picker.setDelegate((fragment1, dids, message, param, notify, scheduleDate, scheduleRepeatPeriod, topicsFragment) -> {
                 org.telegram.messenger.FileLog.d("[Aiqiyi] pickTarget: delegate called, size=" + (dids == null ? -1 : dids.size()));
+                try {
+                    android.widget.Toast.makeText(fragment1 != null ? fragment1.getParentActivity() : null,
+                            "delegate size=" + (dids == null ? -1 : dids.size()),
+                            android.widget.Toast.LENGTH_SHORT).show();
+                } catch (Throwable ignored) {
+                }
                 if (dids == null || dids.isEmpty()) {
                     // [Aiqiyi FIX-PICK-2] 空结果说明选择流程没把 TopicKey 带回来，
                     // 保底也要退出选择页，否则会卡在 picker 里。
@@ -463,6 +469,12 @@ public class AiqiyiSignInEditor {
             // 弹窗遮挡问题已由前面的 dialog.dismiss() 解决，两者互不冲突。
             boolean pushed = fragment.presentFragment(picker);
             org.telegram.messenger.FileLog.d("[Aiqiyi] pickTarget: pushed=" + pushed);
+            try {
+                android.widget.Toast.makeText(fragment.getParentActivity(),
+                        "picker pushed=" + pushed + " | " + fragment.getClass().getSimpleName(),
+                        android.widget.Toast.LENGTH_LONG).show();
+            } catch (Throwable ignored) {
+            }
         } catch (Throwable e) {
             org.telegram.messenger.FileLog.e(e);
             // [Aiqiyi FIX-PICK] 原先只 FileLog.e，正式包里看不到；补一条明确标记便于现场取证。
