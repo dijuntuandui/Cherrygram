@@ -9089,6 +9089,15 @@ public class Theme {
     }
 
     public static int getCurrentColor(int key) {
+        // [Aiqiyi GLASS-BUBBLE] MessageDrawable.updateColors 里渐变三色走的是
+        // getCurrentColor 而不是 getColor（直接读 currentColors），所以
+        // 只在 getColor 里拦截会漏掉自己发的气泡。这里也要拦。
+        if (isAiqiyiGlassEnabled()) {
+            final int glass = getAiqiyiGlassBubbleColor(key);
+            if (glass != GLASS_NO_OVERRIDE) {
+                return glass;
+            }
+        }
         return currentColors.get(key);
     }
 
@@ -9118,11 +9127,18 @@ public class Theme {
         if (key == key_chat_inBubbleSelected || key == key_chat_outBubbleSelected) {
             return 0x30EFF3F8;
         }
+        if (key == key_chat_outBubbleGradient1 || key == key_chat_outBubbleGradient2
+                || key == key_chat_outBubbleGradient3 || key == key_chat_outBubbleGradientAnimated) {
+            // [Aiqiyi GLASS-BUBBLE] 返回 0 而不是透明色：
+            // MessageDrawable 用 gradientColor1 != 0 作为“走渐变”的判据。
+            // 返回 0 会让它落到 else if (gradientColor1 == 0) 分支，
+            // 直接用我们拦出来的 0x22EFF3F8 画纯色气泡，
+            // 收发两边才能统一成同一种半透明效果。
+            return 0;
+        }
         if (key == key_chat_inBubbleSelectedOverlay || key == key_chat_outBubbleSelectedOverlay
                 || key == key_chat_inBubbleShadow || key == key_chat_outBubbleShadow
-                || key == key_chat_outBubbleGradient1 || key == key_chat_outBubbleGradient2
-                || key == key_chat_outBubbleGradient3 || key == key_chat_outBubbleGradientSelectedOverlay
-                || key == key_chat_outBubbleGradientAnimated) {
+                || key == key_chat_outBubbleGradientSelectedOverlay) {
             return 0x00FFFFFF;
         }
         return GLASS_NO_OVERRIDE;
