@@ -49,6 +49,8 @@ public class AiqiyiSignInEditor {
     private EditText targetField;
     private EditText contentField;
     private EditText timeField;
+    // [Aiqiyi FIX-PICK-5] 弹窗要能被 pickTarget() 拿到，压栈前先关掉。
+    private AlertDialog dialog;
 
     /**
      * @param fragment  host fragment (used for context, bulletins, dialog)
@@ -123,10 +125,16 @@ public class AiqiyiSignInEditor {
             timeField.setText(TextUtils.isEmpty(editing.time) ? "00:01" : editing.time);
             // [Aiqiyi FIX-PICK-2] 编辑已有任务时沿用其 dialogId，
             // 用户若重新点选择器则会覆盖成新的。
-            pickedDialogId = editing.dialogId;
+            // [Aiqiyi FIX-PICK-5] 但选择器刚返回时，pickedDialogId 才是最新的，
+            // 这里必须放过，否则用户新选的聊天会被旧 id 顶掉。
+            if (!returningFromPicker) {
+                pickedDialogId = editing.dialogId;
+            }
         } else {
             timeField.setText("00:01");
-            pickedDialogId = 0;
+            if (!returningFromPicker) {
+                pickedDialogId = 0;
+            }
         }
         // [Aiqiyi FIX-PICK-3] 从选择器返回后重开弹窗，把暂存的输入恢复回来。
         if (pendingTarget != null) {
@@ -139,13 +147,19 @@ public class AiqiyiSignInEditor {
         if (pendingTime != null) {
             timeField.setText(pendingTime);
         }
+        // 恢复完成，标记与暂存一起复位；下次从列表正常打开编辑时按 editing 走。
+        // 不清空 pending* 的话，用户取消编辑后再次新建任务会被上一轮的残留值污染。
+        returningFromPicker = false;
+        pendingTarget = null;
+        pendingContent = null;
+        pendingTime = null;
 
         AlertDialog.Builder builder = new AlertDialog.Builder(fragment.getParentActivity());
         builder.setTitle(getString(R.string.AQY_SignIn_TargetTitle));
         builder.setView(root);
         builder.setNegativeButton(getString(R.string.AQY_SignIn_Cancel), null);
 
-        AlertDialog dialog = builder.create();
+        dialog = builder.create();
         // Validate inside the click listener so the dialog only closes on success.
         dialog.setPositiveButton(getString(R.string.AQY_SignIn_Save), (d, which) -> {
             if (save(account, tasks, editIndex)) {
@@ -288,6 +302,9 @@ public class AiqiyiSignInEditor {
     private String pendingTarget = null;
     private String pendingContent = null;
     private String pendingTime = null;
+    // [Aiqiyi FIX-PICK-5] 标记本次 show() 是选择器返回后重开的，
+    // 此时 pickedDialogId 已经是新选的值，不能再被 editing.dialogId 盖掉。
+    private boolean returningFromPicker = false;
 
     private long resolveDialogId(String target) {
         try {
@@ -353,6 +370,18 @@ public class AiqiyiSignInEditor {
             if (timeField != null) {
                 pendingTime = timeField.getText().toString();
             }
+            // [Aiqiyi FIX-PICK-5] 关键一步：AlertDialog 是独立 Window，
+            // 它不随 presentFragment 压栈一起消失，会一直盖在 DialogsActivity 上，
+            // 用户看到的“点了没反应”就是它。必须先把弹窗关掉再压栈。
+            // 输入内容已经暂存到 pending*，delegate 回来后 show() 会恢复。
+            if (dialog != null) {
+                try {
+                    dialog.dismiss();
+                    org.telegram.messenger.FileLog.d("[Aiqiyi] pickTarget: dialog dismissed");
+                } catch (Throwable ignored) {
+                }
+                dialog = null;
+            }
             android.os.Bundle args = new android.os.Bundle();
             args.putBoolean("onlySelect", true);
             args.putBoolean("canSelectTopics", false);
@@ -377,7 +406,19 @@ public class AiqiyiSignInEditor {
                 if (dids == null || dids.isEmpty()) {
                     // [Aiqiyi FIX-PICK-2] 空结果说明选择流程没把 TopicKey 带回来，
                     // 保底也要退出选择页，否则会卡在 picker 里。
-                    fragment1.finishFragment();
+                    // [Aiqiyi FIX-PICK-5] 弹窗已在压栈前关掉，取消选择后要恢复，
+                    // 否则用户点了取消就再也回不到编辑界面、已填内容也丢了。
+                    if (fragment1 != null) {
+                        fragment1.finishFragment();
+                    }
+                    android.os.Handler h2 = new android.os.Handler(android.os.Looper.getMainLooper());
+                    h2.postDelayed(() -> {
+                        try {
+                            show();
+                        } catch (Throwable e) {
+                            org.telegram.messenger.FileLog.e(e);
+                        }
+                    }, 120);
                     return true;
                 }
                 long dialogId = dids.get(0).dialogId;
@@ -392,14 +433,26 @@ public class AiqiyiSignInEditor {
                 if (fragment1 != null) {
                     fragment1.finishFragment();
                 }
-                // 重开编辑弹窗，把选择结果与原有输入一起带回来。
-                fragment.getParentActivity().runOnUiThread(() -> {
+                // [Aiqiyi FIX-PICK-5] 重开编辑弹窗，把选择结果与原有输入一起带回来。
+                // 延后一帧：此时 picker 可能还没完成退栈动画，立即 show() 会和它抢焦点，
+                // 实机上表现为新弹窗一闪即逝。
+                android.os.Handler h = new android.os.Handler(android.os.Looper.getMainLooper());
+                h.postDelayed(() -> {
                     try {
+                        if (dialog != null) {
+                            try {
+                                dialog.dismiss();
+                            } catch (Throwable ignored) {
+                            }
+                            dialog = null;
+                        }
+                        returningFromPicker = true;
                         show();
+                        org.telegram.messenger.FileLog.d("[Aiqiyi] pickTarget: editor reopened");
                     } catch (Throwable e) {
                         org.telegram.messenger.FileLog.e(e);
                     }
-                });
+                }, 120);
                 return true;
             });
             // [Aiqiyi FIX-PICK-4] 不用 fragment.presentFragment：Editor 只是个 AlertDialog，
