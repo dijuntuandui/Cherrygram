@@ -154,7 +154,12 @@ public class AiqiyiSignInEditor {
         pendingContent = null;
         pendingTime = null;
 
-        AlertDialog.Builder builder = new AlertDialog.Builder(fragment.getParentActivity());
+        // [Aiqiyi FIX-PICK-8] 用 context（构造时已缓存，退了栈也不为 null）创建 Builder。
+        // 原实现用 fragment.getParentActivity()，picker 退栈动画期间该值可能为 null，
+        // new AlertDialog.Builder(null) 直接 NPE，被 catch(Throwable) 静默吞掉，
+        // 实机表现就是“选了会话、picker 正常退栈、编辑窗却再也没回来”。
+        AlertDialog.Builder builder = new AlertDialog.Builder(
+                fragment.getParentActivity() != null ? fragment.getParentActivity() : context);
         builder.setTitle(getString(R.string.AQY_SignIn_TargetTitle));
         builder.setView(root);
         builder.setNegativeButton(getString(R.string.AQY_SignIn_Cancel), null);
@@ -166,7 +171,51 @@ public class AiqiyiSignInEditor {
                 d.dismiss();
             }
         });
-        fragment.showDialog(dialog);
+        // [Aiqiyi FIX-PICK-8] showDialog 要求宿主 fragment 已在前台，
+        // 从 picker 回来时它可能还在退栈动画里，直接调用会被 ActionBarLayout 忽略。
+        // 这里探活：不在前台就每 80ms 重试一次，最多 12 次（约 1s）。
+        showDialogWithRetry(0);
+    }
+
+    /**
+     * [Aiqiyi FIX-PICK-8] 等宿主 fragment 真正回到前台再把编辑弹窗怼上去。
+     * 判定条件：parentActivity 非空、fragment 未在退栈、且 Layout 上它就是栈顶。
+     */
+    private void showDialogWithRetry(final int attempt) {
+        if (dialog == null) {
+            return;
+        }
+        if (attempt > 12) {
+            org.telegram.messenger.FileLog.e("[Aiqiyi] pickTarget: showDialog gave up after 12 retries");
+            try {
+                android.widget.Toast.makeText(context, "showDialog 重试耗尽", android.widget.Toast.LENGTH_LONG).show();
+            } catch (Throwable ignored) {
+            }
+            return;
+        }
+        boolean ready;
+        try {
+            // INavigationLayout 才有 checkTransitionAnimation()/getLastFragment()，
+            // BaseFragment 上并没有 isInTransitionAnimation 这个方法。
+            org.telegram.ui.ActionBar.INavigationLayout layout = fragment.getParentLayout();
+            ready = fragment.getParentActivity() != null
+                    && layout != null
+                    && !layout.checkTransitionAnimation()
+                    && layout.getLastFragment() == fragment;
+        } catch (Throwable t) {
+            ready = false;
+        }
+        if (ready) {
+            try {
+                fragment.showDialog(dialog);
+                org.telegram.messenger.FileLog.d("[Aiqiyi] pickTarget: editor reopened at attempt " + attempt);
+            } catch (Throwable t) {
+                org.telegram.messenger.FileLog.e(t);
+            }
+            return;
+        }
+        new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(
+                () -> showDialogWithRetry(attempt + 1), 80);
     }
 
     private boolean save(int account, ArrayList<AiqiyiSignInHelper.Task> tasks, int index) {
