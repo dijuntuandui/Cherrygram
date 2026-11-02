@@ -48309,7 +48309,23 @@ public class ChatActivity extends BaseFragment implements
                 count += glassBackgroundSourceRenderNode.getVisiblePositions(positions, count, dp(8));
             }
 
-            return count;
+            // [Aiqiyi FIX-BLUR-DEGENERATE] 过滤退化矩形。
+            // 刚加入的 drawable 尚未调 setBounds() 时得到 (0,0,0,0)，
+            // RectFMergeBounding 的 EPS=1e-4f 会让它与任意矩形相交，
+            // 把包围盒 left 拉到 0 或 W，玻璃采样框就贴左右边缘。
+            // 合并为贪心+重扫，先吞谁取决于遍历顺序，所以表现为左右随机。
+            int aiqiyiValidCount = 0;
+            for (int aiqiyiI = 0; aiqiyiI < count; aiqiyiI++) {
+                final RectF aiqiyiRect = positions.get(aiqiyiI);
+                if (aiqiyiRect == null || aiqiyiRect.width() <= 0f || aiqiyiRect.height() <= 0f) {
+                    continue;
+                }
+                if (aiqiyiValidCount != aiqiyiI) {
+                    positions.get(aiqiyiValidCount).set(aiqiyiRect);
+                }
+                aiqiyiValidCount++;
+            }
+            return aiqiyiValidCount;
         } else {
             return 0;
         }
