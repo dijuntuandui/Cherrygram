@@ -637,6 +637,12 @@ public class MessageDrawable extends Drawable {
         }
     }
 
+    // [Aiqiyi FIX-BLUR-PATH-SHARED] glass 分支专用路径与缓存边界
+    private Path liquidGlassPath;
+    private final Rect liquidGlassPathBounds = new Rect();
+    private boolean liquidGlassPathIsOut;
+    private int liquidGlassPathType = -1;
+
     private Paint liquidGlassFillPaint;
     private Paint liquidGlassStrokePaint;
     private Paint liquidGlassHighlightPaint;
@@ -662,15 +668,31 @@ public class MessageDrawable extends Drawable {
         if (path == null) {
             path = new Path();
         }
-        if (pathDrawCacheParams != null && pathDrawCacheParams.path != null) {
-            // reuse the shared path object, same as the opaque branch
-            path = pathDrawCacheParams.path;
-            boolean invalidatePath = pathDrawCacheParams.invalidatePath(bounds, true, true);
-            if (invalidatePath) {
-                generatePath(path, bounds, padding, rad, smallRad, nearRad, top, true, true, true);
-            }
+        // [Aiqiyi FIX-BLUR-PATH-SHARED] 不要复用 pathDrawCacheParams 共享缓存。
+        // 正常分支调用 invalidatePath(bounds, drawFullBottom, drawFullTop) 时，
+        // 会把 lastRect 设成当前 bounds。glass 分支拿同一个 bounds 再调
+        // invalidatePath(bounds, true, true)，条件退化为“bounds 没变”，于是直接
+        // 复用了正常分支生成的 path。但那份 path 是
+        // customPaint=false 生成的（只画半截，用 top-topY+currentBackgroundHeight 定位），
+        // 与玻璃需要的整个气泡轮廓不一致，导致气泡左边界随内容
+        // 变化而右边界整齐对齐的错位。
+        // glass 分支自己保留一份 path，每次按 bounds 重算。
+        if (liquidGlassPath == null) {
+            liquidGlassPath = new Path();
+        }
+        // 缓存键必须包含 isOut / currentType：MessageDrawable 实例在 cell
+        // 之间复用，同尺寸的一条收一条发会碰上 bounds 完全相同，
+        // 但路径形状是不一样的（左下角 / 右下角圆角位置不同）。
+        if (liquidGlassPathBounds.equals(bounds)
+                && liquidGlassPathIsOut == isOut
+                && liquidGlassPathType == currentType) {
+            path = liquidGlassPath;
         } else {
+            path = liquidGlassPath;
             generatePath(path, bounds, padding, rad, smallRad, nearRad, top, true, true, true);
+            liquidGlassPathBounds.set(bounds);
+            liquidGlassPathIsOut = isOut;
+            liquidGlassPathType = currentType;
         }
 
         // Base color of this bubble.
