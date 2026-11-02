@@ -455,18 +455,13 @@ public class AiqiyiSignInEditor {
                 }, 120);
                 return true;
             });
-            // [Aiqiyi FIX-PICK-4] 不用 fragment.presentFragment：Editor 只是个 AlertDialog，
-            // 它的宿主 AiqiyiSignInTasksEntry 一旦被压到栈底，弹窗与 picker 的层级关系就乱了，
-            // 实机上表现为「点了没反应」。改走 Activity 层压栈，与弹窗解耦。
-            org.telegram.ui.LaunchActivity la =
-                    (org.telegram.ui.LaunchActivity) fragment.getParentActivity();
-            boolean pushed;
-            if (la != null) {
-                // LaunchActivity 只有 (fragment, removeLast, forceWithoutAnimation) 三参版本。
-                pushed = la.presentFragment(picker, false, false);
-            } else {
-                pushed = fragment.presentFragment(picker);
-            }
+            // [Aiqiyi FIX-PICK-6] 根因：AiqiyiSignInTasksEntry 继承 BaseCGPreferencesEntry，
+            // 是 SettingsActivity 的子 Fragment，挂在 SettingsActivity 自己的 actionBarLayout 上。
+            // FIX-PICK-4 走 LaunchActivity.presentFragment 是往【主栈】压，
+            // 而当前前台是 SettingsActivity，压完立刻被弹回 —— 实机上就是 picker 一闪而过。
+            // 正确做法：走 fragment 自己的 presentFragment，压进 SettingsActivity 的栈。
+            // 弹窗遮挡问题已由前面的 dialog.dismiss() 解决，两者互不冲突。
+            boolean pushed = fragment.presentFragment(picker);
             org.telegram.messenger.FileLog.d("[Aiqiyi] pickTarget: pushed=" + pushed);
         } catch (Throwable e) {
             org.telegram.messenger.FileLog.e(e);
