@@ -9100,7 +9100,64 @@ public class Theme {
         return getColor(key, isDefault, false);
     }
 
+    // [Aiqiyi GLASS-BUBBLE] 玻璃气泡——仿黄昏做法：不动几何，只把气泡底色
+    // 替换成很低 alpha 的白，路径 / 圆角 / 位置全部走原生绘制。
+    // 之前那套自定义 drawLiquidGlass 重新生成 path 的做法已废弃：
+    // MessageDrawable 的 path 缓存在 cell 之间共享，自建缓存会引入幽灵状态。
+    // 哨兵值 GLASS_NO_OVERRIDE 表示“这个 key 不管”，继续走原生逻辑。
+    private static final int GLASS_NO_OVERRIDE = 0x80000000;
+
+    private static int getAiqiyiGlassBubbleColor(int key) {
+        if (key == key_chat_inBubble || key == key_chat_outBubble) {
+            return 0x36FFFFFF;
+        }
+        if (key == key_chat_inBubbleSelected || key == key_chat_outBubbleSelected) {
+            return 0x4AFFFFFF;
+        }
+        if (key == key_chat_inBubbleSelectedOverlay || key == key_chat_outBubbleSelectedOverlay
+                || key == key_chat_inBubbleShadow || key == key_chat_outBubbleShadow
+                || key == key_chat_outBubbleGradient1 || key == key_chat_outBubbleGradient2
+                || key == key_chat_outBubbleGradient3 || key == key_chat_outBubbleGradientSelectedOverlay
+                || key == key_chat_outBubbleGradientAnimated) {
+            return 0x00FFFFFF;
+        }
+        return GLASS_NO_OVERRIDE;
+    }
+
+    // [Aiqiyi GLASS-BUBBLE] 开关缓存。getColor 是每帧千次级的热路径，
+    // CherrygramMessagesConfig 的属性是 sharedPreferences 委托，每次访问都会读一次 prefs，
+    // 直接写在这里会拖慢滑动。改用静态缓存，由 setAiqiyiLiquidGlassBubble
+    // 的调用方通过 invalidateAiqiyiGlassCache() 刷新。
+    private static int aiqiyiGlassEnabled = -1;
+
+    public static void invalidateAiqiyiGlassCache() {
+        aiqiyiGlassEnabled = -1;
+    }
+
+    private static boolean isAiqiyiGlassEnabled() {
+        final int cached = aiqiyiGlassEnabled;
+        if (cached != -1) {
+            return cached == 1;
+        }
+        int value = 0;
+        try {
+            if (uz.unnarsx.cherrygram.core.configs.CherrygramMessagesConfig.INSTANCE.getAiqiyiLiquidGlassBubble()) {
+                value = 1;
+            }
+        } catch (Throwable ignored) {
+        }
+        aiqiyiGlassEnabled = value;
+        return value == 1;
+    }
+
     public static int getColor(int key, boolean[] isDefault, boolean ignoreAnimation) {
+        // [Aiqiyi GLASS-BUBBLE] 开关开启时，气泡相关 key 直接短路成透明色。
+        if (isAiqiyiGlassEnabled()) {
+            final int glass = getAiqiyiGlassBubbleColor(key);
+            if (glass != GLASS_NO_OVERRIDE) {
+                return glass;
+            }
+        }
         if (!ignoreAnimation && animatingColors != null) {
             int index = animatingColors.indexOfKey(key);
             if (index >= 0) {

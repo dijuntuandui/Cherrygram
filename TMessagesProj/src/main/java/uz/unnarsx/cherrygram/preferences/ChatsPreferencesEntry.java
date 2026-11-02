@@ -491,6 +491,8 @@ public class ChatsPreferencesEntry extends BaseCGPreferencesEntry {
             SettingsHelper.updateCheckState(view, CherrygramMessagesConfig.INSTANCE.getEnableMsgFilters());
         } else if (item.id == aqyLiquidGlassBubbleRow) {
             CherrygramMessagesConfig.INSTANCE.setAiqiyiLiquidGlassBubble(!CherrygramMessagesConfig.INSTANCE.getAiqiyiLiquidGlassBubble());
+            // [Aiqiyi GLASS-BUBBLE] Theme.getColor 里用了静态缓存，切开关时要失效。
+            org.telegram.ui.ActionBar.Theme.invalidateAiqiyiGlassCache();
             SettingsHelper.updateCheckState(view, CherrygramMessagesConfig.INSTANCE.getAiqiyiLiquidGlassBubble());
 
             getParentLayout().rebuildAllFragmentViews(false, false);
