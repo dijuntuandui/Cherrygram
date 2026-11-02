@@ -128,6 +128,17 @@ public class AiqiyiSignInEditor {
             timeField.setText("00:01");
             pickedDialogId = 0;
         }
+        // [Aiqiyi FIX-PICK-3] 从选择器返回后重开弹窗，把暂存的输入恢复回来。
+        if (pendingTarget != null) {
+            targetField.setText(pendingTarget);
+            targetField.setSelection(pendingTarget.length());
+        }
+        if (pendingContent != null) {
+            contentField.setText(pendingContent);
+        }
+        if (pendingTime != null) {
+            timeField.setText(pendingTime);
+        }
 
         AlertDialog.Builder builder = new AlertDialog.Builder(fragment.getParentActivity());
         builder.setTitle(getString(R.string.AQY_SignIn_TargetTitle));
@@ -175,10 +186,19 @@ public class AiqiyiSignInEditor {
         task.target = target;
         task.content = content;
         task.time = time;
-        // [Aiqiyi FIX-PICK-2] 选择器给出的 id 最可信，直接用它；
-        // 只有当目标被手动改写过（与选择结果不一致）时才回退到字符串解析。
+        // [Aiqiyi FIX-PICK-2/3] 选择器给出的 id 最可信，但只在「目标文本与选择结果一致」
+        // 时才采用；用户把 @abc 手动改成 @xyz 之后必须重新解析，否则会发给上一个。
         long resolved = resolveDialogId(target);
-        task.dialogId = pickedDialogId != 0 ? pickedDialogId : resolved;
+        if (pickedDialogId != 0) {
+            String pickedHandle = resolveHandle(pickedDialogId);
+            if (!TextUtils.isEmpty(pickedHandle) && pickedHandle.equals(target)) {
+                task.dialogId = pickedDialogId;
+            } else {
+                task.dialogId = resolved;
+            }
+        } else {
+            task.dialogId = resolved;
+        }
         // A changed schedule deserves a clean slate.
         if (task.status == null || "未执行".equals(task.status) || task.status.startsWith("失败")) {
             task.status = "等待执行";
@@ -206,6 +226,16 @@ public class AiqiyiSignInEditor {
      * 避免对没有本地缓存的用户名解析失败返回 0 的情况。
      */
     private long pickedDialogId = 0;
+
+    /**
+     * [Aiqiyi FIX-PICK-3] 弹窗被 presentFragment 挤到后台后会被销毁，
+     * 直接往 targetField 写值等于写进一个死掉的 View。
+     * 改成「暂存三件套 + 重开弹窗」：回调只负责把结果存进这里，
+     * 由 show() 下次创建界面时读回，不依赖 View 是否还活着。
+     */
+    private String pendingTarget = null;
+    private String pendingContent = null;
+    private String pendingTime = null;
 
     private long resolveDialogId(String target) {
         try {
@@ -246,6 +276,16 @@ public class AiqiyiSignInEditor {
             // [Aiqiyi FIX-PICK] 关键节点日志：原实现整段被 catch(Throwable) 静默吞掉，
             // 用户只看到“点了没反应”，无法定位是构造失败、delegate 未回调，还是 dids 为空。
             org.telegram.messenger.FileLog.d("[Aiqiyi] pickTarget: enter");
+            // [Aiqiyi FIX-PICK-3] 先把用户已填的内容暂存，选完回来重开弹窗时恢复。
+            if (targetField != null) {
+                pendingTarget = targetField.getText().toString();
+            }
+            if (contentField != null) {
+                pendingContent = contentField.getText().toString();
+            }
+            if (timeField != null) {
+                pendingTime = timeField.getText().toString();
+            }
             android.os.Bundle args = new android.os.Bundle();
             args.putBoolean("onlySelect", true);
             args.putBoolean("canSelectTopics", false);
@@ -277,15 +317,22 @@ public class AiqiyiSignInEditor {
                 pickedDialogId = dialogId;
                 String handle = resolveHandle(dialogId);
                 org.telegram.messenger.FileLog.d("[Aiqiyi] pickTarget: dialogId=" + dialogId + " handle=" + handle);
-                if (!TextUtils.isEmpty(handle) && targetField != null) {
-                    targetField.setText(handle);
-                    targetField.setSelection(handle.length());
+                if (!TextUtils.isEmpty(handle)) {
+                    // [Aiqiyi FIX-PICK-3] 不写 targetField —— 那个弹窗此刻已经不在前台了。
+                    // 存进 pending，重新 show() 时会读回来。
+                    pendingTarget = handle;
                 }
-                // [Aiqiyi FIX-PICK-2] 以 picker 自身为出栈目标；Editor 是弹窗不是 fragment，
-                // 直接 finish 掉 picker 即可回到 Editor。
                 if (fragment1 != null) {
                     fragment1.finishFragment();
                 }
+                // 重开编辑弹窗，把选择结果与原有输入一起带回来。
+                fragment.getParentActivity().runOnUiThread(() -> {
+                    try {
+                        show();
+                    } catch (Throwable e) {
+                        org.telegram.messenger.FileLog.e(e);
+                    }
+                });
                 return true;
             });
             fragment.presentFragment(picker);
