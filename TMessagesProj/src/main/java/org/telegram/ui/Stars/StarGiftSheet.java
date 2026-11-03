@@ -3560,7 +3560,7 @@ public void toggleWear() {
                     }
                     loading[0] = true;
                     final TL_stars.StarGift gift = getGift();
-                    GiftAuctionController.getInstance(currentAccount).requestAuctionUpgrades(gift.gift_id, attrs -> {
+                    GiftAuctionController.getInstance(currentAccount).requestAuctionUpgrades(gift_id, attrs -> {
                         if (attrs != null) {
                             new StarGiftPreviewSheet(getContext(), resourcesProvider, currentAccount, gift.title, attrs, false).show();
                         } else {
