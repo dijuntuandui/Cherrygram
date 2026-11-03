@@ -145,6 +145,14 @@ public class StarGiftPreviewSheet extends BottomSheetWithRecyclerListView {
         this.crafting = crafting;
 
         this.viewGroupPartRenderer = new ViewGroupPartRenderer(recyclerListView, container, recyclerListView::drawChild);
+        if (attributes != null) {
+            final StringBuilder _diag = new StringBuilder("[AiqiyiAttrs] n=" + attributes.size());
+            for (int _i = 0; _i < attributes.size(); _i++) {
+                final TL_stars.StarGiftAttribute _a = attributes.get(_i);
+                _diag.append(" | ").append(_a == null ? "null" : _a.getClass().getSimpleName() + ":" + _a.name + ":p=" + _a.getRarityPermille() + ":r=" + (_a.rarity == null ? "null" : _a.rarity.getClass().getSimpleName()));
+            }
+            FileLog.d(_diag.toString());
+        }
         this.backdrops = TlUtils.findAllInstances(attributes, TL_stars.starGiftAttributeBackdrop.class);
         this.rBackdrops = new BagRandomizer<>(backdrops);
         this.rBackdrops.setReshuffleIfEnd(false);
@@ -163,7 +171,13 @@ public class StarGiftPreviewSheet extends BottomSheetWithRecyclerListView {
                 }
             }
         } else {
-            this.simpleModels.clear();
+            // [Aiqiyi] 保留等级型模型，否则展示页只剩背景
+            for (int i = 0; i < this.models.size(); ++i) {
+                final TL_stars.starGiftAttributeModel model = this.models.get(i);
+                if (model.rarity instanceof TL_stars.TL_starGiftAttributeRarity) {
+                    this.simpleModels.add(model);
+                }
+            }
         }
         this.backdrops.sort(Comparator.comparingDouble(StarGiftPreviewSheet::getRarityIndex));
         this.patterns.sort(Comparator.comparingDouble(StarGiftPreviewSheet::getRarityIndex));
