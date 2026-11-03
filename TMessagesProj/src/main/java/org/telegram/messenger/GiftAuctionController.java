@@ -177,7 +177,7 @@ public class GiftAuctionController extends BaseController {
             getConnectionsManager().sendRequestTyped(req, AndroidUtilities::runOnUIThread, (res, err) -> {
                 final ArrayList<TL_stars.StarGiftAttribute> attrAttrs = res != null ? res.attributes : null;
                 final int attrCount = attrAttrs == null ? -1 : attrAttrs.size();
-                org.telegram.messenger.FileLog.d("[AiqiyiPool] giftId=" + giftId + " preview=" + previewCount + " attr=" + attrCount);
+                android.util.Log.d("AQY", "[AiqiyiPool] giftId=" + giftId + " preview=" + previewCount + " attr=" + attrCount);
 
                 // 取数量更多的那个池子
                 if (previewAttrs != null && !previewAttrs.isEmpty() && previewCount >= attrCount) {
