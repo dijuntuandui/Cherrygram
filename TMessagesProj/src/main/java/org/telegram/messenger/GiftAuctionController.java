@@ -160,8 +160,11 @@ public class GiftAuctionController extends BaseController {
     }
 
     private final LongSparseArray<Boolean> upgrades = new LongSparseArray<>();
+    // [Aiqiyi][DIAG2] 最近一次双接口探测结果
+    public static volatile String lastDiag = "";
 
     public void requestAuctionUpgrades(long giftId, Utilities.Callback<ArrayList<TL_stars.StarGiftAttribute>> callback) {
+        lastDiag = "id=" + giftId + "\n";
         // [Aiqiyi] 先试 getStarGiftUpgradePreview.sample_attributes（系列全量池），拿不到再回落到 getStarGiftUpgradeAttributes
         final TL_stars.getStarGiftUpgradePreview previewReq = new TL_stars.getStarGiftUpgradePreview();
         previewReq.gift_id = giftId;
@@ -170,6 +173,7 @@ public class GiftAuctionController extends BaseController {
                     pres instanceof TL_stars.starGiftUpgradePreview ? ((TL_stars.starGiftUpgradePreview) pres).sample_attributes : null;
             final int previewCount = previewAttrs == null ? -1 : previewAttrs.size();
             FileLog.d("[AiqiyiGiftDiag] preview giftId=" + giftId + " count=" + previewCount + " err=" + (perr == null ? "" : perr.text));
+            lastDiag += "preview n=" + previewCount + " err=" + (perr == null ? "-" : perr.text) + "\n";
 
             final TL_stars.getStarGiftUpgradeAttributes req = new TL_stars.getStarGiftUpgradeAttributes();
             req.gift_id = giftId;
@@ -177,6 +181,7 @@ public class GiftAuctionController extends BaseController {
                 final ArrayList<TL_stars.StarGiftAttribute> attrAttrs = res != null ? res.attributes : null;
                 final int attrCount = attrAttrs == null ? -1 : attrAttrs.size();
                 FileLog.d("[AiqiyiGiftDiag] upgradeAttributes giftId=" + giftId + " count=" + attrCount + " err=" + (err == null ? "" : err.text));
+                lastDiag += "attrs n=" + attrCount + " err=" + (err == null ? "-" : err.text) + "\n";
 
                 // 取数量更多的那个池子
                 if (previewAttrs != null && !previewAttrs.isEmpty() && previewCount >= attrCount) {
