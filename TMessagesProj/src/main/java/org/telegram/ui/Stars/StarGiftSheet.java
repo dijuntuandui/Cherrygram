@@ -76,6 +76,7 @@ import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TableRow;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -3562,7 +3563,35 @@ public void toggleWear() {
                     final TL_stars.StarGift gift = getGift();
                     final String previewTitle = gift != null && gift.title != null ? gift.title : "";
                     final long previewGiftId = gift != null ? gift.gift_id : 0L;
+                    // [Aiqiyi][DIAG] 排查：确认 gift_id / title / 类型，一次装包拿到证据
+                    try {
+                        final String diag = "giftId=" + previewGiftId
+                                + " title=" + previewTitle
+                                + " nullGift=" + (gift == null)
+                                + " cls=" + (gift == null ? "null" : gift.getClass().getSimpleName());
+                        FileLog.d("AiqiyiGiftDiag", diag);
+                        AndroidUtilities.runOnUIThread(() -> {
+                            try {
+                                final android.content.Context ctx1 = StarGiftSheet.this.getContext();
+                                if (ctx1 != null) {
+                                    Toast.makeText(ctx1, diag, Toast.LENGTH_LONG).show();
+                                }
+                            } catch (Throwable ignore) {}
+                        });
+                    } catch (Throwable ignore) {}
                     GiftAuctionController.getInstance(currentAccount).requestAuctionUpgrades(previewGiftId, attrs -> {
+                        try {
+                            FileLog.d("AiqiyiGiftDiag", "attrs=" + (attrs == null ? "null" : String.valueOf(attrs.size())));
+                            final String c = "attrs=" + (attrs == null ? "null" : String.valueOf(attrs.size()));
+                            AndroidUtilities.runOnUIThread(() -> {
+                                try {
+                                    final android.content.Context ctx2 = StarGiftSheet.this.getContext();
+                                    if (ctx2 != null) {
+                                        Toast.makeText(ctx2, c, Toast.LENGTH_LONG).show();
+                                    }
+                                } catch (Throwable ignore) {}
+                            });
+                        } catch (Throwable ignore) {}
                         // [Aiqiyi] 不再用本地属性兜底：接口给的池子就是真实数据，给多少显示多少
                         if (attrs != null && !attrs.isEmpty()) {
                             new StarGiftPreviewSheet(getContext(), resourcesProvider, currentAccount, previewTitle, attrs, false).show();
