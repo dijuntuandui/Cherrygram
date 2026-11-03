@@ -3582,14 +3582,24 @@ public void toggleWear() {
                     GiftAuctionController.getInstance(currentAccount).requestAuctionUpgrades(previewGiftId, attrs -> {
                         try {
                             FileLog.d("[AiqiyiGiftDiag] attrs=" + (attrs == null ? "null" : String.valueOf(attrs.size())));
-                            final String c = "attrs=" + (attrs == null ? "null" : String.valueOf(attrs.size()));
+                            final String c = "DIAG2\n" + GiftAuctionController.lastDiag
+                                    + "final=" + (attrs == null ? "null" : String.valueOf(attrs.size()));
                             AndroidUtilities.runOnUIThread(() -> {
                                 try {
                                     final android.content.Context ctx2 = StarGiftSheet.this.getContext();
                                     if (ctx2 != null) {
-                                        Toast.makeText(ctx2, c, Toast.LENGTH_LONG).show();
+                                        new android.app.AlertDialog.Builder(ctx2)
+                                                .setTitle("Gift Diag2")
+                                                .setMessage(c)
+                                                .setPositiveButton("OK", null)
+                                                .show();
                                     }
-                                } catch (Throwable ignore) {}
+                                } catch (Throwable t) {
+                                    try {
+                                        final android.content.Context ctx3 = StarGiftSheet.this.getContext();
+                                        if (ctx3 != null) Toast.makeText(ctx3, c, Toast.LENGTH_LONG).show();
+                                    } catch (Throwable ignore) {}
+                                }
                             });
                         } catch (Throwable ignore) {}
                         // [Aiqiyi] 不再用本地属性兜底：接口给的池子就是真实数据，给多少显示多少
