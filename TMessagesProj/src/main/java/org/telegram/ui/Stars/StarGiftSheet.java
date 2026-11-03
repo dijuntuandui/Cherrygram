@@ -3485,8 +3485,172 @@ public void toggleWear() {
         } else return;
 
         final Integer[] color = new Integer[1];
-        final CharSequence rarity = getRarityName(attr.rarity, color);
+        // [Aiqiyi][RARITY] 百分比类属性按名回查真实 permille
+        final CharSequence rarity = getRarityName(attr.name, attr.rarity, color);
         tableView.addRow(name, safeAttrName(attr), rarity, null, color[0]); // [Aiqiyi] null-safe
+    }
+
+    // ===== [Aiqiyi][RARITY] 稀有度真实值校正 =====
+    private static final java.util.HashMap<String, java.util.HashMap<String, Integer>> aiqiyiRarityPools = new java.util.HashMap<>();
+    private static final java.util.HashSet<Long> aiqiyiRarityLoading = new java.util.HashSet<>();
+    private static final java.util.HashSet<String> aiqiyiRarityFailed = new java.util.HashSet<>();
+
+    private static void aiqiyiStoreRarityPool(String key, ArrayList<TL_stars.StarGiftAttribute> attrs) {
+        final java.util.HashMap<String, Integer> map = new java.util.HashMap<>();
+        for (int i = 0; i < attrs.size(); i++) {
+            final TL_stars.StarGiftAttribute a = attrs.get(i);
+            if (a == null || a.name == null) continue;
+            final int p = a.getRarityPermille();
+            if (p > 0) map.put(a.name, p);
+        }
+        aiqiyiRarityPools.put(key, map);
+    }
+
+    // ===== [Aiqiyi][RARITY2] 无系列上下文时的全局按名反查 =====
+    // 属性名在系列内部唯一，跨系列可能重名；这里只接受「全池唯一命中」的情况，避免误配。
+    private static final java.util.HashMap<String, Integer> aiqiyiGlobalNamePool = new java.util.HashMap<>();
+    private static final java.util.HashSet<String> aiqiyiGlobalDup = new java.util.HashSet<>();
+    private static boolean aiqiyiGlobalPoolLoading = false;
+    private static boolean aiqiyiGlobalPoolReady = false;
+    private static final java.util.ArrayList<Runnable> aiqiyiPoolListeners = new java.util.ArrayList<>();
+
+    /** 池就绪时回调一次；已就绪则立即执行 */
+    public static void aiqiyiOnPoolReady(Runnable r) {
+        if (r == null) return;
+        if (aiqiyiGlobalPoolReady) {
+            r.run();
+        } else {
+            aiqiyiPoolListeners.add(r);
+            aiqiyiEnsureGlobalPool();
+        }
+    }
+
+    private static void aiqiyiEnsureGlobalPool() {
+        if (aiqiyiGlobalPoolReady || aiqiyiGlobalPoolLoading) return;
+        final StarsController sc;
+        try {
+            sc = StarsController.getInstance(0);
+        } catch (Throwable t) {
+            return;
+        }
+        if (sc == null || sc.gifts.isEmpty()) return;
+        aiqiyiGlobalPoolLoading = true;
+        final int total = sc.gifts.size();
+        final int[] remaining = new int[]{ total };
+        for (int i = 0; i < total; i++) {
+            final TL_stars.StarGift g = sc.gifts.get(i);
+            final TL_stars.getStarGiftUpgradePreview req = new TL_stars.getStarGiftUpgradePreview();
+            req.gift_id = g.id;
+            ConnectionsManager.getInstance(0).sendRequest(req, (res, err) -> AndroidUtilities.runOnUIThread(() -> {
+                if (res instanceof TL_stars.starGiftUpgradePreview) {
+                    final ArrayList<TL_stars.StarGiftAttribute> attrs =
+                            ((TL_stars.starGiftUpgradePreview) res).sample_attributes;
+                    if (attrs != null) {
+                        for (int k = 0; k < attrs.size(); k++) {
+                            final TL_stars.StarGiftAttribute a = attrs.get(k);
+                            if (a == null || a.name == null) continue;
+                            final int p = a.getRarityPermille();
+                            if (p <= 0) continue;
+                            final Integer old = aiqiyiGlobalNamePool.get(a.name);
+                            if (old == null) {
+                                aiqiyiGlobalNamePool.put(a.name, p);
+                            } else if (old != p) {
+                                aiqiyiGlobalDup.add(a.name);
+                            }
+                        }
+                    }
+                }
+                if (--remaining[0] <= 0) {
+                    aiqiyiGlobalPoolLoading = false;
+                    aiqiyiGlobalPoolReady = true;
+                    for (String d : aiqiyiGlobalDup) aiqiyiGlobalNamePool.remove(d);
+                    aiqiyiNotifyPoolReady();
+                }
+            }));
+        }
+    }
+
+    private static int aiqiyiCorrectByGlobalName(int permille, String attrName) {
+        if (permille > 0 || attrName == null) return permille;
+        // 1. 优先用当前页面的系列池（精确，不受跨系列重名影响）
+        final java.util.HashMap<String, Integer> seriesMap = aiqiyiRarityPools.get(aiqiyiCurrentKey);
+        if (seriesMap != null) {
+            final Integer p = seriesMap.get(attrName);
+            if (p != null) return p;
+        }
+        // 2. 回退到全局按名唯一匹配
+        aiqiyiEnsureGlobalPool();
+        final Integer p = aiqiyiGlobalNamePool.get(attrName);
+        return p != null ? p : permille;
+    }
+
+    // [Aiqiyi][RARITY] 当前打开页面的系列 key（"seriesId|title"）
+    private static volatile String aiqiyiCurrentKey = null;
+
+    /** 依据当前礼物预加载其系列属性池，并设为当前上下文 */
+    private static void aiqiyiPrefetchForGift(TL_stars.StarGift gift) {
+        if (gift == null) return;
+        long seriesId = 0L;
+        String title = gift.title;
+        if (gift instanceof TL_stars.TL_starGiftUnique) {
+            seriesId = ((TL_stars.TL_starGiftUnique) gift).gift_id;
+        }
+        // 系列 id 缺失时，从商店列表按 title 反查
+        if (seriesId == 0L && title != null) {
+            try {
+                final StarsController sc = StarsController.getInstance(0);
+                if (sc != null) {
+                    for (int i = 0; i < sc.gifts.size(); i++) {
+                        final TL_stars.StarGift g = sc.gifts.get(i);
+                        if (title.equals(g.title)) { seriesId = g.id; break; }
+                    }
+                }
+            } catch (Throwable ignore) {}
+        }
+        if (seriesId == 0L) return;
+        aiqiyiCurrentKey = seriesId + "|" + title;
+        aiqiyiLoadSeriesPool(seriesId, title, aiqiyiCurrentKey);
+    }
+
+    /** 加载指定系列池并写入 key 对应槽位 */
+    private static void aiqiyiLoadSeriesPool(long seriesId, String title, String key) {
+        if (aiqiyiRarityPools.containsKey(key) || aiqiyiRarityLoading.contains(seriesId) || aiqiyiRarityFailed.contains(key))
+            return;
+        aiqiyiRarityLoading.add(seriesId);
+        final TL_stars.getStarGiftUpgradePreview req = new TL_stars.getStarGiftUpgradePreview();
+        req.gift_id = seriesId;
+        ConnectionsManager.getInstance(0).sendRequest(req, (res, err) -> AndroidUtilities.runOnUIThread(() -> {
+            final ArrayList<TL_stars.StarGiftAttribute> attrs =
+                    res instanceof TL_stars.starGiftUpgradePreview ? ((TL_stars.starGiftUpgradePreview) res).sample_attributes : null;
+            if (attrs != null && !attrs.isEmpty()) {
+                aiqiyiStoreRarityPool(key, attrs);
+                aiqiyiRarityLoading.remove(seriesId);
+                aiqiyiNotifyPoolReady();
+                return;
+            }
+            final TL_stars.getStarGiftUpgradeAttributes req2 = new TL_stars.getStarGiftUpgradeAttributes();
+            req2.gift_id = seriesId;
+            ConnectionsManager.getInstance(0).sendRequest(req2, (res2, err2) -> AndroidUtilities.runOnUIThread(() -> {
+                ArrayList<TL_stars.StarGiftAttribute> a2 = null;
+                if (res2 instanceof TL_stars.starGiftUpgradeAttributes) {
+                    a2 = ((TL_stars.starGiftUpgradeAttributes) res2).attributes;
+                }
+                if (a2 != null && !a2.isEmpty()) {
+                    aiqiyiStoreRarityPool(key, a2);
+                    aiqiyiNotifyPoolReady();
+                } else {
+                    aiqiyiRarityFailed.add(key);
+                }
+                aiqiyiRarityLoading.remove(seriesId);
+            }));
+        }));
+    }
+
+    private static void aiqiyiNotifyPoolReady() {
+        for (Runnable r : aiqiyiPoolListeners) {
+            try { r.run(); } catch (Throwable ignore) {}
+        }
+        aiqiyiPoolListeners.clear();
     }
 
     public static CharSequence getRarityName(TL_stars.StarGiftAttributeRarity rarity) {
@@ -3514,10 +3678,31 @@ public void toggleWear() {
         return "";
     }
 
+    /** [Aiqiyi][RARITY] 带属性名的稀有度显示：permille 为 0 时按名回查真实值 */
+    public static CharSequence getRarityName(String attrName, TL_stars.StarGiftAttributeRarity rarity, Integer[] color) {
+        if (rarity instanceof TL_stars.TL_starGiftAttributeRarity) {
+            final int raw = ((TL_stars.TL_starGiftAttributeRarity) rarity).permille;
+            if (raw <= 0) {
+                final int fixed = aiqiyiCorrectByGlobalName(raw, attrName);
+                if (fixed > 0) {
+                    if (color != null) color[0] = 0xFF2E7DD1;
+                    return percents(fixed);
+                }
+                // 池还没就绪：触发加载，本帧先显示占位
+                aiqiyiEnsureGlobalPool();
+                if (color != null) color[0] = 0xFF2E7DD1;
+                return "<0.1%";
+            }
+        }
+        return getRarityName(rarity, color);
+    }
+
     private void addAttributeRow(TL_stars.StarGiftAttribute attr) {
         int index;
         Class clazz;
         String name;
+        // [Aiqiyi][RARITY] 先用系列上下文预加载池
+        aiqiyiPrefetchForGift(getGift());
         if (attr instanceof TL_stars.starGiftAttributeModel) {
             index = 2;
             clazz = TL_stars.starGiftAttributeModel.class;
@@ -3554,7 +3739,7 @@ public void toggleWear() {
             final Integer[] color = new Integer[1];
             final CharSequence rarity = getRarityName(attr.rarity, color);
             final Runnable onClick;
-            // [Aiqiyi] 无条件挂载点击：不再区分稀有度类型
+            // [Aiqiyi] 点击属性行 -> 打开该系列属性预览页
             onClick = () -> {
                     if (loading[0]) {
                         return;
@@ -3563,48 +3748,43 @@ public void toggleWear() {
                     final TL_stars.StarGift gift = getGift();
                     final String previewTitle = gift != null && gift.title != null ? gift.title : "";
                     final long previewGiftId = gift != null ? gift.gift_id : 0L;
-                    // [Aiqiyi][DIAG] 排查：确认 gift_id / title / 类型，一次装包拿到证据
-                    try {
-                        final String diag = "giftId=" + previewGiftId
+                    if (gift instanceof TL_stars.TL_starGiftUnique) {
+                        final TL_stars.TL_starGiftUnique _u = (TL_stars.TL_starGiftUnique) gift;
+                        FileLog.d("[AiqiyiGiftId] req_gift_id=" + previewGiftId
+                                + " unique.id=" + _u.id
+                                + " unique.gift_id=" + _u.gift_id
+                                + " slug=" + _u.slug
+                                + " num=" + _u.num
                                 + " title=" + previewTitle
-                                + " nullGift=" + (gift == null)
-                                + " cls=" + (gift == null ? "null" : gift.getClass().getSimpleName());
-                        FileLog.d("[AiqiyiGiftDiag] " + diag);
-                        AndroidUtilities.runOnUIThread(() -> {
-                            try {
-                                final android.content.Context ctx1 = StarGiftSheet.this.getContext();
-                                if (ctx1 != null) {
-                                    Toast.makeText(ctx1, diag, Toast.LENGTH_LONG).show();
-                                }
-                            } catch (Throwable ignore) {}
-                        });
-                    } catch (Throwable ignore) {}
+                                + " attrs=" + (_u.attributes == null ? -1 : _u.attributes.size()));
+                    } else {
+                        FileLog.d("[AiqiyiGiftId] non-unique gift_id=" + previewGiftId + " cls=" + (gift == null ? "null" : gift.getClass().getSimpleName()));
+                    }
+                    // 本地池兜底：当前礼物自带的属性（至少能显示当前这三项）
+                    final ArrayList<TL_stars.StarGiftAttribute> localAttrs = new ArrayList<>();
+                    if (gift instanceof TL_stars.TL_starGiftUnique) {
+                        final TL_stars.TL_starGiftUnique uniq = (TL_stars.TL_starGiftUnique) gift;
+                        if (uniq.attributes != null && !uniq.attributes.isEmpty()) {
+                            localAttrs.addAll(uniq.attributes);
+                        }
+                    }
+                    if (previewGiftId == 0L && localAttrs.isEmpty()) {
+                        loading[0] = false;
+                        return;
+                    }
                     GiftAuctionController.getInstance(currentAccount).requestAuctionUpgrades(previewGiftId, attrs -> {
-                        try {
-                            FileLog.d("[AiqiyiGiftDiag] attrs=" + (attrs == null ? "null" : String.valueOf(attrs.size())));
-                            final String c = "DIAG2\n" + GiftAuctionController.lastDiag
-                                    + "final=" + (attrs == null ? "null" : String.valueOf(attrs.size()));
-                            AndroidUtilities.runOnUIThread(() -> {
-                                try {
-                                    final android.content.Context ctx2 = StarGiftSheet.this.getContext();
-                                    if (ctx2 != null) {
-                                        new android.app.AlertDialog.Builder(ctx2)
-                                                .setTitle("Gift Diag2")
-                                                .setMessage(c)
-                                                .setPositiveButton("OK", null)
-                                                .show();
-                                    }
-                                } catch (Throwable t) {
-                                    try {
-                                        final android.content.Context ctx3 = StarGiftSheet.this.getContext();
-                                        if (ctx3 != null) Toast.makeText(ctx3, c, Toast.LENGTH_LONG).show();
-                                    } catch (Throwable ignore) {}
-                                }
-                            });
-                        } catch (Throwable ignore) {}
-                        // [Aiqiyi] 不再用本地属性兜底：接口给的池子就是真实数据，给多少显示多少
+                        ArrayList<TL_stars.StarGiftAttribute> use = null;
                         if (attrs != null && !attrs.isEmpty()) {
-                            new StarGiftPreviewSheet(getContext(), resourcesProvider, currentAccount, previewTitle, attrs, false).show();
+                            use = attrs;
+                        } else if (!localAttrs.isEmpty()) {
+                            use = localAttrs;
+                        }
+                        if (use != null && !use.isEmpty()) {
+                            try {
+                                new StarGiftPreviewSheet(getContext(), resourcesProvider, currentAccount, previewTitle, use, false).show();
+                            } catch (Throwable t) {
+                                FileLog.e(t);
+                            }
                         }
                         loading[0] = false;
                     });
@@ -4222,6 +4402,14 @@ public void toggleWear() {
             private int lastRarity;
 
             public void set(String name, int rarity_permille, Utilities.Callback3<CharSequence, View, Boolean> showHint) {
+                final int rawPermille = rarity_permille;
+                rarity_permille = aiqiyiCorrectByGlobalName(rarity_permille, name); // [Aiqiyi][RARITY]
+                if (rarity_permille == rawPermille && rawPermille <= 0 && name != null && !aiqiyiGlobalPoolReady) {
+                    // 池未就绪，注册一次重绘（池已就绪则不注册，防止同步递归）
+                    aiqiyiOnPoolReady(() -> {
+                        try { set(name, rawPermille, showHint); } catch (Throwable ignore) {}
+                    });
+                }
                 if (name == lastName && lastRarity == rarity_permille) return;
 
                 final SpannableStringBuilder ssb = new SpannableStringBuilder(Emoji.replaceEmoji(name, getPaint().getFontMetricsInt(), false));
