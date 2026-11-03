@@ -3561,7 +3561,8 @@ public void toggleWear() {
                     loading[0] = true;
                     final TL_stars.StarGift gift = getGift();
                     final String previewTitle = gift != null && gift.title != null ? gift.title : "";
-                    GiftAuctionController.getInstance(currentAccount).requestAuctionUpgrades(gift_id, attrs -> {
+                    final long previewGiftId = gift != null ? gift.gift_id : 0L;
+                    GiftAuctionController.getInstance(currentAccount).requestAuctionUpgrades(previewGiftId, attrs -> {
                         if (attrs == null || attrs.isEmpty()) {
                             // [Aiqiyi] 接口没给出属性池时，用当前礼物自带的属性兜底，保证能进入随机特征页
                             final ArrayList<TL_stars.StarGiftAttribute> fallback = new ArrayList<>();
