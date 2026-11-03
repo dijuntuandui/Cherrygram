@@ -164,33 +164,15 @@ public class GiftAuctionController extends BaseController {
     public static volatile String lastDiag = "";
 
     public void requestAuctionUpgrades(long giftId, Utilities.Callback<ArrayList<TL_stars.StarGiftAttribute>> callback) {
-        // [Aiqiyi] 先试 getStarGiftUpgradePreview.sample_attributes（系列全量池），拿不到再回落到 getStarGiftUpgradeAttributes
-        final TL_stars.getStarGiftUpgradePreview previewReq = new TL_stars.getStarGiftUpgradePreview();
-        previewReq.gift_id = giftId;
-        getConnectionsManager().sendRequest(previewReq, (pres, perr) -> AndroidUtilities.runOnUIThread(() -> {
-            final ArrayList<TL_stars.StarGiftAttribute> previewAttrs =
-                    pres instanceof TL_stars.starGiftUpgradePreview ? ((TL_stars.starGiftUpgradePreview) pres).sample_attributes : null;
-            final int previewCount = previewAttrs == null ? -1 : previewAttrs.size();
-
-            final TL_stars.getStarGiftUpgradeAttributes req = new TL_stars.getStarGiftUpgradeAttributes();
-            req.gift_id = giftId;
-            getConnectionsManager().sendRequestTyped(req, AndroidUtilities::runOnUIThread, (res, err) -> {
-                final ArrayList<TL_stars.StarGiftAttribute> attrAttrs = res != null ? res.attributes : null;
-                final int attrCount = attrAttrs == null ? -1 : attrAttrs.size();
-                android.util.Log.d("AQY", "[AiqiyiPool] giftId=" + giftId + " preview=" + previewCount + " attr=" + attrCount);
-
-                // 取数量更多的那个池子
-                if (previewAttrs != null && !previewAttrs.isEmpty() && previewCount >= attrCount) {
-                    callback.run(previewAttrs);
-                } else if (attrAttrs != null && !attrAttrs.isEmpty()) {
-                    callback.run(attrAttrs);
-                } else if (previewAttrs != null) {
-                    callback.run(previewAttrs);
-                } else {
-                    callback.run(attrAttrs);
-                }
-            });
-        }));
+        // [Aiqiyi] 对齐芒果：只调 getStarGiftUpgradeAttributes，它是真正的属性池
+        // getStarGiftUpgradePreview.sample_attributes 是升级预览样本，不是全量池，混用会选错
+        final TL_stars.getStarGiftUpgradeAttributes req = new TL_stars.getStarGiftUpgradeAttributes();
+        req.gift_id = giftId;
+        getConnectionsManager().sendRequestTyped(req, AndroidUtilities::runOnUIThread, (res, err) -> {
+            final ArrayList<TL_stars.StarGiftAttribute> attrAttrs = res != null ? res.attributes : null;
+            android.util.Log.d("AQY", "[AiqiyiPool] giftId=" + giftId + " attr=" + (attrAttrs == null ? -1 : attrAttrs.size()));
+            callback.run(attrAttrs);
+        });
     }
 
     public static ArrayList<TL_stars.StarGiftAttribute> filterAttributes(ArrayList<TL_stars.StarGiftAttribute> attrs, boolean crafting) {
