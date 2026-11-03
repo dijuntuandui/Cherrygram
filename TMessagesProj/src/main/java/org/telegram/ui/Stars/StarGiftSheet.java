@@ -3552,26 +3552,24 @@ public void toggleWear() {
             final TableRow row;
             final Integer[] color = new Integer[1];
             final CharSequence rarity = getRarityName(attr.rarity, color);
-            final Runnable onClick;
-            if (attr.rarity instanceof TL_stars.TL_starGiftAttributeRarity) {
-                onClick = () -> {
-                    if (loading[0]) {
-                        return;
+            // [Aiqiyi] 稀有度无论是枚举型(Uncommon/Rare/Epic/Legendary)还是带 permille 的
+            // TL_starGiftAttributeRarity，都允许点击进入随机特征页。原判断只认后者，
+            // 导致枚举型属性行 onClick=null 完全点不动。
+            final Runnable onClick = () -> {
+                if (loading[0]) {
+                    return;
+                }
+                loading[0] = true;
+                final TL_stars.StarGift gift = getGift();
+                GiftAuctionController.getInstance(currentAccount).requestAuctionUpgrades(gift.gift_id, attrs -> {
+                    if (attrs != null && !attrs.isEmpty()) {
+                        new StarGiftPreviewSheet(getContext(), resourcesProvider, currentAccount, gift.title, attrs, false).show();
+                    } else {
+                        showHint(LocaleController.formatString(R.string.Gift2RarityHint, percents(attr.getRarityPermille())), textViewArr[0], false);
                     }
-                    loading[0] = true;
-                    final TL_stars.StarGift gift = getGift();
-                    GiftAuctionController.getInstance(currentAccount).requestAuctionUpgrades(gift.gift_id, attrs -> {
-                        if (attrs != null) {
-                            new StarGiftPreviewSheet(getContext(), resourcesProvider, currentAccount, gift.title, attrs, false).show();
-                        } else {
-                            showHint(LocaleController.formatString(R.string.Gift2RarityHint, percents(attr.getRarityPermille())), textViewArr[0], false);
-                        }
-                        loading[0] = false;
-                    });
-                };
-            } else {
-                onClick = null;
-            }
+                    loading[0] = false;
+                });
+            };
             row = tableView.addRow(name, safeAttrName(attr), rarity, onClick, color[0]); // [Aiqiyi] null-safe
             textViewArr[0] = (ButtonSpan.TextViewButtons) ((TableView.TableRowContent) row.getChildAt(1)).getChildAt(0);
         }
