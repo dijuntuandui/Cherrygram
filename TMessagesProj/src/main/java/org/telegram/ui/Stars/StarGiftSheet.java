@@ -9299,7 +9299,10 @@ public void toggleWear() {
             final long giftId = gift_id;
             GiftAuctionController.getInstance(currentAccount).requestAuctionUpgrades(gift_id, attrs -> {
                 if (giftId != gift_id) return;
-                previewAttributes = attrs;
+                // [Aiqiyi] 接口可能返回 null，避免下面 attrs.size() 空指针
+                final ArrayList<TL_stars.StarGiftAttribute> safeAttrs =
+                        attrs != null ? attrs : new ArrayList<>();
+                previewAttributes = safeAttrs;
                 variantsButton.animate()
                     .alpha(attributesTwoLines ? 0.0f : previewAttributes != null ? 1.0f : 0.25f)
                     .setInterpolator(CubicBezierInterpolator.EASE_OUT_QUINT)
@@ -9307,9 +9310,9 @@ public void toggleWear() {
                     .start();
 
                 final ArrayList<TL_stars.starGiftAttributeModel> models = new ArrayList<>();
-                for (int i = 0; i < attrs.size(); ++i) {
-                    if (attrs.get(i) instanceof TL_stars.starGiftAttributeModel && !(attrs.get(i).rarity instanceof TL_stars.TL_starGiftAttributeRarity)) {
-                        models.add((TL_stars.starGiftAttributeModel) attrs.get(i));
+                for (int i = 0; i < safeAttrs.size(); ++i) {
+                    if (safeAttrs.get(i) instanceof TL_stars.starGiftAttributeModel && !(safeAttrs.get(i).rarity instanceof TL_stars.TL_starGiftAttributeRarity)) {
+                        models.add((TL_stars.starGiftAttributeModel) safeAttrs.get(i));
                         if (models.size() >= 3) break;
                     }
                 }

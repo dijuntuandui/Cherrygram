@@ -162,15 +162,38 @@ public class GiftAuctionController extends BaseController {
     private final LongSparseArray<Boolean> upgrades = new LongSparseArray<>();
 
     public void requestAuctionUpgrades(long giftId, Utilities.Callback<ArrayList<TL_stars.StarGiftAttribute>> callback) {
-        final TL_stars.getStarGiftUpgradeAttributes req = new TL_stars.getStarGiftUpgradeAttributes();
-        req.gift_id = giftId;
-        getConnectionsManager().sendRequestTyped(req, AndroidUtilities::runOnUIThread, (res, err) -> {
-            if (res != null) {
-                callback.run(res.attributes);
-            } else {
-                callback.run(null);
-            }
-        });
+        // [Aiqiyi] 先试 getStarGiftUpgradePreview.sample_attributes（系列全量池），拿不到再回落到 getStarGiftUpgradeAttributes
+        final TL_stars.getStarGiftUpgradePreview previewReq = new TL_stars.getStarGiftUpgradePreview();
+        previewReq.gift_id = giftId;
+        getConnectionsManager().sendRequest(previewReq, (pres, perr) -> AndroidUtilities.runOnUIThread(() -> {
+            final ArrayList<TL_stars.StarGiftAttribute> previewAttrs =
+                    pres instanceof TL_stars.starGiftUpgradePreview ? ((TL_stars.starGiftUpgradePreview) pres).sample_attributes : null;
+            final int previewCount = previewAttrs == null ? -1 : previewAttrs.size();
+            FileLog.d("[AiqiyiGiftDiag] preview giftId=" + giftId + " count=" + previewCount + " err=" + (perr == null ? "" : perr.text));
+
+            final TL_stars.getStarGiftUpgradeAttributes req = new TL_stars.getStarGiftUpgradeAttributes();
+            req.gift_id = giftId;
+            getConnectionsManager().sendRequestTyped(req, AndroidUtilities::runOnUIThread, (res, err) -> {
+                final ArrayList<TL_stars.StarGiftAttribute> attrAttrs = res != null ? res.attributes : null;
+                final int attrCount = attrAttrs == null ? -1 : attrAttrs.size();
+                FileLog.d("[AiqiyiGiftDiag] upgradeAttributes giftId=" + giftId + " count=" + attrCount + " err=" + (err == null ? "" : err.text));
+
+                // 取数量更多的那个池子
+                if (previewAttrs != null && !previewAttrs.isEmpty() && previewCount >= attrCount) {
+                    FileLog.d("[AiqiyiGiftDiag] CHOOSE preview count=" + previewCount);
+                    callback.run(previewAttrs);
+                } else if (attrAttrs != null && !attrAttrs.isEmpty()) {
+                    FileLog.d("[AiqiyiGiftDiag] CHOOSE attributes count=" + attrCount);
+                    callback.run(attrAttrs);
+                } else if (previewAttrs != null) {
+                    FileLog.d("[AiqiyiGiftDiag] CHOOSE preview-empty");
+                    callback.run(previewAttrs);
+                } else {
+                    FileLog.d("[AiqiyiGiftDiag] CHOOSE null");
+                    callback.run(attrAttrs);
+                }
+            });
+        }));
     }
 
     public static ArrayList<TL_stars.StarGiftAttribute> filterAttributes(ArrayList<TL_stars.StarGiftAttribute> attrs, boolean crafting) {
