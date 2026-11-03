@@ -3560,11 +3560,23 @@ public void toggleWear() {
                     }
                     loading[0] = true;
                     final TL_stars.StarGift gift = getGift();
+                    final String previewTitle = gift != null && gift.title != null ? gift.title : "";
                     GiftAuctionController.getInstance(currentAccount).requestAuctionUpgrades(gift_id, attrs -> {
-                        if (attrs != null) {
-                            new StarGiftPreviewSheet(getContext(), resourcesProvider, currentAccount, gift.title, attrs, false).show();
-                        } else {
-                            showHint(LocaleController.formatString(R.string.Gift2RarityHint, percents(attr.getRarityPermille())), textViewArr[0], false);
+                        if (attrs == null || attrs.isEmpty()) {
+                            // [Aiqiyi] 接口没给出属性池时，用当前礼物自带的属性兜底，保证能进入随机特征页
+                            final ArrayList<TL_stars.StarGiftAttribute> fallback = new ArrayList<>();
+                            if (gift != null && gift.attributes != null) {
+                                final TL_stars.starGiftAttributeModel m = findAttribute(gift.attributes, TL_stars.starGiftAttributeModel.class);
+                                final TL_stars.starGiftAttributeBackdrop b = findAttribute(gift.attributes, TL_stars.starGiftAttributeBackdrop.class);
+                                final TL_stars.starGiftAttributePattern pt = findAttribute(gift.attributes, TL_stars.starGiftAttributePattern.class);
+                                if (m != null) fallback.add(m);
+                                if (b != null) fallback.add(b);
+                                if (pt != null) fallback.add(pt);
+                            }
+                            attrs = fallback;
+                        }
+                        if (attrs != null && !attrs.isEmpty()) {
+                            new StarGiftPreviewSheet(getContext(), resourcesProvider, currentAccount, previewTitle, attrs, false).show();
                         }
                         loading[0] = false;
                     });
