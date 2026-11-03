@@ -177,6 +177,7 @@ public class GiftAuctionController extends BaseController {
             getConnectionsManager().sendRequestTyped(req, AndroidUtilities::runOnUIThread, (res, err) -> {
                 final ArrayList<TL_stars.StarGiftAttribute> attrAttrs = res != null ? res.attributes : null;
                 final int attrCount = attrAttrs == null ? -1 : attrAttrs.size();
+                org.telegram.messenger.FileLog.d("[AiqiyiPool] giftId=" + giftId + " preview=" + previewCount + " attr=" + attrCount);
 
                 // 取数量更多的那个池子
                 if (previewAttrs != null && !previewAttrs.isEmpty() && previewCount >= attrCount) {
@@ -196,10 +197,13 @@ public class GiftAuctionController extends BaseController {
         final ArrayList<TL_stars.StarGiftAttribute> result = new ArrayList<TL_stars.StarGiftAttribute>();
         for (TL_stars.StarGiftAttribute attr : attrs) {
             final boolean remove;
-            if (attr.rarity instanceof TL_stars.TL_starGiftAttributeRarity) {
-                remove = crafting && attr instanceof TL_stars.starGiftAttributeModel;
+            // [Aiqiyi] 修复：原实现 else{remove=!crafting} 会在非合成页把全部等级型属性删掉，
+            // 导致展示页只剩带精确概率的那一条（模型/符号整页消失）。
+            // 合成页才需要剔除有精确概率的模型，其余一律保留。
+            if (crafting && attr.rarity instanceof TL_stars.TL_starGiftAttributeRarity) {
+                remove = attr instanceof TL_stars.starGiftAttributeModel;
             } else {
-                remove = !crafting;
+                remove = false;
             }
             if (!remove)
                 result.add(attr);
