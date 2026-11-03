@@ -4218,6 +4218,7 @@ public void toggleWear() {
         public static class Attr {
             public String name;
             public int rarity_permille;
+            public TL_stars.StarGiftAttributeRarity rarityObj;
             public boolean isLoaded() { return true; }
             public void attach() {}
             public void detach() {}
@@ -4231,6 +4232,7 @@ public void toggleWear() {
             public Sticker(View parentView, TL_stars.starGiftAttributeModel model) {
                 name = model.name;
                 rarity_permille = model.getRarityPermille();
+                rarityObj = model.rarity;
 
                 mine = true;
                 imageReceiver = new ImageReceiver(parentView);
@@ -4240,6 +4242,7 @@ public void toggleWear() {
             public Sticker(BackupImageView fromView, TL_stars.starGiftAttributeModel model) {
                 name = model.name;
                 rarity_permille = model.getRarityPermille();
+                rarityObj = model.rarity;
 
                 mine = false;
                 imageReceiver = fromView.getImageReceiver();
@@ -4266,6 +4269,7 @@ public void toggleWear() {
             public Symbol(TL_stars.starGiftAttributePattern pattern) {
                 name = pattern.name;
                 rarity_permille = pattern.getRarityPermille();
+                rarityObj = pattern.rarity;
 
                 attr = pattern;
             }
@@ -4283,6 +4287,7 @@ public void toggleWear() {
             public Background(TL_stars.starGiftAttributeBackdrop backdrop) {
                 this.name = backdrop.name;
                 this.rarity_permille = backdrop.getRarityPermille();
+                this.rarityObj = backdrop.rarity;
 
                 if (backdrop != null) {
                     backgroundPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
@@ -4401,18 +4406,20 @@ public void toggleWear() {
             private String lastName;
             private int lastRarity;
 
-            public void set(String name, int rarity_permille, Utilities.Callback3<CharSequence, View, Boolean> showHint) {
+            public void set(String name, int rarity_permille, TL_stars.StarGiftAttributeRarity rObj, Utilities.Callback3<CharSequence, View, Boolean> showHint) {
                 final int rawPermille = rarity_permille;
                 final int permille = aiqiyiCorrectByGlobalName(rarity_permille, name); // [Aiqiyi][RARITY]
                 if (permille == rawPermille && rawPermille <= 0 && name != null && !aiqiyiGlobalPoolReady) {
                     // 池未就绪，注册一次重绘（池已就绪则不注册，防止同步递归）
                     aiqiyiOnPoolReady(() -> {
-                        try { set(name, rawPermille, showHint); } catch (Throwable ignore) {}
+                        try { set(name, rawPermille, rObj, showHint); } catch (Throwable ignore) {}
                     });
                 }
                 if (name == lastName && lastRarity == permille) return;
                 final SpannableStringBuilder ssb = new SpannableStringBuilder(Emoji.replaceEmoji(name, getPaint().getFontMetricsInt(), false));
-                ssb.append(" ").append(ButtonSpan.make(percents(permille), showHint != null ? () -> showHint.run(LocaleController.formatString(R.string.Gift2RarityHint, percents(permille)), this, false) : null, resourcesProvider));
+                final CharSequence FTXT = permille > 0 ? percents(permille) : getRarityName(rObj, null);
+final CharSequence rShow = FTXT.length() == 0 ? "<0.1%" : FTXT;
+                ssb.append(" ").append(ButtonSpan.make(rShow, showHint != null ? () -> showHint.run(LocaleController.formatString(R.string.Gift2RarityHint, rShow), this, false) : null, resourcesProvider));
                 setText(ssb);
                 this.lastName = name;
                 this.lastRarity = permille;
@@ -4431,7 +4438,7 @@ public void toggleWear() {
                 }
                 final float tt = (t - 0.5f) / 1.5f;
                 this.prev.setVisibility(View.VISIBLE);
-                this.prev.set(prev.name, prev.rarity_permille, this.showHint);
+                this.prev.set(prev.name, prev.rarity_permille, prev.rarityObj, this.showHint);
                 this.prev.setTranslationY(dp(36) * tt);
             } else {
                 this.prev.setVisibility(View.INVISIBLE);
@@ -4444,7 +4451,7 @@ public void toggleWear() {
                 }
                 final float tt = (t - 0.5f) / 1.5f;
                 this.current.setVisibility(View.VISIBLE);
-                this.current.set(current.name, current.rarity_permille, this.showHint);
+                this.current.set(current.name, current.rarity_permille, current.rarityObj, this.showHint);
                 this.current.setTranslationY(dp(36) * tt);
 
                 if (isCurrentFinish && tt <= 0) {
@@ -4461,7 +4468,7 @@ public void toggleWear() {
                 }
                 final float tt = (t - 0.5f) / 1.5f;
                 this.next.setVisibility(View.VISIBLE);
-                this.next.set(next.name, next.rarity_permille, this.showHint);
+                this.next.set(next.name, next.rarity_permille, next.rarityObj, this.showHint);
                 this.next.setTranslationY(dp(36) * tt);
             } else {
                 this.next.setVisibility(View.INVISIBLE);
