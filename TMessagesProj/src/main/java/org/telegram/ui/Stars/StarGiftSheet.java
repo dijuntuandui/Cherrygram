@@ -3569,7 +3569,7 @@ public void toggleWear() {
                                 + " title=" + previewTitle
                                 + " nullGift=" + (gift == null)
                                 + " cls=" + (gift == null ? "null" : gift.getClass().getSimpleName());
-                        FileLog.d("AiqiyiGiftDiag", diag);
+                        FileLog.d("[AiqiyiGiftDiag] " + diag);
                         AndroidUtilities.runOnUIThread(() -> {
                             try {
                                 final android.content.Context ctx1 = StarGiftSheet.this.getContext();
@@ -3581,7 +3581,7 @@ public void toggleWear() {
                     } catch (Throwable ignore) {}
                     GiftAuctionController.getInstance(currentAccount).requestAuctionUpgrades(previewGiftId, attrs -> {
                         try {
-                            FileLog.d("AiqiyiGiftDiag", "attrs=" + (attrs == null ? "null" : String.valueOf(attrs.size())));
+                            FileLog.d("[AiqiyiGiftDiag] attrs=" + (attrs == null ? "null" : String.valueOf(attrs.size())));
                             final String c = "attrs=" + (attrs == null ? "null" : String.valueOf(attrs.size()));
                             AndroidUtilities.runOnUIThread(() -> {
                                 try {
