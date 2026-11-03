@@ -3779,6 +3779,7 @@ public void toggleWear() {
                         } else if (!localAttrs.isEmpty()) {
                             use = localAttrs;
                         }
+                        android.util.Log.d("AQY", "[AiqiyiUse] fromNet=" + (attrs != null && !attrs.isEmpty()) + " netN=" + (attrs == null ? -1 : attrs.size()) + " localN=" + localAttrs.size() + " total=" + (use == null ? -1 : use.size()));
                         if (use != null && !use.isEmpty()) {
                             try {
                                 new StarGiftPreviewSheet(getContext(), resourcesProvider, currentAccount, previewTitle, use, false).show();
