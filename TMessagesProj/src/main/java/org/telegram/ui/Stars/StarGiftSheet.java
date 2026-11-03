@@ -4403,21 +4403,19 @@ public void toggleWear() {
 
             public void set(String name, int rarity_permille, Utilities.Callback3<CharSequence, View, Boolean> showHint) {
                 final int rawPermille = rarity_permille;
-                rarity_permille = aiqiyiCorrectByGlobalName(rarity_permille, name); // [Aiqiyi][RARITY]
-                if (rarity_permille == rawPermille && rawPermille <= 0 && name != null && !aiqiyiGlobalPoolReady) {
+                final int permille = aiqiyiCorrectByGlobalName(rarity_permille, name); // [Aiqiyi][RARITY]
+                if (permille == rawPermille && rawPermille <= 0 && name != null && !aiqiyiGlobalPoolReady) {
                     // 池未就绪，注册一次重绘（池已就绪则不注册，防止同步递归）
                     aiqiyiOnPoolReady(() -> {
                         try { set(name, rawPermille, showHint); } catch (Throwable ignore) {}
                     });
                 }
-                if (name == lastName && lastRarity == rarity_permille) return;
-
+                if (name == lastName && lastRarity == permille) return;
                 final SpannableStringBuilder ssb = new SpannableStringBuilder(Emoji.replaceEmoji(name, getPaint().getFontMetricsInt(), false));
-                ssb.append(" ").append(ButtonSpan.make(percents(rarity_permille), showHint != null ? () -> showHint.run(LocaleController.formatString(R.string.Gift2RarityHint, percents(rarity_permille)), this, false) : null, resourcesProvider));
+                ssb.append(" ").append(ButtonSpan.make(percents(permille), showHint != null ? () -> showHint.run(LocaleController.formatString(R.string.Gift2RarityHint, percents(permille)), this, false) : null, resourcesProvider));
                 setText(ssb);
-
                 this.lastName = name;
-                this.lastRarity = rarity_permille;
+                this.lastRarity = permille;
             }
         }
 
