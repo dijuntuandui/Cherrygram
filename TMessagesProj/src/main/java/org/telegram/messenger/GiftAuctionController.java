@@ -174,6 +174,10 @@ public class GiftAuctionController extends BaseController {
         getConnectionsManager().sendRequestTyped(req, AndroidUtilities::runOnUIThread, (res, err) -> {
             final ArrayList<TL_stars.StarGiftAttribute> attrAttrs = res != null && res.attributes != null
                     ? new ArrayList<>(res.attributes) : new ArrayList<>();
+            android.util.Log.d("AQY", "[AiqiyiPool1] giftId=" + giftId
+                    + " n=" + attrAttrs.size()
+                    + " err=" + (err == null ? "null" : (err.text + "/" + err.code))
+                    + " resCls=" + (res == null ? "null" : res.getClass().getSimpleName()));
             // 拿到第一个池子后，再去拉 preview 样本，合并后回调
             requestPreviewThenMerge(giftId, attrAttrs, callback);
         });
@@ -191,7 +195,9 @@ public class GiftAuctionController extends BaseController {
             android.util.Log.d("AQY", "[AiqiyiPool] giftId=" + giftId
                     + " attr=" + (attrAttrs == null ? -1 : attrAttrs.size())
                     + " preview=" + (previewAttrs == null ? -1 : previewAttrs.size())
-                    + " merged=" + merged.size());
+                    + " merged=" + merged.size()
+                    + " perr=" + (perr == null ? "null" : (perr.text + "/" + perr.code))
+                    + " presCls=" + (pres == null ? "null" : pres.getClass().getSimpleName()));
             callback.run(merged);
         }));
     }
