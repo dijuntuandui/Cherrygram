@@ -3587,26 +3587,43 @@ public void toggleWear() {
     // [Aiqiyi][RARITY] 当前打开页面的系列 key（"seriesId|title"）
     private static volatile String aiqiyiCurrentKey = null;
 
-    /** 依据当前礼物预加载其系列属性池，并设为当前上下文 */
-    private static void aiqiyiPrefetchForGift(TL_stars.StarGift gift) {
-        if (gift == null) return;
+    /** [Aiqiyi] 把任意 StarGift 解析成「系列 id」；失败返回 0 */
+    private static long aiqiyiResolveSeriesId(TL_stars.StarGift gift) {
+        if (gift == null) return 0L;
         long seriesId = 0L;
-        String title = gift.title;
         if (gift instanceof TL_stars.TL_starGiftUnique) {
             seriesId = ((TL_stars.TL_starGiftUnique) gift).gift_id;
+            if (seriesId == 0L) {
+                final TL_stars.TL_starGiftUnique uniq = (TL_stars.TL_starGiftUnique) gift;
+                AndroidUtilities.runOnUIThread(() -> {
+                    android.util.Log.d("AQY", "[AiqiyiSeries] uniq.id=" + uniq.id
+                            + " uniq.gift_id=" + uniq.gift_id
+                            + " slug=" + uniq.slug + " num=" + uniq.num);
+                });
+            }
         }
-        // 系列 id 缺失时，从商店列表按 title 反查
-        if (seriesId == 0L && title != null) {
+        if (seriesId != 0L) return seriesId;
+        // 用 title 去商店列表反查
+        final String title = gift.title;
+        if (title != null) {
             try {
                 final StarsController sc = StarsController.getInstance(0);
                 if (sc != null) {
                     for (int i = 0; i < sc.gifts.size(); i++) {
                         final TL_stars.StarGift g = sc.gifts.get(i);
-                        if (title.equals(g.title)) { seriesId = g.id; break; }
+                        if (g != null && title.equals(g.title)) return g.id;
                     }
                 }
             } catch (Throwable ignore) {}
         }
+        return 0L;
+    }
+
+    /** 依据当前礼物预加载其系列属性池，并设为当前上下文 */
+    private static void aiqiyiPrefetchForGift(TL_stars.StarGift gift) {
+        if (gift == null) return;
+        final long seriesId = aiqiyiResolveSeriesId(gift);
+        final String title = gift.title;
         if (seriesId == 0L) return;
         aiqiyiCurrentKey = seriesId + "|" + title;
         aiqiyiLoadSeriesPool(seriesId, title, aiqiyiCurrentKey);
@@ -3772,7 +3789,14 @@ public void toggleWear() {
                         loading[0] = false;
                         return;
                     }
-                    GiftAuctionController.getInstance(currentAccount).requestAuctionUpgrades(previewGiftId, attrs -> {
+                    // [Aiqiyi] 修正：必须传「系列 id」，实例 id 会被服务端判为 STARGIFT_INVALID
+                    final long seriesId = aiqiyiResolveSeriesId(gift);
+                    android.util.Log.d("AQY", "[AiqiyiSeries] raw=" + previewGiftId + " resolved=" + seriesId);
+                    if (seriesId == 0L) {
+                        loading[0] = false;
+                        return;
+                    }
+                    GiftAuctionController.getInstance(currentAccount).requestAuctionUpgrades(seriesId, attrs -> {
                         ArrayList<TL_stars.StarGiftAttribute> use = null;
                         if (attrs != null && !attrs.isEmpty()) {
                             use = attrs;
