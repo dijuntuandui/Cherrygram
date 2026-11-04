@@ -7580,11 +7580,16 @@ final CharSequence rShow = FTXT.length() == 0 ? "<0.1%" : FTXT;
             if (boughtGift != null) {
                 boughtGift.onBoughtGift(gift, to, giftMessageBottomSheet != null);
             }
-            if (giftMessageBottomSheet != null) {
-                AndroidUtilities.runOnUIThread(giftMessageBottomSheet::dismiss);
-                skipDismissAnimation();
-            }
-            dismiss();
+            // [Aiqiyi] 购买成功后先让宿主的刷新/重建跑完这一帧，再关闭面板。
+            // 直接在回调后同步 dismiss() 会让 profile 礼物页在刷新时拿到已销毁的 sheet，
+            // 表现为「买完主页那个礼物页打不开」。挪到下一帧再关即可。
+            AndroidUtilities.runOnUIThread(() -> {
+                if (giftMessageBottomSheet != null) {
+                    giftMessageBottomSheet.dismiss();
+                    skipDismissAnimation();
+                }
+                dismiss();
+            });
             return true;
         } catch (Throwable t) {
             FileLog.e("Aiqiyi C4 unique buy failed", t);

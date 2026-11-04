@@ -164,15 +164,59 @@ public class GiftAuctionController extends BaseController {
     public static volatile String lastDiag = "";
 
     public void requestAuctionUpgrades(long giftId, Utilities.Callback<ArrayList<TL_stars.StarGiftAttribute>> callback) {
-        // [Aiqiyi] 对齐芒果：只调 getStarGiftUpgradeAttributes，它是真正的属性池
-        // getStarGiftUpgradePreview.sample_attributes 是升级预览样本，不是全量池，混用会选错
+        // [Aiqiyi] 双接口合并，而不是二选一。
+        // getStarGiftUpgradeAttributes = 升级属性池（芒果走这个）
+        // getStarGiftUpgradePreview.sample_attributes = 升级预览样本
+        // 两者各有缺失：单用前者在某些礼物上条数偏少，单用后者会混入预览样本。
+        // 所以两边都拿，按「类型 + 名字」去重后取并集，条数只会更多不会更少。
         final TL_stars.getStarGiftUpgradeAttributes req = new TL_stars.getStarGiftUpgradeAttributes();
         req.gift_id = giftId;
         getConnectionsManager().sendRequestTyped(req, AndroidUtilities::runOnUIThread, (res, err) -> {
-            final ArrayList<TL_stars.StarGiftAttribute> attrAttrs = res != null ? res.attributes : null;
-            android.util.Log.d("AQY", "[AiqiyiPool] giftId=" + giftId + " attr=" + (attrAttrs == null ? -1 : attrAttrs.size()));
-            callback.run(attrAttrs);
+            final ArrayList<TL_stars.StarGiftAttribute> attrAttrs = res != null && res.attributes != null
+                    ? new ArrayList<>(res.attributes) : new ArrayList<>();
+            // 拿到第一个池子后，再去拉 preview 样本，合并后回调
+            requestPreviewThenMerge(giftId, attrAttrs, callback);
         });
+    }
+
+    private void requestPreviewThenMerge(long giftId,
+                                         ArrayList<TL_stars.StarGiftAttribute> attrAttrs,
+                                         Utilities.Callback<ArrayList<TL_stars.StarGiftAttribute>> callback) {
+        final TL_stars.getStarGiftUpgradePreview previewReq = new TL_stars.getStarGiftUpgradePreview();
+        previewReq.gift_id = giftId;
+        getConnectionsManager().sendRequest(previewReq, (pres, perr) -> AndroidUtilities.runOnUIThread(() -> {
+            final ArrayList<TL_stars.StarGiftAttribute> previewAttrs =
+                    pres instanceof TL_stars.starGiftUpgradePreview ? ((TL_stars.starGiftUpgradePreview) pres).sample_attributes : null;
+            final ArrayList<TL_stars.StarGiftAttribute> merged = mergeAttributes(attrAttrs, previewAttrs);
+            android.util.Log.d("AQY", "[AiqiyiPool] giftId=" + giftId
+                    + " attr=" + (attrAttrs == null ? -1 : attrAttrs.size())
+                    + " preview=" + (previewAttrs == null ? -1 : previewAttrs.size())
+                    + " merged=" + merged.size());
+            callback.run(merged);
+        }));
+    }
+
+    /** [Aiqiyi] 按「类型 + 名字」去重合并两个池子，先到的优先。 */
+    private static ArrayList<TL_stars.StarGiftAttribute> mergeAttributes(
+            ArrayList<TL_stars.StarGiftAttribute> base,
+            ArrayList<TL_stars.StarGiftAttribute> extra) {
+        final ArrayList<TL_stars.StarGiftAttribute> out = new ArrayList<>();
+        final java.util.HashSet<String> seen = new java.util.HashSet<>();
+        if (base != null) {
+            for (TL_stars.StarGiftAttribute a : base) {
+                if (a == null) continue;
+                final String key = a.getClass().getSimpleName() + "|" + a.name;
+                if (seen.add(key)) out.add(a);
+            }
+        }
+        if (extra != null) {
+            for (TL_stars.StarGiftAttribute a : extra) {
+                if (a == null) continue;
+                final String key = a.getClass().getSimpleName() + "|" + a.name;
+                if (seen.add(key)) out.add(a);
+            }
+        }
+        return out;
     }
 
     public static ArrayList<TL_stars.StarGiftAttribute> filterAttributes(ArrayList<TL_stars.StarGiftAttribute> attrs, boolean crafting) {
