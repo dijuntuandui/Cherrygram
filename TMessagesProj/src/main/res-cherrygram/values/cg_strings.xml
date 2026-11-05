@@ -944,6 +944,16 @@
     <string name="AQY_Loc_Off">Off</string>
     <string name="AQY_ProtoLogin">Protocol Login</string>
     <string name="AQY_Proto_Title">Protocol Login (choose archive file)</string>
+    <string name="AQY_Conv_Entry">协议转换</string>
+    <string name="AQY_Conv_Entry_Desc">tdata / session / 字符串互转</string>
+    <string name="AQY_Conv_Title">协议转换</string>
+    <string name="AQY_Conv_Pick_Input">选择要转换的文件或 tdata 目录</string>
+    <string name="AQY_Conv_Pick_Output">选择输出目录（建议新建空文件夹）</string>
+    <string name="AQY_Conv_Running">正在转换…</string>
+    <string name="AQY_Conv_Done">转换完成</string>
+    <string name="AQY_Conv_Failed">转换失败</string>
+    <string name="AQY_Conv_SelfTest">自检（随机 key 往返，不碰真实账号）</string>
+    <string name="AQY_Conv_Need_Output">请先选择输出目录</string>
     <string name="AQY_Proto_Warning">If the protocol was freshly extracted, frequent logins or IP anomalies may cause your session to be dropped. Not recommended for beginners. Use an established protocol or passkey login instead.</string>
     <string name="AQY_Proto_Session">Session login</string>
     <string name="AQY_Proto_Session_Desc">Import account from a session file</string>

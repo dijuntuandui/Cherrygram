@@ -1181,6 +1181,25 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
                 org.telegram.messenger.FileLog.e(e);
                 needShowAlert("协议登录失败", "无法读取所选文件。");
             }
+        /** [Aiqiyi] 协议转换：输入文件与输出目录两段式 */
+        if (resultCode == android.app.Activity.RESULT_OK && data != null) {
+            if (requestCode == com.Huanghun.protocol.ProtocolConverterSheet.REQ_INPUT) {
+                try {
+                    onConvertInputPicked(data);
+                } catch (Throwable e) {
+                    org.telegram.messenger.FileLog.e(e);
+                }
+                return;
+            }
+            if (requestCode == com.Huanghun.protocol.ProtocolConverterSheet.REQ_OUTPUT) {
+                try {
+                    onConvertOutputPicked(data);
+                } catch (Throwable e) {
+                    org.telegram.messenger.FileLog.e(e);
+                }
+                return;
+            }
+        }
         }
     }
 
@@ -10892,6 +10911,9 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
             container.addView(item, org.telegram.ui.Components.LayoutHelper.createLinear(org.telegram.ui.Components.LayoutHelper.MATCH_PARENT, org.telegram.ui.Components.LayoutHelper.WRAP_CONTENT));
         }
 
+        // [Aiqiyi] 协议转换入口：与协议登录同源，这里再挂一行
+        com.Huanghun.protocol.ProtocolConverterSheet.addEntry(getParentActivity(), container,
+                () -> startProtocolConvertFlow());
         android.view.View spacer = new android.view.View(getParentActivity());
         spacer.setMinimumHeight(dp(12));
         container.addView(spacer, org.telegram.ui.Components.LayoutHelper.createLinear(org.telegram.ui.Components.LayoutHelper.MATCH_PARENT, dp(12)));
@@ -10914,6 +10936,77 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
     }
 
     private static final int PROTOCOL_LOGIN_REQUEST = 5000;
+
+    // ---------------------------------------------------------- 协议转换
+
+    /** 转换流程的状态：先选输入，再选输出。 */
+    private java.io.File pendingConvertRoot;
+
+    private void startProtocolConvertFlow() {
+        if (getParentActivity() == null) {
+            return;
+        }
+        com.Huanghun.protocol.ProtocolConverterSheet.openInputPicker(getParentActivity());
+    }
+
+    private void onConvertInputPicked(android.content.Intent data) {
+        if (getParentActivity() == null || data == null || data.getData() == null) {
+            return;
+        }
+        final android.net.Uri uri = data.getData();
+        final org.telegram.ui.ActionBar.BaseFragment parent = this;
+        new Thread(() -> {
+            String error = null;
+            java.io.File root = null;
+            try {
+                root = com.Huanghun.protocol.ProtocolConverterSheet.stageInput(getParentActivity(), uri);
+            } catch (Exception e) {
+                org.telegram.messenger.FileLog.e(e);
+                error = e.getMessage() == null ? e.toString() : e.getMessage();
+            }
+            final java.io.File staged = root;
+            final String failure = error;
+            org.telegram.messenger.AndroidUtilities.runOnUIThread(() -> {
+                if (failure != null) {
+                    com.Huanghun.protocol.ProtocolConverterSheet.showResult(
+                            getParentActivity(), false, failure);
+                    return;
+                }
+                pendingConvertRoot = staged;
+                com.Huanghun.protocol.ProtocolConverterSheet.openOutputPicker(getParentActivity());
+            });
+        }, "protocol-stage").start();
+    }
+
+    private void onConvertOutputPicked(android.content.Intent data) {
+        if (getParentActivity() == null || data == null || data.getData() == null) {
+            return;
+        }
+        if (pendingConvertRoot == null) {
+            com.Huanghun.protocol.ProtocolConverterSheet.showResult(
+                    getParentActivity(), false, "还没有选择输入文件");
+            return;
+        }
+        java.io.File outDir = com.Huanghun.protocol.ProtocolConverterSheet
+                .resolveOutputDir(getParentActivity(), data.getData());
+        if (outDir == null) {
+            com.Huanghun.protocol.ProtocolConverterSheet.showResult(
+                    getParentActivity(), false, "无法解析所选输出目录，请换一个位置试试");
+            return;
+        }
+        java.util.List<java.io.File> inputs =
+                com.Huanghun.protocol.ProtocolConverterSheet.findInputs(pendingConvertRoot);
+        if (inputs.isEmpty()) {
+            com.Huanghun.protocol.ProtocolConverterSheet.showResult(
+                    getParentActivity(), false, "没有找到可转换的文件（需要 session / json / txt 或 tdata 目录）");
+            return;
+        }
+        com.Huanghun.protocol.ProtocolConverterSheet.runConvert(
+                getParentActivity(), inputs, outDir,
+                (ok, text) -> com.Huanghun.protocol.ProtocolConverterSheet
+                        .showResult(getParentActivity(), ok, text));
+    }
+
 
     private boolean passkeysSupported() {
         return BuildVars.SUPPORTS_PASSKEYS;
