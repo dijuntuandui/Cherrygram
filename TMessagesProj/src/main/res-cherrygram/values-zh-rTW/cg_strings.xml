@@ -473,18 +473,19 @@
     <string name="DP_Donate_ExclusiveDesc">支持本專案以解鎖所有功能。</string>
     <!--Donations-->
     <!--Cherrygram screens-->
-    <!-- [Aiqiyi] 協議登錄 -->
-    <string name="AQY_ProtoLogin">協議登錄</string>
-    <string name="AQY_Proto_Title">協議登錄（請選擇壓縮包文件）</string>
-    <string name="AQY_Proto_Warning">協議如果是新提取出來的，頻繁登錄或 IP 異常都有可能導致掉登錄。不建議什麼都不懂的新手小白使用，建議使用老協議或者使用通行密鑰登錄！！！</string>
-    <string name="AQY_Proto_Session">session登錄</string>
-    <string name="AQY_Proto_Session_Desc">從 session 文件導入帳號</string>
-    <string name="AQY_Proto_TData">tdata登錄</string>
-    <string name="AQY_Proto_TData_Desc">從 tdata 壓縮包導入帳號</string>
-    <string name="AQY_Proto_Passkey1">使用機器人備份的通行密鑰登錄</string>
-    <string name="AQY_Proto_Passkey1_Desc">通過機器人備份恢復登錄</string>
-    <string name="AQY_Proto_Passkey2">使用機器人備份的通行密鑰登錄（備用）</string>
-    <string name="AQY_Proto_Passkey2_Desc">備用通道</string>
-    <string name="AQY_Proto_NotReady">該方式尚未接入</string>
-    <string name="AQY_Proto_NotReady_Desc">入口已就位，導入邏輯還在做</string>
+    <!-- [Aiqiyi] 协议登录 -->
+    <string name="AQY_ProtoLogin">协议登录</string>
+    <string name="AQY_Proto_Title">协议登录（请选择压缩包文件）</string>
+    <string name="AQY_Proto_Warning">协议如果是新提取出来的，频繁登录或 IP 异常都有可能导致掉登录。不建议什么都不懂的新手小白使用，建议使用老协议或者使用通行密钥登录！！！</string>
+    <string name="AQY_Proto_Session">session登录</string>
+    <string name="AQY_Proto_Session_Desc">从 session 文件导入账号</string>
+    <string name="AQY_Proto_TData">tdata登录</string>
+    <string name="AQY_Proto_TData_Desc">从 tdata 压缩包导入账号</string>
+    <string name="AQY_Proto_Passkey1">使用机器人备份的通行密钥登录</string>
+    <string name="AQY_Proto_Passkey1_Desc">通过机器人备份恢复登录</string>
+    <string name="AQY_Proto_Passkey2">使用机器人备份的通行密钥登录（备用）</string>
+    <string name="AQY_Proto_Passkey2_Desc">备用通道</string>
+    <string name="AQY_Proto_NotReady">该方式尚未接入</string>
+    <string name="AQY_Proto_NotReady_Desc">入口已就位，导入逻辑还在做</string>
+
 </resources>
