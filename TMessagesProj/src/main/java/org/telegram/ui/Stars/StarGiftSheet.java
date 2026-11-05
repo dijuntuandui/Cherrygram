@@ -3590,29 +3590,31 @@ public void toggleWear() {
     /** [Aiqiyi] 把任意 StarGift 解析成「系列 id」；失败返回 0 */
     private static long aiqiyiResolveSeriesId(TL_stars.StarGift gift) {
         if (gift == null) return 0L;
-        long seriesId = 0L;
-        if (gift instanceof TL_stars.TL_starGiftUnique) {
-            seriesId = ((TL_stars.TL_starGiftUnique) gift).gift_id;
-            if (seriesId == 0L) {
-                final TL_stars.TL_starGiftUnique uniq = (TL_stars.TL_starGiftUnique) gift;
-                AndroidUtilities.runOnUIThread(() -> {
-                    android.util.Log.d("AQY", "[AiqiyiSeries] uniq.id=" + uniq.id
-                            + " uniq.gift_id=" + uniq.gift_id
-                            + " slug=" + uniq.slug + " num=" + uniq.num);
-                });
-            }
+        if (!(gift instanceof TL_stars.TL_starGiftUnique)) {
+            return gift.id;
         }
-        if (seriesId != 0L) return seriesId;
-        // 用 title 去商店列表反查
-        final String title = gift.title;
-        if (title != null) {
+        final TL_stars.TL_starGiftUnique uniq = (TL_stars.TL_starGiftUnique) gift;
+        android.util.Log.d("AQY", "[AiqiyiSeriesFields] id=" + uniq.id
+                + " gift_id=" + uniq.gift_id
+                + " num=" + uniq.num
+                + " slug=" + uniq.slug
+                + " title=" + uniq.title);
+        // 实测 uniq.gift_id 存的是「实例 id」，不是系列 id，不能直接用。
+        // 唯一可靠通道：用 title 去商店系列列表反查。
+        final String title = uniq.title;
+        if (title != null && !title.isEmpty()) {
             try {
                 final StarsController sc = StarsController.getInstance(0);
                 if (sc != null) {
                     for (int i = 0; i < sc.gifts.size(); i++) {
                         final TL_stars.StarGift g = sc.gifts.get(i);
-                        if (g != null && title.equals(g.title)) return g.id;
+                        if (g != null && title.equals(g.title)) {
+                            android.util.Log.d("AQY", "[AiqiyiSeriesMatch] title=" + title + " -> id=" + g.id);
+                            return g.id;
+                        }
                     }
+                    android.util.Log.d("AQY", "[AiqiyiSeriesMatch] title=" + title
+                            + " 未命中 gifts.size=" + sc.gifts.size());
                 }
             } catch (Throwable ignore) {}
         }
