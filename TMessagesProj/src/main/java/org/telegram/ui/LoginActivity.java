@@ -10839,7 +10839,7 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
         container.addView(title, org.telegram.ui.Components.LayoutHelper.createLinear(org.telegram.ui.Components.LayoutHelper.MATCH_PARENT, org.telegram.ui.Components.LayoutHelper.WRAP_CONTENT, 22, 16, 22, 0));
 
         android.widget.TextView warn = new android.widget.TextView(getParentActivity());
-        warn.setTextSize(android.util.TypedValue.COMPLEX_UNIT_DIP, 14);
+        warn.setTextSize(android.util.TypedValue.COMPLEX_UNIT_DIP, 13);
         warn.setTextColor(0xffe5584f);
         warn.setLineSpacing(dp(3), 1f);
         warn.setText(R.string.AQY_Proto_Warning);
@@ -10847,28 +10847,38 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
         warn.setBackground(org.telegram.ui.ActionBar.Theme.createRoundRectDrawable(dp(12), 0x1Ae5584f));
         container.addView(warn, org.telegram.ui.Components.LayoutHelper.createLinear(org.telegram.ui.Components.LayoutHelper.MATCH_PARENT, org.telegram.ui.Components.LayoutHelper.WRAP_CONTENT, 22, 14, 22, 6));
 
-        final int[] ids = new int[]{
-                R.string.AQY_Proto_Session,
-                R.string.AQY_Proto_TData,
-                R.string.AQY_Proto_Passkey1,
-                R.string.AQY_Proto_Passkey2
+        final int[][] rows = new int[][]{
+                {R.string.AQY_Proto_Session, R.string.AQY_Proto_Session_Desc},
+                {R.string.AQY_Proto_TData, R.string.AQY_Proto_TData_Desc},
+                {R.string.AQY_Proto_Passkey1, R.string.AQY_Proto_Passkey1_Desc},
+                {R.string.AQY_Proto_Passkey2, R.string.AQY_Proto_Passkey2_Desc}
         };
-        for (int i = 0; i < ids.length; i++) {
+        for (int i = 0; i < rows.length; i++) {
             final int type = i;
-            android.widget.TextView row = new android.widget.TextView(getParentActivity());
-            row.setTextSize(android.util.TypedValue.COMPLEX_UNIT_DIP, 16);
-            row.setTextColor(org.telegram.ui.ActionBar.Theme.getColor(org.telegram.ui.ActionBar.Theme.key_windowBackgroundWhiteBlackText));
-            row.setText(ids[i]);
-            row.setSingleLine(true);
-            row.setEllipsize(android.text.TextUtils.TruncateAt.END);
-            row.setGravity(android.view.Gravity.CENTER_VERTICAL);
-            row.setPadding(dp(22), 0, dp(22), 0);
-            row.setBackground(org.telegram.ui.ActionBar.Theme.getSelectorDrawable(false));
-            row.setOnClickListener(v -> onProtocolLoginPicked(type));
-            container.addView(row, org.telegram.ui.Components.LayoutHelper.createLinear(org.telegram.ui.Components.LayoutHelper.MATCH_PARENT, dp(52)));
+            android.widget.LinearLayout item = new android.widget.LinearLayout(getParentActivity());
+            item.setOrientation(android.widget.LinearLayout.VERTICAL);
+            item.setGravity(android.view.Gravity.CENTER_VERTICAL);
+            item.setPadding(dp(22), dp(12), dp(22), dp(12));
+            item.setBackground(org.telegram.ui.ActionBar.Theme.getSelectorDrawable(false));
+            item.setOnClickListener(v -> onProtocolLoginPicked(type));
+
+            android.widget.TextView name = new android.widget.TextView(getParentActivity());
+            name.setTextSize(android.util.TypedValue.COMPLEX_UNIT_DIP, 16);
+            name.setTextColor(org.telegram.ui.ActionBar.Theme.getColor(org.telegram.ui.ActionBar.Theme.key_windowBackgroundWhiteBlackText));
+            name.setText(rows[i][0]);
+            item.addView(name, org.telegram.ui.Components.LayoutHelper.createLinear(org.telegram.ui.Components.LayoutHelper.MATCH_PARENT, org.telegram.ui.Components.LayoutHelper.WRAP_CONTENT));
+
+            android.widget.TextView desc = new android.widget.TextView(getParentActivity());
+            desc.setTextSize(android.util.TypedValue.COMPLEX_UNIT_DIP, 13);
+            desc.setTextColor(org.telegram.ui.ActionBar.Theme.getColor(org.telegram.ui.ActionBar.Theme.key_windowBackgroundWhiteGrayText));
+            desc.setText(rows[i][1]);
+            item.addView(desc, org.telegram.ui.Components.LayoutHelper.createLinear(org.telegram.ui.Components.LayoutHelper.MATCH_PARENT, org.telegram.ui.Components.LayoutHelper.WRAP_CONTENT, 0, 3, 0, 0));
+
+            container.addView(item, org.telegram.ui.Components.LayoutHelper.createLinear(org.telegram.ui.Components.LayoutHelper.MATCH_PARENT, org.telegram.ui.Components.LayoutHelper.WRAP_CONTENT));
         }
 
         android.view.View spacer = new android.view.View(getParentActivity());
+        spacer.setMinimumHeight(dp(12));
         container.addView(spacer, org.telegram.ui.Components.LayoutHelper.createLinear(org.telegram.ui.Components.LayoutHelper.MATCH_PARENT, dp(12)));
 
         builder.setCustomView(container);
