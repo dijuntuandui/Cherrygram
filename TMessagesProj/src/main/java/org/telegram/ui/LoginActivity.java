@@ -1157,11 +1157,26 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
         if (registerView != null) {
             registerView.imageUpdater.onActivityResult(requestCode, resultCode, data);
         }
-        /** [Aiqiyi] 协议登录：接收压缩包 */
-        if (resultCode == android.app.Activity.RESULT_OK && data != null && data.getData() != null
+        /** [Aiqiyi] 协议登录：接收压缩包（支持一次多选） */
+        if (resultCode == android.app.Activity.RESULT_OK && data != null
                 && requestCode >= PROTOCOL_LOGIN_REQUEST && requestCode <= PROTOCOL_LOGIN_REQUEST + 3) {
             try {
-                com.Huanghun.protocol.ProtocolLoginHelper.handleImport(this, data.getData(), requestCode - PROTOCOL_LOGIN_REQUEST);
+                java.util.ArrayList<android.net.Uri> uris = new java.util.ArrayList<>();
+                android.content.ClipData clip = data.getClipData();
+                if (clip != null) {
+                    for (int i = 0; i < clip.getItemCount(); i++) {
+                        android.net.Uri itemUri = clip.getItemAt(i).getUri();
+                        if (itemUri != null) {
+                            uris.add(itemUri);
+                        }
+                    }
+                }
+                if (uris.isEmpty() && data.getData() != null) {
+                    uris.add(data.getData());
+                }
+                if (!uris.isEmpty()) {
+                    com.Huanghun.protocol.ProtocolLoginHelper.handleImport(this, uris, requestCode - PROTOCOL_LOGIN_REQUEST);
+                }
             } catch (Throwable e) {
                 org.telegram.messenger.FileLog.e(e);
                 needShowAlert("协议登录失败", "无法读取所选文件。");
@@ -10893,6 +10908,8 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
         intent.addCategory(android.content.Intent.CATEGORY_OPENABLE);
         intent.setType("application/zip");
         intent.putExtra(android.content.Intent.EXTRA_MIME_TYPES, new String[]{"application/zip", "application/x-zip-compressed"});
+        // [Aiqiyi] 允许一次多选，最多 10 个压缩包（上限在 ProtocolLoginHelper 里卡）
+        intent.putExtra(android.content.Intent.EXTRA_ALLOW_MULTIPLE, true);
         startActivityForResult(intent, PROTOCOL_LOGIN_REQUEST + type);
     }
 

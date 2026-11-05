@@ -49,6 +49,8 @@ public final class ProtocolLoginHelper {
     private static final int TYPE_PASSKEY = 2;
     private static final int TYPE_PASSKEY_BRIDGE = 3;
     private static final int MAX_ENTRIES = 512;
+    /** [Aiqiyi] 单次批量导入最多接收的压缩包数量。 */
+    private static final int MAX_BATCH_ARCHIVES = 10;
     private static final long MAX_UNCOMPRESSED_BYTES = 64L * 1024L * 1024L;
     private static final long VERIFY_TIMEOUT_MS = 20_000L;
 
@@ -56,7 +58,21 @@ public final class ProtocolLoginHelper {
     }
 
     public static void handleImport(final Object fragment, final Uri uri, final int type) {
-        if (!(fragment instanceof LoginActivity) || uri == null) {
+        if (uri == null) {
+            return;
+        }
+        ArrayList<Uri> single = new ArrayList<>(1);
+        single.add(uri);
+        handleImport(fragment, single, type);
+    }
+
+    /**
+     * [Aiqiyi] 批量导入入口：一次接收多个压缩包，上限 MAX_BATCH_ARCHIVES 个。
+     * 每个压缩包解压到独立的 pkg_N 子目录，最后统一扫描，避免同名 session 互相覆盖。
+     * 单个压缩包损坏或格式不对只跳过它，不影响其余压缩包。
+     */
+    public static void handleImport(final Object fragment, final java.util.List<Uri> uris, final int type) {
+        if (!(fragment instanceof LoginActivity) || uris == null || uris.isEmpty()) {
             return;
         }
         final LoginActivity loginActivity = (LoginActivity) fragment;
@@ -64,10 +80,21 @@ public final class ProtocolLoginHelper {
         if (activity == null) {
             return;
         }
-        if (!isZipArchive(activity, uri)) {
-            showZipFormatError(activity);
+
+        ArrayList<Uri> pending = new ArrayList<>(uris.size());
+        for (Uri candidate : uris) {
+            if (candidate != null) {
+                pending.add(candidate);
+            }
+        }
+        if (pending.isEmpty()) {
             return;
         }
+        if (pending.size() > MAX_BATCH_ARCHIVES) {
+            showToast(activity, "单次最多导入 " + MAX_BATCH_ARCHIVES + " 个压缩包，其余已忽略");
+            pending = new ArrayList<>(pending.subList(0, MAX_BATCH_ARCHIVES));
+        }
+        final ArrayList<Uri> archives = pending;
 
         final ImportProgressDialog progress = new ImportProgressDialog(activity);
         progress.showScanning();
@@ -78,7 +105,32 @@ public final class ProtocolLoginHelper {
                 if (!importDir.mkdirs() && !importDir.isDirectory()) {
                     throw new IOException("无法创建临时目录");
                 }
-                extractArchive(activity, uri, importDir);
+
+                int archiveIndex = 0;
+                int skippedArchives = 0;
+                for (Uri archive : archives) {
+                    if (!isZipArchive(activity, archive)) {
+                        skippedArchives++;
+                        continue;
+                    }
+                    File packageDir = new File(importDir, "pkg_" + archiveIndex);
+                    archiveIndex++;
+                    if (!packageDir.mkdirs() && !packageDir.isDirectory()) {
+                        skippedArchives++;
+                        continue;
+                    }
+                    try {
+                        extractArchive(activity, archive, packageDir);
+                    } catch (Exception ignore) {
+                        // 单个压缩包损坏：清掉它的残留，继续处理后续压缩包。
+                        deleteRecursive(packageDir);
+                        skippedArchives++;
+                    }
+                }
+                if (archives.size() > 1 && skippedArchives > 0) {
+                    final int skipped = skippedArchives;
+                    AndroidUtilities.runOnUIThread(() -> showToast(activity, skipped + " 个压缩包无法读取，已跳过"));
+                }
 
                 CandidateCollection collection = collectCandidates(importDir, type);
                 BatchState batch = new BatchState(collection.scannedCount, loginActivity.getCurrentAccount(), progress);
