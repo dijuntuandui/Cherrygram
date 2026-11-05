@@ -59,18 +59,18 @@ public final class ProtocolConvertPage {
         TextView sub = new TextView(activity);
         sub.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 13);
         sub.setTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteGrayText));
-        sub.setText("tdata / session / json / 字符串互转，产物落在固定目录");
+        sub.setText("tdata / session / json / 字符串互转，产物落在固定目录。tdata 请压缩成 zip 后再选。");
         root.addView(sub, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT,
                 LayoutHelper.WRAP_CONTENT, 22, 0, 22, 12));
 
         // ==== 组一：转换 ====
         addSectionHeader(activity, root, "转换");
         addCard(activity, root, sheetRef, new Item[] {
-                new Item("tdata 转 session", "读 tdata 目录，输出 telethon + pyrogram 两份 session", true,
+                new Item("tdata 转 session", "选 tdata 压缩包，输出 telethon + pyrogram 两份 session", true,
                         () -> host.onFeature(FlowHost.F_TDATA_TO_SESSION)),
                 new Item("session 转 tdata", "读 session / json / 字符串，输出标准 tdata 目录", true,
                         () -> host.onFeature(FlowHost.F_SESSION_TO_TDATA)),
-                new Item("tdata 转 JSON", "读 tdata，输出带 auth_key 的 json 归档", true,
+                new Item("tdata 转 JSON", "选 tdata 压缩包，输出带 auth_key 的 json 归档", true,
                         () -> host.onFeature(FlowHost.F_TDATA_TO_JSON)),
                 new Item("JSON 转 session", "读 json 归档，还原成 session 与字符串", true,
                         () -> host.onFeature(FlowHost.F_JSON_TO_SESSION)),

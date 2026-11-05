@@ -304,12 +304,34 @@ public final class ProtocolConverterSheet {
         report.runDir = runDir;
 
         // 按功能决定要产出哪种格式
-        boolean toTdata = feature == ProtocolConvertPage.FlowHost.F_SESSION_TO_TDATA;
-        boolean wantTelethon = !toTdata;
-        boolean wantPyrogram = !toTdata;
-        boolean wantString = true;
-        boolean wantJson = true;
-        boolean wantTdata = toTdata;
+        // 每个功能只产出它该产出的东西，避免一次吐五种格式
+        // 1 tdata->session  : telethon + pyrogram + string
+        // 2 session->tdata  : tdata
+        // 4 tdata->JSON     : json
+        // 5 JSON->session   : telethon + pyrogram + string
+        boolean wantTelethon = false;
+        boolean wantPyrogram = false;
+        boolean wantString = false;
+        boolean wantJson = false;
+        boolean wantTdata = false;
+        if (feature == ProtocolConvertPage.FlowHost.F_TDATA_TO_SESSION
+                || feature == ProtocolConvertPage.FlowHost.F_JSON_TO_SESSION) {
+            wantTelethon = true;
+            wantPyrogram = true;
+            wantString = true;
+        } else if (feature == ProtocolConvertPage.FlowHost.F_SESSION_TO_TDATA) {
+            wantTdata = true;
+        } else if (feature == ProtocolConvertPage.FlowHost.F_TDATA_TO_JSON) {
+            wantJson = true;
+        } else {
+            // 未单独定义的功能：保持旧行为，全格式产出
+            wantTelethon = true;
+            wantPyrogram = true;
+            wantString = true;
+            wantJson = true;
+            wantTdata = true;
+            report.addNote("未定义功能 " + feature + "，已按全格式转换");
+        }
 
         List<File> produced = new ArrayList<>();
         for (File input : inputs) {
