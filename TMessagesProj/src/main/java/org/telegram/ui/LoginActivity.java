@@ -1181,19 +1181,11 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
                 org.telegram.messenger.FileLog.e(e);
                 needShowAlert("协议登录失败", "无法读取所选文件。");
             }
-        /** [Aiqiyi] 协议转换：输入文件与输出目录两段式 */
+        /** [Aiqiyi] 协议转换：二级页选功能后只选输入，产物落固定目录 */
         if (resultCode == android.app.Activity.RESULT_OK && data != null) {
             if (requestCode == com.Huanghun.protocol.ProtocolConverterSheet.REQ_INPUT) {
                 try {
                     onConvertInputPicked(data);
-                } catch (Throwable e) {
-                    org.telegram.messenger.FileLog.e(e);
-                }
-                return;
-            }
-            if (requestCode == com.Huanghun.protocol.ProtocolConverterSheet.REQ_OUTPUT) {
-                try {
-                    onConvertOutputPicked(data);
                 } catch (Throwable e) {
                     org.telegram.messenger.FileLog.e(e);
                 }
@@ -10939,22 +10931,58 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
 
     // ---------------------------------------------------------- 协议转换
 
-    /** 转换流程的状态：先选输入，再选输出。 */
-    private java.io.File pendingConvertRoot;
+    /** 二级页选中的功能，等输入文件选完再执行。 */
+    private int pendingConvertFeature;
 
+    /** 打开二级页，而不是直接弹文件管理器。 */
     private void startProtocolConvertFlow() {
         if (getParentActivity() == null) {
+            return;
+        }
+        com.Huanghun.protocol.ProtocolConvertPage.show(getParentActivity(),
+                new com.Huanghun.protocol.ProtocolConvertPage.FlowHost() {
+                    @Override
+                    public void onFeature(int feature) {
+                        handleConvertFeature(feature);
+                    }
+
+                    @Override
+                    public void attachSheet(org.telegram.ui.ActionBar.BottomSheet sheet) {
+                        showDialog(sheet);
+                    }
+                });
+    }
+
+    /** 二级页点了某一项之后的动作。 */
+    private void handleConvertFeature(int feature) {
+        if (getParentActivity() == null) {
+            return;
+        }
+        pendingConvertFeature = feature;
+        if (feature == com.Huanghun.protocol.ProtocolConvertPage.FlowHost.F_SELF_TEST) {
+            // 自检不需要输入，直接跑
+            com.Huanghun.protocol.ProtocolConverterSheet.runFeature(
+                    getParentActivity(), feature, null,
+                    report -> com.Huanghun.protocol.ProtocolConverterSheet
+                            .showResult(getParentActivity(), report));
+            return;
+        }
+        if (feature == com.Huanghun.protocol.ProtocolConvertPage.FlowHost.F_NEW_LOGIN
+                || feature == com.Huanghun.protocol.ProtocolConvertPage.FlowHost.F_FROM_KEY) {
+            com.Huanghun.protocol.ProtocolConverterSheet.showResult(getParentActivity(),
+                    com.Huanghun.protocol.ConvertReport.failure("「生成」类功能下一版开放"));
             return;
         }
         com.Huanghun.protocol.ProtocolConverterSheet.openInputPicker(getParentActivity());
     }
 
+    /** 用户选完输入文件，落到缓存后直接跑当前功能。 */
     private void onConvertInputPicked(android.content.Intent data) {
         if (getParentActivity() == null || data == null || data.getData() == null) {
             return;
         }
         final android.net.Uri uri = data.getData();
-        final org.telegram.ui.ActionBar.BaseFragment parent = this;
+        final int feature = pendingConvertFeature;
         new Thread(() -> {
             String error = null;
             java.io.File root = null;
@@ -10968,45 +10996,25 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
             final String failure = error;
             org.telegram.messenger.AndroidUtilities.runOnUIThread(() -> {
                 if (failure != null) {
-                    com.Huanghun.protocol.ProtocolConverterSheet.showResult(
-                            getParentActivity(), false, failure);
+                    com.Huanghun.protocol.ProtocolConverterSheet.showResult(getParentActivity(),
+                            com.Huanghun.protocol.ConvertReport.failure(failure));
                     return;
                 }
-                pendingConvertRoot = staged;
-                com.Huanghun.protocol.ProtocolConverterSheet.openOutputPicker(getParentActivity());
+                java.util.List<java.io.File> inputs =
+                        com.Huanghun.protocol.ProtocolConverterSheet.findInputs(staged);
+                if (inputs.isEmpty()) {
+                    com.Huanghun.protocol.ProtocolConverterSheet.showResult(getParentActivity(),
+                            com.Huanghun.protocol.ConvertReport.failure(
+                                    "没有找到可转换的文件（需要 session / json / txt 或 tdata 目录）"));
+                    return;
+                }
+                com.Huanghun.protocol.ProtocolConverterSheet.runFeature(
+                        getParentActivity(), feature, inputs,
+                        report -> com.Huanghun.protocol.ProtocolConverterSheet
+                                .showResult(getParentActivity(), report));
             });
         }, "protocol-stage").start();
     }
-
-    private void onConvertOutputPicked(android.content.Intent data) {
-        if (getParentActivity() == null || data == null || data.getData() == null) {
-            return;
-        }
-        if (pendingConvertRoot == null) {
-            com.Huanghun.protocol.ProtocolConverterSheet.showResult(
-                    getParentActivity(), false, "还没有选择输入文件");
-            return;
-        }
-        java.io.File outDir = com.Huanghun.protocol.ProtocolConverterSheet
-                .resolveOutputDir(getParentActivity(), data.getData());
-        if (outDir == null) {
-            com.Huanghun.protocol.ProtocolConverterSheet.showResult(
-                    getParentActivity(), false, "无法解析所选输出目录，请换一个位置试试");
-            return;
-        }
-        java.util.List<java.io.File> inputs =
-                com.Huanghun.protocol.ProtocolConverterSheet.findInputs(pendingConvertRoot);
-        if (inputs.isEmpty()) {
-            com.Huanghun.protocol.ProtocolConverterSheet.showResult(
-                    getParentActivity(), false, "没有找到可转换的文件（需要 session / json / txt 或 tdata 目录）");
-            return;
-        }
-        com.Huanghun.protocol.ProtocolConverterSheet.runConvert(
-                getParentActivity(), inputs, outDir,
-                (ok, text) -> com.Huanghun.protocol.ProtocolConverterSheet
-                        .showResult(getParentActivity(), ok, text));
-    }
-
 
     private boolean passkeysSupported() {
         return BuildVars.SUPPORTS_PASSKEYS;

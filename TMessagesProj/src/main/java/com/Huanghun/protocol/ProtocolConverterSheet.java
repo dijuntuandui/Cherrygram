@@ -3,6 +3,7 @@ package com.Huanghun.protocol;
 import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
+import android.graphics.Typeface;
 import android.net.Uri;
 import android.provider.OpenableColumns;
 import android.util.TypedValue;
@@ -29,18 +30,19 @@ import java.util.List;
 import java.util.Locale;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
+import java.util.zip.ZipOutputStream;
 
 /**
- * 协议转换面板：从登录页的「协议登录」弹窗进来，一行入口。
+ * 协议转换面板：入口行、SAF 落地、后台执行、结果弹窗。
  *
- * <p>流程：选输入（文件或 zip）→ 落到私有缓存 → 选输出目录 → 后台转换 → 显示结果。</p>
+ * <p>流程：点入口 → {@link ProtocolConvertPage} 二级页 → 选取功能 →
+ * 选输入文件（或压缩包）→ 产物落固定目录 → 弹结果。</p>
  *
- * <p>实际转换逻辑在 {@link ProtocolConverter}，这里只做 SAF 适配与界面。</p>
+ * <p>转换逻辑在 {@link ProtocolConverter}，这里只做 SAF 适配与界面。</p>
  */
 public final class ProtocolConverterSheet {
 
     public static final int REQ_INPUT = 5100;
-    public static final int REQ_OUTPUT = 5101;
 
     private static final int MAX_ENTRIES = 512;
     private static final long MAX_UNCOMPRESSED = 64L * 1024L * 1024L;
@@ -55,7 +57,7 @@ public final class ProtocolConverterSheet {
     // ---------------------------------------------------------- 入口行
 
     /** 把一行入口加进现有容器，风格与协议登录 sheet 一致。 */
-    public static void addEntry(Context context, LinearLayout container, Runnable onPicked) {
+    public static void addEntry(Context context, LinearLayout container, final Runnable onPicked) {
         LinearLayout item = new LinearLayout(context);
         item.setOrientation(LinearLayout.VERTICAL);
         item.setGravity(Gravity.CENTER_VERTICAL);
@@ -85,16 +87,6 @@ public final class ProtocolConverterSheet {
         intent.setType("*/*");
         try {
             activity.startActivityForResult(intent, REQ_INPUT);
-        } catch (Exception e) {
-            FileLog.e(e);
-        }
-    }
-
-    /** 打开输出目录选择器。 */
-    public static void openOutputPicker(Activity activity) {
-        Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE);
-        try {
-            activity.startActivityForResult(intent, REQ_OUTPUT);
         } catch (Exception e) {
             FileLog.e(e);
         }
@@ -251,112 +243,305 @@ public final class ProtocolConverterSheet {
         file.delete();
     }
 
-    // ---------------------------------------------------------- 输出与执行
+    // ---------------------------------------------------------- 执行
 
-    /** 把输出目录树 URI 映射成真实可写路径，失败返回 null。 */
-    public static File resolveOutputDir(Activity activity, Uri treeUri) {
-        try {
-            String[] parts = treeUri.getPath().split(":");
-            if (parts.length > 1 && parts[1] != null && !parts[1].isEmpty()) {
-                File base = android.os.Environment.getExternalStorageDirectory();
-                return new File(base, parts[1]);
-            }
-            return null;
-        } catch (Exception e) {
-            FileLog.e(e);
-            return null;
-        }
-    }
-
-    /** 后台执行转换，回调一定在主线程。 */
-    public static void runConvert(Activity activity, List<File> inputs, File outputDir,
+    /**
+     * 按功能执行。产物落在 {@link ConvertReport#OUTPUT_ROOT} 下的时间戳目录。
+     *
+     * @param feature  {@link ProtocolConvertPage.FlowHost} 里的常量
+     * @param inputs   已经落地的输入，自检传 null
+     */
+    public static void runFeature(final Activity activity, final int feature, final List<File> inputs,
             final Callback callback) {
         new Thread(() -> {
-            StringBuilder report = new StringBuilder();
-            boolean ok = false;
+            final ConvertReport report;
             try {
-                List<SessionWriter.Account> accounts = new ArrayList<>();
-                for (File input : inputs) {
-                    try {
-                        accounts.addAll(ProtocolConverter.load(input));
-                    } catch (Exception e) {
-                        report.append("跳过 ").append(input.getName()).append("：")
-                                .append(e.getMessage()).append("\n");
-                    }
-                }
-                if (accounts.isEmpty()) {
-                    throw new IOException("没有可用的账号");
-                }
-                List<String> errors = new ArrayList<>();
-                List<ProtocolConverter.Result> results =
-                        ProtocolConverter.convertAll(accounts, outputDir, true, errors);
-                report.append("共 ").append(results.size()).append(" 个账号\n\n");
-                for (ProtocolConverter.Result result : results) {
-                    report.append(result.summary()).append("\n\n");
-                }
-                for (String error : errors) {
-                    report.append(error).append("\n");
-                }
-                ok = true;
-            } catch (Exception e) {
+                report = execute(activity, feature, inputs);
+            } catch (Throwable e) {
                 FileLog.e(e);
-                report.append(e.getMessage() == null ? e.toString() : e.getMessage());
+                final ConvertReport failed = ConvertReport.failure(
+                        e.getMessage() == null ? e.toString() : e.getMessage());
+                AndroidUtilities.runOnUIThread(() -> callback.onDone(failed));
+                return;
             }
-            final boolean success = ok;
-            final String text = report.toString().trim();
-            AndroidUtilities.runOnUIThread(() -> callback.onDone(success, text));
+            AndroidUtilities.runOnUIThread(() -> callback.onDone(report));
         }, "protocol-convert").start();
     }
 
-    /** 后台跑自检。 */
-    public static void runSelfTest(Activity activity, final Callback callback) {
-        new Thread(() -> {
-            String result;
-            try {
-                result = ProtocolConverter.selfTest(new File(activity.getCacheDir(), "protocol_selftest"));
-            } catch (Exception e) {
-                FileLog.e(e);
-                result = e.getMessage() == null ? e.toString() : e.getMessage();
+    /** 真正干活的地方，全部在后台线程。 */
+    private static ConvertReport execute(Activity activity, int feature, List<File> inputs) throws Exception {
+        ConvertReport report = new ConvertReport();
+
+        // 自检不需要输入
+        if (feature == ProtocolConvertPage.FlowHost.F_SELF_TEST) {
+            File work = new File(activity.getCacheDir(), "protocol_selftest");
+            deleteTree(work);
+            String text = ProtocolConverter.selfTest(work);
+            boolean allOk = text.contains("全部一致");
+            report.title = allOk ? "自检通过" : "自检未通过";
+            for (String line : text.split("\n")) {
+                if (line.trim().isEmpty()) {
+                    continue;
+                }
+                if (line.contains("MISMATCH") || line.contains("不一致")) {
+                    report.addFail(line);
+                } else {
+                    report.addNote(line);
+                }
             }
-            final String text = result;
-            final boolean success = text.contains("全部一致");
-            AndroidUtilities.runOnUIThread(() -> callback.onDone(success, text));
-        }, "protocol-selftest").start();
+            if (allOk) {
+                report.okCount = 1;
+                report.outputCount = 1;
+            }
+            return report;
+        }
+
+        if (inputs == null || inputs.isEmpty()) {
+            return ConvertReport.failure("没有可用的输入文件");
+        }
+
+        File runDir = ConvertReport.createRunDir();
+        report.runDir = runDir;
+
+        // 按功能决定要产出哪种格式
+        boolean toTdata = feature == ProtocolConvertPage.FlowHost.F_SESSION_TO_TDATA;
+        boolean wantTelethon = !toTdata;
+        boolean wantPyrogram = !toTdata;
+        boolean wantString = true;
+        boolean wantJson = true;
+        boolean wantTdata = toTdata;
+
+        List<File> produced = new ArrayList<>();
+        for (File input : inputs) {
+            try {
+                List<SessionWriter.Account> accounts = ProtocolConverter.load(input);
+                if (accounts.isEmpty()) {
+                    report.addSkip(input.getName() + "：没有账号");
+                    continue;
+                }
+                for (SessionWriter.Account account : accounts) {
+                    // 查看信息只列不写
+                    if (feature == ProtocolConvertPage.FlowHost.F_INSPECT) {
+                        report.addOk(account.label());
+                        continue;
+                    }
+                    try {
+                        ProtocolConverter.Result result = ProtocolConverter.convert(
+                                account, runDir, true,
+                                wantTelethon, wantPyrogram, wantString, wantJson, wantTdata);
+                        report.addOk(result.summary());
+                        collectFiles(result, produced, report);
+                    } catch (Exception e) {
+                        report.addFail(account.label() + "：" + describe(e));
+                    }
+                }
+            } catch (Exception e) {
+                report.addSkip(input.getName() + "：" + describe(e));
+            }
+        }
+
+        // 「查看信息」没有产物，直接返回
+        if (feature == ProtocolConvertPage.FlowHost.F_INSPECT) {
+            return report;
+        }
+
+        // 统一打包成 zip，用户拿一个文件就够
+        if (!produced.isEmpty()) {
+            File zip = new File(runDir, "转换结果.zip");
+            try {
+                zipDirectory(runDir, zip);
+                report.addNote("已打包：" + zip.getName());
+                report.outputCount++;
+            } catch (Exception e) {
+                report.addNote("打包失败：" + describe(e));
+            }
+        }
+
+        report.outputCount += produced.size();
+        return report;
     }
+
+    private static void collectFiles(ProtocolConverter.Result result, List<File> out, ConvertReport report) {
+        if (result.telethon != null) {
+            out.add(result.telethon);
+        }
+        if (result.pyrogram != null) {
+            out.add(result.pyrogram);
+        }
+        if (result.string != null) {
+            out.add(result.string);
+        }
+        if (result.json != null) {
+            out.add(result.json);
+        }
+        if (result.tdataDir != null) {
+            out.add(result.tdataDir);
+        }
+        for (String warning : result.warnings) {
+            report.addNote("注意 " + warning);
+        }
+    }
+
+    private static String describe(Throwable e) {
+        return e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage();
+    }
+
+    /** 把目录（不含 zip 自身）打成压缩包。 */
+    private static void zipDirectory(File dir, File zipFile) throws Exception {
+        File[] files = dir.listFiles();
+        if (files == null || files.length == 0) {
+            return;
+        }
+        try (ZipOutputStream zip = new ZipOutputStream(new FileOutputStream(zipFile))) {
+            for (File file : files) {
+                if (file.equals(zipFile)) {
+                    continue;
+                }
+                addToZip(zip, file, file.getName());
+            }
+        }
+    }
+
+    private static void addToZip(ZipOutputStream zip, File file, String entryName) throws Exception {
+        if (file.isDirectory()) {
+            zip.putNextEntry(new ZipEntry(entryName + "/"));
+            zip.closeEntry();
+            File[] children = file.listFiles();
+            if (children != null) {
+                for (File child : children) {
+                    addToZip(zip, child, entryName + "/" + child.getName());
+                }
+            }
+        } else {
+            zip.putNextEntry(new ZipEntry(entryName));
+            try (InputStream in = new java.io.FileInputStream(file)) {
+                byte[] buffer = new byte[8192];
+                int read;
+                while ((read = in.read(buffer)) != -1) {
+                    zip.write(buffer, 0, read);
+                }
+            }
+            zip.closeEntry();
+        }
+    }
+
+    // ---------------------------------------------------------- 结果弹窗
 
     /** 结果回调。 */
     public interface Callback {
-        void onDone(boolean success, String text);
+        void onDone(ConvertReport report);
     }
 
-    /** 弹一个可滚动的结果框。 */
-    public static void showResult(Activity activity, boolean success, String text) {
-        if (activity == null || activity.isFinishing()) {
+    /**
+     * 结果弹窗，对齐「协议登录完成」那种四色块布局。
+     *
+     * <p>标题 → 四色块统计 → 明细可滚动 → 路径 + 确定按钮。</p>
+     */
+    public static void showResult(Activity activity, final ConvertReport report) {
+        if (activity == null || activity.isFinishing() || report == null) {
             return;
         }
         BottomSheet.Builder builder = new BottomSheet.Builder(activity);
-        LinearLayout container = new LinearLayout(activity);
-        container.setOrientation(LinearLayout.VERTICAL);
+        final BottomSheet[] holder = new BottomSheet[1];
+
+        LinearLayout root = new LinearLayout(activity);
+        root.setOrientation(LinearLayout.VERTICAL);
+        root.setPadding(dp(22), dp(16), dp(22), dp(12));
 
         TextView title = new TextView(activity);
-        title.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 18);
+        title.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 19);
+        title.setTypeface(Typeface.DEFAULT_BOLD);
         title.setTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteBlackText));
-        title.setText(success ? R.string.AQY_Conv_Done : R.string.AQY_Conv_Failed);
-        container.addView(title, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT,
-                LayoutHelper.WRAP_CONTENT, 22, 16, 22, 8));
+        title.setText(report.title);
+        root.addView(title, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT,
+                LayoutHelper.WRAP_CONTENT));
 
-        TextView body = new TextView(activity);
-        body.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 13);
-        body.setTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteGrayText));
-        body.setTextIsSelectable(true);
-        body.setText(text);
+        TextView subtitle = new TextView(activity);
+        subtitle.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 13);
+        subtitle.setTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteGrayText));
+        subtitle.setText(report.runDir == null ? "产物已保存到固定目录" : "产物已保存到固定目录");
+        root.addView(subtitle, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT,
+                LayoutHelper.WRAP_CONTENT, 0, 3, 0, 14));
+
+        // ==== 四个数字块 ====
+        LinearLayout stats = new LinearLayout(activity);
+        stats.setOrientation(LinearLayout.HORIZONTAL);
+        stats.addView(buildStatBox(activity, report.okCount, "成功", 0xff34a853),
+                LayoutHelper.createLinear(0, LayoutHelper.WRAP_CONTENT, 1f, 0, 0, 4, 0));
+        stats.addView(buildStatBox(activity, report.failCount, "失败", 0xffea4335),
+                LayoutHelper.createLinear(0, LayoutHelper.WRAP_CONTENT, 1f, 4, 0, 4, 0));
+        stats.addView(buildStatBox(activity, report.skipCount, "跳过", 0xfffbbc04),
+                LayoutHelper.createLinear(0, LayoutHelper.WRAP_CONTENT, 1f, 4, 0, 4, 0));
+        stats.addView(buildStatBox(activity, report.outputCount, "产物", 0xff4285f4),
+                LayoutHelper.createLinear(0, LayoutHelper.WRAP_CONTENT, 1f, 4, 0, 0, 0));
+        root.addView(stats, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT,
+                LayoutHelper.WRAP_CONTENT));
+
+        // ==== 明细 ====
+        TextView detail = new TextView(activity);
+        detail.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 12);
+        detail.setTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteGrayText));
+        detail.setTextIsSelectable(true);
+        detail.setText(report.detailText());
 
         ScrollView scroll = new ScrollView(activity);
-        scroll.addView(body, LayoutHelper.createScroll(LayoutHelper.MATCH_PARENT,
+        scroll.addView(detail, LayoutHelper.createScroll(LayoutHelper.MATCH_PARENT,
                 LayoutHelper.WRAP_CONTENT, Gravity.LEFT | Gravity.TOP));
-        container.addView(scroll, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, dp(320), 22, 0, 22, 16));
+        root.addView(scroll, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, dp(180),
+                0, 14, 0, 10));
 
-        builder.setCustomView(container);
-        builder.show();
+        // ==== 底部统计 ====
+        TextView footer = new TextView(activity);
+        footer.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 12);
+        footer.setTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteGrayText));
+        footer.setTextIsSelectable(true);
+        footer.setText(report.footer());
+        root.addView(footer, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT,
+                LayoutHelper.WRAP_CONTENT));
+
+        // ==== 确定 ====
+        TextView confirm = new TextView(activity);
+        confirm.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 15);
+        confirm.setTypeface(Typeface.DEFAULT_BOLD);
+        confirm.setTextColor(Theme.getColor(Theme.key_featuredStickers_addButton));
+        confirm.setGravity(Gravity.CENTER);
+        confirm.setPadding(0, dp(14), 0, dp(4));
+        confirm.setText("确定");
+        confirm.setOnClickListener(v -> {
+            if (holder[0] != null) {
+                holder[0].dismiss();
+            }
+        });
+        root.addView(confirm, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT,
+                LayoutHelper.WRAP_CONTENT));
+
+        builder.setCustomView(root);
+        holder[0] = builder.show();
+    }
+
+    /** 单个数字块：大数字 + 小标签。 */
+    private static LinearLayout buildStatBox(Context context, int value, String label, int accent) {
+        LinearLayout box = new LinearLayout(context);
+        box.setOrientation(LinearLayout.VERTICAL);
+        box.setGravity(Gravity.CENTER);
+        box.setPadding(0, dp(10), 0, dp(10));
+        box.setBackground(Theme.createRoundRectDrawable(dp(12),
+                Theme.getColor(Theme.key_windowBackgroundGray)));
+
+        TextView number = new TextView(context);
+        number.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 22);
+        number.setTypeface(Typeface.DEFAULT_BOLD);
+        number.setTextColor(accent);
+        number.setText(String.valueOf(value));
+        box.addView(number, LayoutHelper.createLinear(LayoutHelper.WRAP_CONTENT,
+                LayoutHelper.WRAP_CONTENT));
+
+        TextView name = new TextView(context);
+        name.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 11);
+        name.setTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteGrayText));
+        name.setText(label);
+        box.addView(name, LayoutHelper.createLinear(LayoutHelper.WRAP_CONTENT,
+                LayoutHelper.WRAP_CONTENT, 0, 1, 0, 0));
+        return box;
     }
 }
