@@ -16,6 +16,8 @@
 #include <map>
 #include <atomic>
 #include <unordered_set>
+#include <vector>
+#include <string>
 #include "Defines.h"
 
 #ifdef ANDROID
@@ -87,6 +89,7 @@ public:
     void receivedIntegrityCheckClassic(int32_t requestToken, std::string nonce, std::string token);
     void receivedCaptchaResult(int32_t requestTokensCount, int32_t* requestTokens, std::string token);
     void moveToDatacenter(uint32_t datacenterId);
+    void importAuthKey(uint32_t datacenterId, std::string address, uint32_t port, std::vector<uint8_t> authKey);
 
 private:
     static void *ThreadProc(void *data);

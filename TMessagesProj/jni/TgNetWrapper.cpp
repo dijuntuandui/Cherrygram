@@ -222,6 +222,22 @@ void applyDatacenterAddress(JNIEnv *env, jclass c, jint instanceNum, jint datace
         env->ReleaseStringUTFChars(ipAddress, valueStr);
     }
 }
+void importAuthKey(JNIEnv *env, jclass c, jint instanceNum, jint datacenterId, jstring address, jint port, jbyteArray authKey) {
+    if (authKey == nullptr || env->GetArrayLength(authKey) != 256 || datacenterId <= 0 || port <= 0 || port > 65535) {
+        return;
+    }
+    const char *addressStr = address != nullptr ? env->GetStringUTFChars(address, 0) : nullptr;
+    jbyte *keyBytes = env->GetByteArrayElements(authKey, nullptr);
+    if (keyBytes != nullptr) {
+        std::vector<uint8_t> key((uint8_t *) keyBytes, (uint8_t *) keyBytes + 256);
+        ConnectionsManager::getInstance(instanceNum).importAuthKey((uint32_t) datacenterId, addressStr != nullptr ? std::string(addressStr) : std::string(), (uint32_t) port, std::move(key));
+        env->ReleaseByteArrayElements(authKey, keyBytes, JNI_ABORT);
+    }
+    if (addressStr != nullptr) {
+        env->ReleaseStringUTFChars(address, addressStr);
+    }
+}
+
 
 void setProxySettings(JNIEnv *env, jclass c, jint instanceNum, jstring address, jint port, jstring username, jstring password, jstring secret) {
     const char *addressStr = env->GetStringUTFChars(address, 0);
@@ -536,6 +552,7 @@ static JNINativeMethod ConnectionsManagerMethods[] = {
         {"native_cancelRequestsForGuid", "(II)V", (void *) cancelRequestsForGuid},
         {"native_bindRequestToGuid", "(III)V", (void *) bindRequestToGuid},
         {"native_applyDatacenterAddress", "(IILjava/lang/String;I)V", (void *) applyDatacenterAddress},
+        {"native_importAuthKey", "(IILjava/lang/String;I[B)V", (void *) importAuthKey},
         {"native_setProxySettings", "(ILjava/lang/String;ILjava/lang/String;Ljava/lang/String;Ljava/lang/String;)V", (void *) setProxySettings},
         {"native_getConnectionState", "(I)I", (void *) getConnectionState},
         {"native_setUserId", "(IJ)V", (void *) setUserId},

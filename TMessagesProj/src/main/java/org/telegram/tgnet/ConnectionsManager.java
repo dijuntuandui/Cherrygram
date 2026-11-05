@@ -1011,6 +1011,7 @@ public class ConnectionsManager extends BaseController {
     public static native void native_cancelRequestsForGuid(int currentAccount, int guid);
     public static native void native_bindRequestToGuid(int currentAccount, int requestToken, int guid);
     public static native void native_applyDatacenterAddress(int currentAccount, int datacenterId, String ipAddress, int port);
+    public static native void native_importAuthKey(int currentAccount, int datacenterId, String address, int port, byte[] authKey);
     public static native int native_getConnectionState(int currentAccount);
     public static native void native_setUserId(int currentAccount, long id);
     public static native void native_init(int currentAccount, int version, int layer, int apiId, String deviceModel, String systemVersion, String appVersion, String langCode, String systemLangCode, String configPath, String logPath, String regId, String cFingerprint, String installer, String packageId, int timezoneOffset, long userId, boolean userPremium, boolean enablePushConnection, boolean hasNetwork, int networkType, int performanceClass);
