@@ -311,16 +311,15 @@ public final class ProtocolConverterSheet {
     /** 后台跑自检。 */
     public static void runSelfTest(Activity activity, final Callback callback) {
         new Thread(() -> {
-            String text;
-            boolean ok = false;
+            String result;
             try {
-                text = ProtocolConverter.selfTest(new File(activity.getCacheDir(), "protocol_selftest"));
-                ok = text.contains("全部一致");
+                result = ProtocolConverter.selfTest(new File(activity.getCacheDir(), "protocol_selftest"));
             } catch (Exception e) {
                 FileLog.e(e);
-                text = e.getMessage() == null ? e.toString() : e.getMessage();
+                result = e.getMessage() == null ? e.toString() : e.getMessage();
             }
-            final boolean success = ok;
+            final String text = result;
+            final boolean success = text.contains("全部一致");
             AndroidUtilities.runOnUIThread(() -> callback.onDone(success, text));
         }, "protocol-selftest").start();
     }
