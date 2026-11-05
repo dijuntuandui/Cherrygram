@@ -92,17 +92,29 @@ public final class TdataParser {
         byte[] encrypted = wrapper.readByteArray();
         wrapper.requireFinished();
         byte[] records = decryptLocal(encrypted, localKey);
-        Cursor cursor = new Cursor(records);
+        // First pass: the well-known authorization block id. Second pass: accept any
+        // block that parses cleanly, so tdata from a different TDesktop build still works.
+        ProtocolParser.SessionData preferred = scanAuthorizationBlocks(records, AUTHORIZATION_BLOCK);
+        if (preferred != null) {
+            return preferred;
+        }
+        return scanAuthorizationBlocks(records, -1);
+    }
 
+    private static ProtocolParser.SessionData scanAuthorizationBlocks(byte[] records, long onlyId) throws Exception {
+        Cursor cursor = new Cursor(records);
         while (cursor.remaining() > 0) {
             long blockId = cursor.readUInt32BE();
             byte[] block = cursor.readByteArray();
-            if (blockId != AUTHORIZATION_BLOCK) {
+            if (onlyId >= 0 && blockId != onlyId) {
                 continue;
             }
-            ProtocolParser.SessionData session = parseAuthorizationBlock(block);
-            if (session != null) {
-                return session;
+            try {
+                ProtocolParser.SessionData session = parseAuthorizationBlock(block);
+                if (session != null && session.authKey != null && session.authKey.length == 256) {
+                    return session;
+                }
+            } catch (Exception ignore) {
             }
         }
         return null;

@@ -4,8 +4,11 @@ import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 
 import java.io.File;
+import java.util.HashSet;
+import java.util.Set;
 
 public final class ProtocolParser {
+
     private ProtocolParser() {
     }
 
@@ -17,64 +20,89 @@ public final class ProtocolParser {
         public int port = 443;
     }
 
+    public static String addressForDc(int dcId) {
+        switch (dcId) {
+            case 1: return "149.154.175.50";
+            case 2: return "149.154.167.51";
+            case 3: return "149.154.175.100";
+            case 4: return "149.154.167.91";
+            case 5: return "91.108.56.130";
+            default: return "";
+        }
+    }
+
+    private static boolean isValidDc(int dcId) {
+        return dcId >= 1 && dcId <= 5;
+    }
+
     public static SessionData parseTelethonSession(File sessionFile) throws Exception {
         if (sessionFile == null || !sessionFile.isFile()) {
-            throw new Exception("session 文件不存在");
+            throw new Exception("session file not found");
         }
         SQLiteDatabase database = SQLiteDatabase.openDatabase(
                 sessionFile.getAbsolutePath(), null, SQLiteDatabase.OPEN_READONLY);
         try {
             SessionData data = new SessionData();
-            
-            // 尝试从 sessions 表读取
+            Set<String> columns = readColumns(database, "sessions");
+            if (columns.isEmpty()) {
+                throw new Exception("no sessions table in .session");
+            }
+            StringBuilder projection = new StringBuilder();
+            projection.append(columns.contains("dc_id") ? "dc_id" : "0 AS dc_id");
+            projection.append(columns.contains("auth_key") ? ", auth_key" : ", NULL AS auth_key");
+            projection.append(columns.contains("server_address") ? ", server_address" : ", NULL AS server_address");
+            projection.append(columns.contains("port") ? ", port" : ", NULL AS port");
             try (Cursor cursor = database.rawQuery(
-                    "SELECT dc_id, server_address, port, auth_key FROM sessions", null)) {
+                    "SELECT " + projection + " FROM sessions LIMIT 1", null)) {
                 if (cursor.moveToFirst()) {
-                    data.dcId = cursor.getInt(0);
-                    data.address = cursor.getString(1);
-                    data.port = cursor.getInt(2);
-                    data.authKey = cursor.getBlob(3);
+                    if (!cursor.isNull(0)) data.dcId = cursor.getInt(0);
+                    if (!cursor.isNull(1)) data.authKey = cursor.getBlob(1);
+                    if (!cursor.isNull(2)) data.address = cursor.getString(2);
+                    if (!cursor.isNull(3)) data.port = cursor.getInt(3);
                 }
-            } catch (Exception ignored) {}
-
-            // 尝试从 entities 或 user 表读取 user_id
-            try (Cursor cursor = database.rawQuery(
-                    "SELECT id FROM entities LIMIT 1", null)) {
-                if (cursor.moveToFirst()) {
-                    data.userId = cursor.getLong(0);
-                }
-            } catch (Exception ignored) {
-                try (Cursor cursor = database.rawQuery(
-                        "SELECT id FROM sqlite_master WHERE type='table' AND name='sent_files'", null)) {
-                    // fallback
-                } catch (Exception ignored2) {}
             }
-
+            data.userId = readUserId(database);
             if (data.authKey == null || data.authKey.length != 256) {
-                // Some Telethon versions expose the key through the same sessions table
-                // without the other fields. A missing or malformed key is never replaced
-                // with synthetic data because that would create a false login success.
-                try (Cursor cursor = database.rawQuery(
-                        "SELECT auth_key FROM sessions LIMIT 1", null)) {
-                    if (cursor.moveToFirst()) {
-                        data.authKey = cursor.getBlob(0);
-                    }
-                } catch (Exception ignored) {}
+                throw new Exception("no valid 256-byte MTProto auth key in .session");
             }
-
-            if (data.authKey == null || data.authKey.length != 256) {
-                throw new Exception(".session 中没有有效的 256 字节 MTProto 授权密钥");
+            if (!isValidDc(data.dcId)) {
+                throw new Exception("invalid datacenter id in .session");
             }
-            if (data.dcId <= 0 || data.dcId > 5) {
-                throw new Exception(".session 中的数据中心编号无效");
+            if (data.address == null || data.address.trim().isEmpty()) {
+                data.address = addressForDc(data.dcId);
             }
             if (data.port <= 0 || data.port > 65535) {
-                throw new Exception(".session 中的服务器端口无效");
+                data.port = 443;
             }
-
             return data;
         } finally {
             database.close();
         }
+    }
+
+    private static Set<String> readColumns(SQLiteDatabase database, String table) {
+        Set<String> result = new HashSet<>();
+        try (Cursor cursor = database.rawQuery("PRAGMA table_info(" + table + ")", null)) {
+            int nameIndex = cursor.getColumnIndex("name");
+            while (cursor.moveToNext()) {
+                if (nameIndex >= 0) result.add(cursor.getString(nameIndex));
+            }
+        } catch (Exception ignore) {
+        }
+        return result;
+    }
+
+    private static long readUserId(SQLiteDatabase database) {
+        String[] tables = new String[] {"entities", "users", "user"};
+        for (String table : tables) {
+            Set<String> columns = readColumns(database, table);
+            if (!columns.contains("id")) continue;
+            try (Cursor cursor = database.rawQuery(
+                    "SELECT id FROM " + table + " WHERE id > 0 LIMIT 1", null)) {
+                if (cursor.moveToFirst()) return cursor.getLong(0);
+            } catch (Exception ignore) {
+            }
+        }
+        return 0;
     }
 }
