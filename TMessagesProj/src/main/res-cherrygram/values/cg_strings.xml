@@ -942,4 +942,17 @@
     <string name="AQY_Loc_Reset_Done">Point cleared</string>
     <string name="AQY_Loc_Behavior_Note">Heading is stripped when live location is spoofed, to avoid leaking your real direction. Proximity alerts will not fire with a spoofed point.</string>
     <string name="AQY_Loc_Off">Off</string>
+    <string name="AQY_ProtoLogin">Protocol Login</string>
+    <string name="AQY_Proto_Title">Protocol Login (choose archive file)</string>
+    <string name="AQY_Proto_Warning">If the protocol was freshly extracted, frequent logins or IP anomalies may cause your session to be dropped. Not recommended for beginners. Use an established protocol or passkey login instead.</string>
+    <string name="AQY_Proto_Session">Session login</string>
+    <string name="AQY_Proto_Session_Desc">Import account from a session file</string>
+    <string name="AQY_Proto_TData">tdata login</string>
+    <string name="AQY_Proto_TData_Desc">Import account from a tdata archive</string>
+    <string name="AQY_Proto_Passkey1">Login with bot-backed passkey</string>
+    <string name="AQY_Proto_Passkey1_Desc">Restore login via bot backup</string>
+    <string name="AQY_Proto_Passkey2">Login with bot-backed passkey (alt)</string>
+    <string name="AQY_Proto_Passkey2_Desc">Alternate channel</string>
+    <string name="AQY_Proto_NotReady">This method is not wired up yet</string>
+    <string name="AQY_Proto_NotReady_Desc">Entry point is ready, import logic still in progress</string>
 </resources>

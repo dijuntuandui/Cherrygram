@@ -872,4 +872,17 @@
     <string name="AQY_Loc_Reset_Done">坐标已清除</string>
     <string name="AQY_Loc_Behavior_Note">实时位置伪造时会一并去掉朝向信息，避免真实朝向泄露。若对方使用近距感应，伪造坐标下不会触发近距提示。</string>
     <string name="AQY_Loc_Off">未开启</string>
+    <string name="AQY_ProtoLogin">协议登录</string>
+    <string name="AQY_Proto_Title">协议登录（请选择压缩包文件）</string>
+    <string name="AQY_Proto_Warning">协议如果是新提取出来的，频繁登录或 IP 异常都有可能导致掉登录。不建议什么都不懂的新手小白使用，建议使用老协议或者使用通行密钥登录！！！</string>
+    <string name="AQY_Proto_Session">session登录</string>
+    <string name="AQY_Proto_Session_Desc">从 session 文件导入账号</string>
+    <string name="AQY_Proto_TData">tdata登录</string>
+    <string name="AQY_Proto_TData_Desc">从 tdata 压缩包导入账号</string>
+    <string name="AQY_Proto_Passkey1">使用机器人备份的通行密钥登录</string>
+    <string name="AQY_Proto_Passkey1_Desc">通过机器人备份恢复登录</string>
+    <string name="AQY_Proto_Passkey2">使用机器人备份的通行密钥登录（备用）</string>
+    <string name="AQY_Proto_Passkey2_Desc">备用通道</string>
+    <string name="AQY_Proto_NotReady">该方式尚未接入</string>
+    <string name="AQY_Proto_NotReady_Desc">入口已就位，导入逻辑还在做</string>
 </resources>

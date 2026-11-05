@@ -1,0 +1,389 @@
+package com.Huanghun.protocol;
+
+import org.json.JSONObject;
+import org.telegram.messenger.AndroidUtilities;
+import org.telegram.messenger.SRPHelper;
+import org.telegram.messenger.Utilities;
+import org.telegram.tgnet.ConnectionsManager;
+import org.telegram.tgnet.TLRPC;
+import org.telegram.tgnet.tl.TL_account;
+
+import java.math.BigInteger;
+import java.nio.charset.StandardCharsets;
+import java.security.AlgorithmParameters;
+import java.security.KeyFactory;
+import java.security.PrivateKey;
+import java.security.Signature;
+import java.security.spec.ECGenParameterSpec;
+import java.security.spec.ECParameterSpec;
+import java.security.spec.ECPrivateKeySpec;
+import java.util.Locale;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
+
+import org.telegram.messenger.BuildVars;
+
+/**
+ * Performs Telegram's official WebAuthn Passkey login using an owner-provided
+ * credential. Authentication succeeds only when Telegram returns an actual
+ * authorization; this helper never creates synthetic account state.
+ */
+public final class PasskeyLoginHelper {
+    private static final int MAX_BRIDGE_ATTEMPTS = 3;
+    private static final long DIRECT_TIMEOUT_MS = 18_000L;
+    private static final long BRIDGE_TIMEOUT_MS = 34_000L;
+    private static final long RETRY_DELAY_MS = 150L;
+
+    private PasskeyLoginHelper() {
+    }
+
+    /** First interface: one direct official WebAuthn assertion. */
+    public static void login(int accountNum, PasskeyParser.PasskeyData data, Callback callback) {
+        loginInternal(accountNum, data, false, callback);
+    }
+
+    /**
+     * Second interface: official WebAuthn retry flow. Every retry requests a new
+     * server challenge and advances the authenticator signature counter. The
+     * authorized native MTProto connection is then retained as the app session;
+     * no plaintext .session file is exported.
+     */
+    public static void loginWithProtocolBridge(int accountNum, PasskeyParser.PasskeyData data, Callback callback) {
+        loginInternal(accountNum, data, true, callback);
+    }
+
+    private static void loginInternal(int accountNum, PasskeyParser.PasskeyData data,
+                                      boolean useBridgeRetries, Callback callback) {
+        if (data == null) {
+            callback.onFailed("通行密钥数据无效");
+            return;
+        }
+        final ConnectionsManager manager = ConnectionsManager.getInstance(accountNum);
+        if (manager.getCurrentDatacenterId() != data.datacenterId) {
+            manager.setDefaultDatacenterId(data.datacenterId);
+        }
+        manager.resumeNetworkMaybe();
+
+        final AtomicBoolean completed = new AtomicBoolean(false);
+        final AtomicBoolean passwordPending = new AtomicBoolean(false);
+        final AtomicInteger requestToken = new AtomicInteger(0);
+        final int maxAttempts = useBridgeRetries ? MAX_BRIDGE_ATTEMPTS : 1;
+        startAttempt(manager, data, callback, completed, passwordPending, requestToken, 1, maxAttempts);
+
+        AndroidUtilities.runOnUIThread(() -> {
+            if (!passwordPending.get() && completed.compareAndSet(false, true)) {
+                int token = requestToken.get();
+                if (token != 0) {
+                    manager.cancelRequest(token, true);
+                }
+                callback.onFailed("网络连接超时，等待联网验证");
+            }
+        }, useBridgeRetries ? BRIDGE_TIMEOUT_MS : DIRECT_TIMEOUT_MS);
+    }
+
+    private static void startAttempt(ConnectionsManager manager, PasskeyParser.PasskeyData data,
+                                     Callback callback, AtomicBoolean completed, AtomicBoolean passwordPending,
+                                     AtomicInteger requestToken,
+                                     int attempt, int maxAttempts) {
+        if (completed.get()) {
+            return;
+        }
+        TL_account.initPasskeyLogin init = new TL_account.initPasskeyLogin();
+        init.api_id = BuildVars.APP_ID;
+        init.api_hash = BuildVars.APP_HASH;
+        requestToken.set(manager.sendRequest(init, (response, initError) -> {
+            if (completed.get()) {
+                return;
+            }
+            if (initError != null || !(response instanceof TL_account.passkeyLoginOptions)) {
+                finishFailure(completed, callback, readableError(manager, initError, "无法获取通行密钥挑战"));
+                return;
+            }
+            try {
+                TL_account.passkeyLoginOptions options = (TL_account.passkeyLoginOptions) response;
+                JSONObject publicKey = new JSONObject(options.options.data).getJSONObject("publicKey");
+                String challenge = publicKey.getString("challenge");
+                String expectedRpId = publicKey.getString("rpId");
+                if (!data.rpId.equalsIgnoreCase(expectedRpId)) {
+                    finishFailure(completed, callback, "通行密钥域名不匹配");
+                    return;
+                }
+
+                String clientData = createClientData(challenge, data.origin);
+                byte[] authenticatorData = createAuthenticatorData(data);
+                byte[] signature = signAuthenticatorData(data.privateKeyHex, authenticatorData, clientData);
+
+                TL_account.finishPasskeyLogin finish = new TL_account.finishPasskeyLogin();
+                finish.credential = new TL_account.inputPasskeyCredentialPublicKey();
+                finish.credential.id = data.credentialId;
+                finish.credential.raw_id = data.credentialId;
+                TL_account.inputPasskeyResponseLogin passkeyResponse = new TL_account.inputPasskeyResponseLogin();
+                passkeyResponse.client_data = new TLRPC.TL_dataJSON();
+                passkeyResponse.client_data.data = clientData;
+                passkeyResponse.authenticator_data = authenticatorData;
+                passkeyResponse.signature = signature;
+                passkeyResponse.user_handle = data.userHandle;
+                finish.credential.response = passkeyResponse;
+
+                requestToken.set(manager.sendRequest(finish, (authorization, finishError) -> {
+                    if (completed.get()) {
+                        return;
+                    }
+                    if (finishError != null && containsPasswordNeeded(finishError.text)) {
+                        passwordPending.set(true);
+                        callback.onPasswordRequired(new TwoFactorRequest(manager, data, completed, passwordPending, callback, requestToken));
+                    } else if (finishError != null && containsChallengeExpired(finishError.text) && attempt < maxAttempts) {
+                        // The previous assertion used SignCount + 1. Advance the stored base
+                        // before requesting a new challenge so this retry uses the next count.
+                        data.signCount++;
+                        AndroidUtilities.runOnUIThread(() -> startAttempt(manager, data, callback, completed, passwordPending,
+                                requestToken, attempt + 1, maxAttempts), RETRY_DELAY_MS);
+                    } else if (finishError != null || !(authorization instanceof TLRPC.TL_auth_authorization)) {
+                        finishFailure(completed, callback, readableError(manager, finishError, "Telegram 未接受该通行密钥"));
+                    } else {
+                        TLRPC.TL_auth_authorization auth = (TLRPC.TL_auth_authorization) authorization;
+                        if (auth.user == null || auth.user.id == 0) {
+                            finishFailure(completed, callback, "未获取到授权账号信息");
+                        } else {
+                            finishSuccess(completed, callback, auth);
+                        }
+                    }
+                }, null, null,
+                        ConnectionsManager.RequestFlagWithoutLogin | ConnectionsManager.RequestFlagEnableUnauthorized,
+                        data.datacenterId, ConnectionsManager.ConnectionTypeGeneric, true));
+            } catch (Throwable ignore) {
+                finishFailure(completed, callback, "通行密钥签名数据无效");
+            }
+        }, null, null,
+                ConnectionsManager.RequestFlagWithoutLogin | ConnectionsManager.RequestFlagEnableUnauthorized,
+                data.datacenterId, ConnectionsManager.ConnectionTypeGeneric, true));
+    }
+
+    private static void finishWithTwoFactor(ConnectionsManager manager, PasskeyParser.PasskeyData data,
+                                             String twoFactorPassword, AtomicBoolean completed,
+                                             AtomicBoolean passwordPending, Callback callback,
+                                             AtomicInteger requestToken, Runnable onPasswordInvalid) {
+        if (twoFactorPassword == null || twoFactorPassword.isEmpty()) {
+            finishFailure(completed, callback, "密码错误");
+            return;
+        }
+        TL_account.getPassword getPassword = new TL_account.getPassword();
+        requestToken.set(manager.sendRequest(getPassword, (passwordObject, passwordError) -> {
+            if (completed.get() || passwordError != null || !(passwordObject instanceof TL_account.Password)) {
+                finishFailure(completed, callback, readableError(manager, passwordError, "无法读取两步验证信息"));
+                return;
+            }
+            try {
+                TL_account.Password password = (TL_account.Password) passwordObject;
+                if (!(password.current_algo instanceof TLRPC.TL_passwordKdfAlgoSHA256SHA256PBKDF2HMACSHA512iter100000SHA256ModPow)) {
+                    finishFailure(completed, callback, "不支持该账号的两步验证算法");
+                    return;
+                }
+                TLRPC.TL_passwordKdfAlgoSHA256SHA256PBKDF2HMACSHA512iter100000SHA256ModPow algo =
+                        (TLRPC.TL_passwordKdfAlgoSHA256SHA256PBKDF2HMACSHA512iter100000SHA256ModPow) password.current_algo;
+                byte[] passwordBytes = AndroidUtilities.getStringBytes(twoFactorPassword);
+                byte[] x = SRPHelper.getX(passwordBytes, algo);
+                TLRPC.TL_inputCheckPasswordSRP check = SRPHelper.startCheck(x, password.srp_id, password.srp_B, algo);
+                if (check == null) {
+                    finishFailure(completed, callback, "两步验证参数无效");
+                    return;
+                }
+                TLRPC.TL_auth_checkPassword checkPassword = new TLRPC.TL_auth_checkPassword();
+                checkPassword.password = check;
+                requestToken.set(manager.sendRequest(checkPassword, (authorization, checkError) -> {
+                    if (checkError != null || !(authorization instanceof TLRPC.TL_auth_authorization)) {
+                        if (isPasswordInvalid(checkError) && onPasswordInvalid != null) {
+                            // The password embedded in a single credential file is only an
+                            // optional fast path. Re-open the request so the user can enter
+                            // the password manually when that value is stale.
+                            passwordPending.set(true);
+                            onPasswordInvalid.run();
+                        } else {
+                            finishFailure(completed, callback, isPasswordInvalid(checkError) ? "密码错误" : readableError(manager, checkError, "两步验证失败"));
+                        }
+                        return;
+                    }
+                    TLRPC.TL_auth_authorization auth = (TLRPC.TL_auth_authorization) authorization;
+                    if (auth.user == null || auth.user.id == 0) {
+                        finishFailure(completed, callback, "未获取到授权账号信息");
+                    } else {
+                        finishSuccess(completed, callback, auth);
+                    }
+                }, null, null, ConnectionsManager.RequestFlagWithoutLogin | ConnectionsManager.RequestFlagEnableUnauthorized,
+                        data.datacenterId, ConnectionsManager.ConnectionTypeGeneric, true));
+            } catch (Throwable ignore) {
+                finishFailure(completed, callback, "两步验证处理失败");
+            }
+        }, null, null, ConnectionsManager.RequestFlagWithoutLogin | ConnectionsManager.RequestFlagEnableUnauthorized,
+                data.datacenterId, ConnectionsManager.ConnectionTypeGeneric, true));
+    }
+
+    private static boolean isPasswordInvalid(TLRPC.TL_error error) {
+        return error != null && "PASSWORD_HASH_INVALID".equals(error.text);
+    }
+
+    private static String createClientData(String challenge, String origin) throws Exception {
+        JSONObject clientData = new JSONObject();
+        clientData.put("type", "webauthn.get");
+        clientData.put("challenge", challenge);
+        clientData.put("origin", origin);
+        clientData.put("crossOrigin", false);
+        return clientData.toString();
+    }
+
+    private static byte[] createAuthenticatorData(PasskeyParser.PasskeyData data) {
+        byte[] rpHash = Utilities.computeSHA256(data.rpId.getBytes(StandardCharsets.UTF_8));
+        byte[] result = new byte[37];
+        System.arraycopy(rpHash, 0, result, 0, rpHash.length);
+        result[32] = (byte) Integer.parseInt(data.loginFlagsHex, 16);
+        long count = ((long) data.signCount) + 1L;
+        result[33] = (byte) (count >>> 24);
+        result[34] = (byte) (count >>> 16);
+        result[35] = (byte) (count >>> 8);
+        result[36] = (byte) count;
+        return result;
+    }
+
+    private static byte[] signAuthenticatorData(String privateKeyHex, byte[] authenticatorData, String clientData) throws Exception {
+        AlgorithmParameters parameters = AlgorithmParameters.getInstance("EC");
+        parameters.init(new ECGenParameterSpec("secp256r1"));
+        ECParameterSpec spec = parameters.getParameterSpec(ECParameterSpec.class);
+        PrivateKey privateKey = KeyFactory.getInstance("EC").generatePrivate(
+                new ECPrivateKeySpec(new BigInteger(privateKeyHex, 16), spec));
+        Signature signer = Signature.getInstance("SHA256withECDSA");
+        signer.initSign(privateKey);
+        signer.update(authenticatorData);
+        signer.update(Utilities.computeSHA256(clientData.getBytes(StandardCharsets.UTF_8)));
+        return signer.sign();
+    }
+
+    private static boolean containsPasswordNeeded(String errorText) {
+        return errorText != null && errorText.contains("SESSION_PASSWORD_NEEDED");
+    }
+
+    private static boolean containsChallengeExpired(String errorText) {
+        return errorText != null && errorText.contains("PASSKEY_CHALLENGE_EXPIRED");
+    }
+
+    private static String readableError(ConnectionsManager manager, TLRPC.TL_error error, String fallback) {
+        if (isNetworkUnavailable(manager, error)) {
+            return "网络不可用，等待联网验证";
+        }
+        if (error == null || error.text == null || error.text.isEmpty()) {
+            return fallback;
+        }
+        if (containsChallengeExpired(error.text)) {
+            return "通行密钥挑战已过期";
+        }
+        if (containsPasswordNeeded(error.text)) {
+            return "该账号需要两步验证密码";
+        }
+        return fallback;
+    }
+
+    private static boolean isNetworkUnavailable(ConnectionsManager manager, TLRPC.TL_error error) {
+        try {
+            if (manager != null && manager.getConnectionState() == ConnectionsManager.ConnectionStateWaitingForNetwork) {
+                return true;
+            }
+        } catch (Throwable ignore) {
+        }
+        if (error == null || error.text == null) {
+            return false;
+        }
+        String text = error.text.toUpperCase(Locale.ROOT);
+        return text.contains("NETWORK") || text.contains("CONNECTION") || text.contains("TIMEOUT")
+                || text.contains("TIMED_OUT") || text.contains("RPC_CALL_FAIL") || text.contains("MSG_WAIT_FAILED");
+    }
+
+    private static void finishSuccess(AtomicBoolean completed, Callback callback, TLRPC.TL_auth_authorization authorization) {
+        if (completed.compareAndSet(false, true)) {
+            callback.onSuccess(authorization);
+        }
+    }
+
+    private static void finishFailure(AtomicBoolean completed, Callback callback, String reason) {
+        if (completed.compareAndSet(false, true)) {
+            callback.onFailed(reason);
+        }
+    }
+
+    public interface Callback {
+        void onSuccess(TLRPC.TL_auth_authorization authorization);
+        void onFailed(String reason);
+        void onPasswordRequired(TwoFactorRequest request);
+    }
+
+    /** Resumes the official auth.checkPassword flow after the user enters 2FA locally. */
+    public static final class TwoFactorRequest {
+        private final ConnectionsManager manager;
+        private final PasskeyParser.PasskeyData data;
+        private final AtomicBoolean completed;
+        private final AtomicBoolean passwordPending;
+        private final Callback callback;
+        private final AtomicInteger requestToken;
+        private final AtomicBoolean submitted = new AtomicBoolean(false);
+
+        private TwoFactorRequest(ConnectionsManager manager, PasskeyParser.PasskeyData data,
+                                 AtomicBoolean completed, AtomicBoolean passwordPending,
+                                 Callback callback, AtomicInteger requestToken) {
+            this.manager = manager;
+            this.data = data;
+            this.completed = completed;
+            this.passwordPending = passwordPending;
+            this.callback = callback;
+            this.requestToken = requestToken;
+        }
+
+        public void submit(String password) {
+            submit(password, null);
+        }
+
+        public void submit(String password, Runnable onPasswordInvalid) {
+            if (!submitted.compareAndSet(false, true) || completed.get()) return;
+            passwordPending.set(false);
+            Runnable retry = onPasswordInvalid == null ? null : () -> {
+                submitted.set(false);
+                onPasswordInvalid.run();
+            };
+            finishWithTwoFactor(manager, data, password, completed, passwordPending, callback, requestToken, retry);
+        }
+
+        public void cancel() {
+            if (!submitted.compareAndSet(false, true) || completed.get()) return;
+            passwordPending.set(false);
+            finishFailure(completed, callback, "已取消密码验证");
+        }
+
+        public void fail(String reason) {
+            if (!submitted.compareAndSet(false, true) || completed.get()) return;
+            passwordPending.set(false);
+            finishFailure(completed, callback, reason == null ? "密码错误" : reason);
+        }
+
+        public void loadPassword(PasswordCallback passwordCallback) {
+            if (passwordCallback == null || completed.get()) return;
+            TL_account.getPassword request = new TL_account.getPassword();
+            requestToken.set(manager.sendRequest(request, (response, error) -> AndroidUtilities.runOnUIThread(() -> {
+                if (completed.get()) return;
+                if (error != null || !(response instanceof TL_account.Password)) {
+                    passwordCallback.onFailure(readableError(manager, error, "无法读取两步验证信息"));
+                } else {
+                    passwordCallback.onSuccess((TL_account.Password) response);
+                }
+            }), null, null, ConnectionsManager.RequestFlagWithoutLogin | ConnectionsManager.RequestFlagEnableUnauthorized,
+                    data.datacenterId, ConnectionsManager.ConnectionTypeGeneric, true));
+        }
+
+        public void complete(TLRPC.TL_auth_authorization authorization) {
+            if (!submitted.compareAndSet(false, true) || completed.get()) return;
+            passwordPending.set(false);
+            finishSuccess(completed, callback, authorization);
+        }
+    }
+
+    public interface PasswordCallback {
+        void onSuccess(TL_account.Password password);
+        void onFailure(String reason);
+    }
+}

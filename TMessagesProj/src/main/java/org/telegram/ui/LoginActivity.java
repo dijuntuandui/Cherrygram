@@ -1157,6 +1157,16 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
         if (registerView != null) {
             registerView.imageUpdater.onActivityResult(requestCode, resultCode, data);
         }
+        /** [Aiqiyi] 协议登录：接收压缩包 */
+        if (resultCode == android.app.Activity.RESULT_OK && data != null && data.getData() != null
+                && requestCode >= PROTOCOL_LOGIN_REQUEST && requestCode <= PROTOCOL_LOGIN_REQUEST + 3) {
+            try {
+                com.Huanghun.protocol.ProtocolLoginHelper.handleImport(this, data.getData(), requestCode - PROTOCOL_LOGIN_REQUEST);
+            } catch (Throwable e) {
+                org.telegram.messenger.FileLog.e(e);
+                needShowAlert("协议登录失败", "无法读取所选文件。");
+            }
+        }
     }
 
     private void needShowAlert(String title, String text) {
@@ -1649,7 +1659,23 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
     }
 
     private void onAuthSuccess(TLRPC.TL_auth_authorization res) {
+        /** [Aiqiyi] 协议登录回调拦截 */
+        if (protocolPasswordCallback != null) {
+            ProtocolPasswordCallback callback = protocolPasswordCallback;
+            protocolPasswordCallback = null;
+            callback.onSuccess(res);
+            return;
+        }
         onAuthSuccess(res, false);
+    }
+
+    /** [Aiqiyi] 协议登录 */
+    private ProtocolPasswordCallback protocolPasswordCallback;
+
+    public interface ProtocolPasswordCallback {
+        void onSuccess(TLRPC.TL_auth_authorization authorization);
+
+        void onFailure(String reason);
     }
 
     private boolean pendingSwitchingAccount;
@@ -2476,17 +2502,11 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
 
             SpannableStringBuilder sb = new SpannableStringBuilder();
             sb.append("+ ");
-            sb.setSpan(new ColoredImageSpan(ContextCompat.getDrawable(getContext(), passkeysSupported() ? R.drawable.passkey_login_bold_solar : R.drawable.shield_network_filled_solar)), 0, 1, 0);
-            sb.append(getString(passkeysSupported() ? R.string.PasskeyUnknown : R.string.Proxy));
+            sb.setSpan(new ColoredImageSpan(ContextCompat.getDrawable(getContext(), R.drawable.passkey_login_bold_solar)), 0, 1, 0);
+            sb.append(getString(R.string.AQY_ProtoLogin));
             proxyButton.setRound();
             proxyButton.setText(sb, false);
-            proxyButton.setOnClickListener(v -> {
-                if (passkeysSupported()) {
-                    requestPasskey(true, true);
-                } else {
-                    presentFragment(new ProxyListActivity());
-                }
-            });
+            proxyButton.setOnClickListener(v -> showProtocolLoginSheet());
             buttonsBox.addView(proxyButton);
 
             ButtonWithCounterView qrButton = new ButtonWithCounterView(context, getResourceProvider()) {
@@ -10716,6 +10736,157 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
     public boolean isActionBarCrossfadeEnabled() {
         return false;
     }
+
+    /** [Aiqiyi] 协议登录：打开原生两步验证密码页 */
+    public void showProtocolPasswordPage(int accountNum, TL_account.Password password, ProtocolPasswordCallback callback) {
+        if (password == null || callback == null || accountNum != currentAccount) {
+            if (callback != null) {
+                callback.onFailure("无法打开原生密码页面");
+            }
+            return;
+        }
+        protocolPasswordCallback = callback;
+        Bundle bundle = new Bundle();
+        SerializedData data = new SerializedData(password.getObjectSize());
+        password.serializeToStream(data);
+        bundle.putString("password", Utilities.bytesToHex(data.toByteArray()));
+        setPage(VIEW_PASSWORD, true, bundle, false);
+    }
+
+    /** [Aiqiyi] 协议登录：在已完成验证的槽位收尾 */
+    public void completeProtocolLogin(TLRPC.User user, int datacenterId) {
+        completeProtocolLogin(currentAccount, user, datacenterId);
+    }
+
+    /** [Aiqiyi] 协议登录：批量导入时为指定槽位收尾 */
+    public void completeProtocolLogin(int accountNum, TLRPC.User user, int datacenterId) {
+        if (accountNum < 0 || accountNum >= UserConfig.MAX_ACCOUNT_COUNT || user == null || user.id == 0) {
+            needShowAlert("协议登录失败", "未获取到有效的当前账号信息。");
+            return;
+        }
+        user.self = true;
+        if (accountNum != currentAccount) {
+            try {
+                UserConfig config = UserConfig.getInstance(accountNum);
+                if (!config.isClientActivated() || config.getClientUserId() != user.id) {
+                    if (!saveProtocolLoginForAdditionalAccount(accountNum, user)) {
+                        needShowAlert("协议登录失败", "无法保存已验证的账号信息。");
+                        return;
+                    }
+                }
+                if (getParentActivity() instanceof LaunchActivity) {
+                    newAccount = false;
+                    ((LaunchActivity) getParentActivity()).switchToAccount(accountNum, true);
+                    finishFragment();
+                    return;
+                }
+            } catch (Throwable ignore) {
+                needShowAlert("协议登录失败", "无法打开已验证的账号。");
+                return;
+            }
+        }
+        TLRPC.TL_auth_authorization authorization = new TLRPC.TL_auth_authorization();
+        authorization.user = user;
+        onAuthSuccess(authorization);
+    }
+
+    /** [Aiqiyi] 协议登录：保存额外的已验证账号，不切页 */
+    public static boolean saveProtocolLoginForAdditionalAccount(int accountNum, TLRPC.User user) {
+        if (accountNum < 0 || accountNum >= UserConfig.MAX_ACCOUNT_COUNT || user == null || user.id == 0) {
+            return false;
+        }
+        user.self = true;
+        // [Aiqiyi] Cherrygram 无 PasscodeHelper
+        MessagesController.getInstance(accountNum).cleanup();
+        ConnectionsManager.getInstance(accountNum).setUserId(user.id);
+        UserConfig.getInstance(accountNum).clearConfig();
+        MessagesController.getInstance(accountNum).cleanup();
+        UserConfig.getInstance(accountNum).syncContacts = false;
+        UserConfig.getInstance(accountNum).setCurrentUser(user);
+        UserConfig.getInstance(accountNum).saveConfig(true);
+        MessagesStorage.getInstance(accountNum).cleanup(true);
+        ArrayList<TLRPC.User> users = new ArrayList<>();
+        users.add(user);
+        MessagesStorage.getInstance(accountNum).putUsersAndChats(users, null, true, true);
+        MessagesController.getInstance(accountNum).putUser(user, false);
+        ContactsController.getInstance(accountNum).checkAppAccount();
+        MessagesController.getInstance(accountNum).checkPromoInfo(true);
+        ConnectionsManager.getInstance(accountNum).updateDcSettings();
+        MessagesController.getInstance(accountNum).loadAppConfig();
+        MessagesController.getInstance(accountNum).loadWebBrowserConfig();
+        MessagesController.getInstance(accountNum).checkPeerColors(false);
+        MediaDataController.getInstance(accountNum).loadStickersByEmojiOrName(AndroidUtilities.STICKERS_PLACEHOLDER_PACK_NAME, false, true);
+        return true;
+    }
+
+    /** [Aiqiyi] 协议登录面板 */
+    private void showProtocolLoginSheet() {
+        if (getParentActivity() == null) {
+            return;
+        }
+        org.telegram.ui.ActionBar.BottomSheet.Builder builder = new org.telegram.ui.ActionBar.BottomSheet.Builder(getParentActivity());
+        builder.setApplyTopPadding(false);
+        builder.setApplyBottomPadding(false);
+
+        android.widget.LinearLayout container = new android.widget.LinearLayout(getParentActivity());
+        container.setOrientation(android.widget.LinearLayout.VERTICAL);
+
+        android.widget.TextView title = new android.widget.TextView(getParentActivity());
+        title.setTextSize(android.util.TypedValue.COMPLEX_UNIT_DIP, 20);
+        title.setTypeface(android.graphics.Typeface.DEFAULT_BOLD);
+        title.setTextColor(org.telegram.ui.ActionBar.Theme.getColor(org.telegram.ui.ActionBar.Theme.key_windowBackgroundWhiteBlackText));
+        title.setText(R.string.AQY_Proto_Title);
+        container.addView(title, org.telegram.ui.Components.LayoutHelper.createLinear(org.telegram.ui.Components.LayoutHelper.MATCH_PARENT, org.telegram.ui.Components.LayoutHelper.WRAP_CONTENT, 22, 16, 22, 0));
+
+        android.widget.TextView warn = new android.widget.TextView(getParentActivity());
+        warn.setTextSize(android.util.TypedValue.COMPLEX_UNIT_DIP, 14);
+        warn.setTextColor(0xffe5584f);
+        warn.setLineSpacing(dp(3), 1f);
+        warn.setText(R.string.AQY_Proto_Warning);
+        warn.setPadding(dp(14), dp(12), dp(14), dp(12));
+        warn.setBackground(org.telegram.ui.ActionBar.Theme.createRoundRectDrawable(dp(12), 0x1Ae5584f));
+        container.addView(warn, org.telegram.ui.Components.LayoutHelper.createLinear(org.telegram.ui.Components.LayoutHelper.MATCH_PARENT, org.telegram.ui.Components.LayoutHelper.WRAP_CONTENT, 22, 14, 22, 6));
+
+        final int[] ids = new int[]{
+                R.string.AQY_Proto_Session,
+                R.string.AQY_Proto_TData,
+                R.string.AQY_Proto_Passkey1,
+                R.string.AQY_Proto_Passkey2
+        };
+        for (int i = 0; i < ids.length; i++) {
+            final int type = i;
+            android.widget.TextView row = new android.widget.TextView(getParentActivity());
+            row.setTextSize(android.util.TypedValue.COMPLEX_UNIT_DIP, 16);
+            row.setTextColor(org.telegram.ui.ActionBar.Theme.getColor(org.telegram.ui.ActionBar.Theme.key_windowBackgroundWhiteBlackText));
+            row.setText(ids[i]);
+            row.setSingleLine(true);
+            row.setEllipsize(android.text.TextUtils.TruncateAt.END);
+            row.setGravity(android.view.Gravity.CENTER_VERTICAL);
+            row.setPadding(dp(22), 0, dp(22), 0);
+            row.setBackground(org.telegram.ui.ActionBar.Theme.getSelectorDrawable(false));
+            row.setOnClickListener(v -> onProtocolLoginPicked(type));
+            container.addView(row, org.telegram.ui.Components.LayoutHelper.createLinear(org.telegram.ui.Components.LayoutHelper.MATCH_PARENT, dp(52)));
+        }
+
+        android.view.View spacer = new android.view.View(getParentActivity());
+        container.addView(spacer, org.telegram.ui.Components.LayoutHelper.createLinear(org.telegram.ui.Components.LayoutHelper.MATCH_PARENT, dp(12)));
+
+        builder.setCustomView(container);
+        showDialog(builder.create());
+    }
+
+    private void onProtocolLoginPicked(int type) {
+        if (getParentActivity() == null) {
+            return;
+        }
+        android.content.Intent intent = new android.content.Intent(android.content.Intent.ACTION_OPEN_DOCUMENT);
+        intent.addCategory(android.content.Intent.CATEGORY_OPENABLE);
+        intent.setType("application/zip");
+        intent.putExtra(android.content.Intent.EXTRA_MIME_TYPES, new String[]{"application/zip", "application/x-zip-compressed"});
+        startActivityForResult(intent, PROTOCOL_LOGIN_REQUEST + type);
+    }
+
+    private static final int PROTOCOL_LOGIN_REQUEST = 5000;
 
     private boolean passkeysSupported() {
         return BuildVars.SUPPORTS_PASSKEYS;
