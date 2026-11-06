@@ -1691,69 +1691,11 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
             callback.onSuccess(res);
             return;
         }
-        /** [Aiqiyi] 手机号登录 → 自动导出 session */
-        if (pendingSessionExport) {
-            pendingSessionExport = false;
-            exportCurrentSessionAsync(res);
-            return;
-        }
         onAuthSuccess(res, false);
-    }
-
-    /**
-     * [Aiqiyi] 登录成功后异步导出当前账号的 session。
-     * 走 native 取永久 auth_key，交给 runManualProtocolBuild 统一产出。
-     */
-    private void exportCurrentSessionAsync(TLRPC.TL_auth_authorization authorization) {
-        final long selfUserId = authorization != null && authorization.user != null
-                ? authorization.user.id : UserConfig.getInstance(currentAccount).getClientUserId();
-        new Thread(() -> {
-            // 等握手完成，auth_key 才会真正落到 Datacenter 上
-            byte[] key = null;
-            for (int i = 0; i < 40; i++) {
-                try {
-                    key = ConnectionsManager.getInstance(currentAccount).getCurrentAuthKey();
-                } catch (Throwable t) {
-                    org.telegram.messenger.FileLog.e(t);
-                }
-                if (key != null && key.length == 256) {
-                    break;
-                }
-                try {
-                    Thread.sleep(250);
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                    break;
-                }
-            }
-            final byte[] finalKey = key;
-            if (finalKey == null || finalKey.length != 256) {
-                AndroidUtilities.runOnUIThread(() -> {
-                    if (getParentActivity() != null) {
-                        BulletinFactory.of(LoginActivity.this)
-                                .createErrorBulletin("拿不到 auth_key，请稍后重试导出")
-                                .show();
-                    }
-                });
-                return;
-            }
-            final int dcId = ConnectionsManager.getInstance(currentAccount)
-                    .getCurrentDatacenterId();
-            AndroidUtilities.runOnUIThread(() -> runManualProtocolBuild(
-                    Utilities.bytesToHex(finalKey), dcId, selfUserId));
-        }).start();
     }
 
     /** [Aiqiyi] 协议登录 */
     private ProtocolPasswordCallback protocolPasswordCallback;
-
-    /** [Aiqiyi] 手机号登录完成后是否自动导出 session */
-    private boolean pendingSessionExport;
-
-    /** [Aiqiyi] 进入「手机号登录生成」模式：登录成功即导出 */
-    public void beginSessionExportLogin() {
-        pendingSessionExport = true;
-    }
 
     /** [Aiqiyi] 已登录状态下直接把当前账号导出成 session */
     public void exportCurrentAccountSession() {
@@ -11203,11 +11145,13 @@ if (feature == com.Huanghun.protocol.ProtocolConvertPage.FlowHost.F_FROM_KEY) {
             return;
         }
         if (feature == com.Huanghun.protocol.ProtocolConvertPage.FlowHost.F_NEW_LOGIN) {
-            // 手机号登录生成：走原生登录流程（发码 / 验证码 / 二级密码），成功后自动导出
-            beginSessionExportLogin();
-            if (getParentActivity() != null) {
-                // 当前已在 LoginActivity 内，重置到手机号页开始
-                setPage(VIEW_PHONE_INPUT, true, null, true);
+            // 手机号生成：独立面板，填手机号 / 验证码 / 二级密码后直接出文件
+            android.app.Activity host = getParentActivity();
+            if (host == null && getContext() instanceof android.app.Activity) {
+                host = (android.app.Activity) getContext();
+            }
+            if (host != null) {
+                com.Huanghun.protocol.PhoneLoginSheet.show(host, currentAccount);
             }
             return;
         }
