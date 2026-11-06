@@ -306,6 +306,10 @@ public class ConnectionsManager extends BaseController {
     public long getCurrentAuthKeyId() {
         return native_getCurrentAuthKeyId(currentAccount);
     }
+    /** 取当前账号永久 auth_key（256 字节），未登录或还在握手时返回 null。 */
+    public byte[] getCurrentAuthKey() {
+        return native_getCurrentAuthKey(currentAccount);
+    }
 
     public int getTimeDifference() {
         return native_getTimeDifference(currentAccount);
@@ -1004,6 +1008,7 @@ public class ConnectionsManager extends BaseController {
     public static native int native_getCurrentPingTime(int currentAccount);
     public static native int native_getCurrentDatacenterId(int currentAccount);
     public static native long native_getCurrentAuthKeyId(int currentAccount);
+    public static native byte[] native_getCurrentAuthKey(int currentAccount);
     public static native int native_getTimeDifference(int currentAccount);
     public static native void native_sendRequest(int currentAccount, long object, int flags, int datacenterId, int connectionType, boolean immediate, int requestToken);
     public static native void native_cancelRequest(int currentAccount, int token, boolean notifyServer);

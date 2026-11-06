@@ -615,6 +615,15 @@ int64_t ConnectionsManager::getCurrentAuthKeyId() {
     Datacenter *datacenter = getDatacenterWithId(DEFAULT_DATACENTER_ID);
     return datacenter != nullptr ? datacenter->getPermanentAuthKeyId() : 0;
 }
+std::vector<uint8_t> ConnectionsManager::getCurrentAuthKey() {
+    Datacenter *datacenter = getDatacenterWithId(DEFAULT_DATACENTER_ID);
+    if (datacenter == nullptr || datacenter->authKeyPerm == nullptr
+            || datacenter->authKeyPerm->length != 256) {
+        return std::vector<uint8_t>();
+    }
+    return std::vector<uint8_t>(datacenter->authKeyPerm->bytes,
+            datacenter->authKeyPerm->bytes + datacenter->authKeyPerm->length);
+}
 
 bool ConnectionsManager::isTestBackend() {
     return testBackend;

@@ -51,6 +51,7 @@ public:
     int32_t getCurrentPingTime();
     uint32_t getCurrentDatacenterId();
     int64_t getCurrentAuthKeyId();
+    std::vector<uint8_t> getCurrentAuthKey();
     bool isTestBackend();
     int32_t getTimeDifference();
     int32_t sendRequest(TLObject *object, onCompleteFunc onComplete, onQuickAckFunc onQuickAck, onRequestClearFunc onClear, uint32_t flags, uint32_t datacenterId, ConnectionType connectionType, bool immediate);

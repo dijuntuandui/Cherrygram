@@ -91,10 +91,10 @@ public final class ProtocolConvertPage {
         // ==== 组三：生成 ====
         addSectionHeader(activity, root, "生成");
         addCard(activity, root, sheetRef, new Item[] {
-                new Item("生成新会话", "自备私钥与账号 id，或直接选已有 session / zip，产出 session 与 tdata", true,
+                new Item("手机号登录生成", "输入手机号 → 验证码 → 二级密码，登录成功后自动产出 session 与 tdata", true,
                         () -> host.onFeature(FlowHost.F_NEW_LOGIN)),
-                new Item("凭私钥生成", "粘贴 512 位私钥与 dc_id 直接生成，也可以选 .session / zip 自动读取", true,
-                        () -> host.onFeature(FlowHost.F_FROM_KEY)),
+                new Item("当前账号导出", "不用重新登录，直接把本机已登录账号导出成 session 与 tdata", true,
+                        () -> host.onFeature(FlowHost.F_FROM_ACCOUNT)),
         });
 
         // 内容超过一屏时能被裁掉，包一层 ScrollView 兜底，可滚动到底
@@ -223,6 +223,7 @@ public final class ProtocolConvertPage {
         int F_CHECK_STATUS = 7;
         int F_NEW_LOGIN = 8;
         int F_FROM_KEY = 9;
+        int F_FROM_ACCOUNT = 10;
 
         void onFeature(int feature);
 
