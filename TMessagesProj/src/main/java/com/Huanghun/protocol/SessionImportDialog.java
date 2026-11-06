@@ -53,7 +53,7 @@ public final class SessionImportDialog {
         int pad = Math.round(dp(20));
         root.setPadding(pad, Math.round(dp(16)), pad, 0);
 
-        root.addView(label(activity, "从已有会话导入", 0xFF111111, 16f, true));
+        root.addView(label(activity, "凭已有会话导入", 0xFF111111, 16f, true));
 
         TextView hint = label(activity,
                 "勾选 .session 和它同名的 .json（两个一起选），或者直接选打包好的 zip。"
@@ -85,7 +85,8 @@ public final class SessionImportDialog {
         root.addView(warn);
 
         TextView tip = label(activity,
-                "产物：session.zip 与 tdata.zip 两个压缩包，落在 /sdcard/Download/爱琦艺/协议转换/",
+                "产物：一个平铺的 zip（内含 session、json 与 2fa.txt），"
+                        + "落在 /sdcard/Download/爱琦艺/协议转换/<时间戳>/ 下。",
                 0xFF8E8E93, 12f, false);
         tip.setPadding(0, Math.round(dp(14)), 0, 0);
         root.addView(tip);

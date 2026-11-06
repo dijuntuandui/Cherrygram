@@ -620,6 +620,27 @@ public final class ProtocolConverterSheet {
                         report.addOk(account.label());
                         continue;
                     }
+                    // 测账号状态：只做本地体检，不写文件、不联网
+                    if (feature == ProtocolConvertPage.FlowHost.F_CHECK_STATUS) {
+                        report.addNote(input.getName() + " / " + account.label());
+                        int bad = 0;
+                        for (String line : ProtocolConverter.checkAccount(account)) {
+                            if (line.startsWith("ERR|")) {
+                                report.addFail(line.substring(4));
+                                bad++;
+                            } else if (line.startsWith("OK|")) {
+                                report.addNote(line.substring(3));
+                            } else {
+                                report.addNote(line);
+                            }
+                        }
+                        if (bad == 0) {
+                            report.addOk(account.label() + "：本地字段完整");
+                        } else {
+                            report.addFail(account.label() + "：有 " + bad + " 项不通过");
+                        }
+                        continue;
+                    }
                     try {
                         ProtocolConverter.Result result = ProtocolConverter.convert(
                                 account, runDir, true,
@@ -635,8 +656,9 @@ public final class ProtocolConverterSheet {
             }
         }
 
-        // 「查看信息」没有产物，直接返回
-        if (feature == ProtocolConvertPage.FlowHost.F_INSPECT) {
+        // 「查看信息」「测账号状态」没有产物，直接返回
+        if (feature == ProtocolConvertPage.FlowHost.F_INSPECT
+                || feature == ProtocolConvertPage.FlowHost.F_CHECK_STATUS) {
             return report;
         }
 

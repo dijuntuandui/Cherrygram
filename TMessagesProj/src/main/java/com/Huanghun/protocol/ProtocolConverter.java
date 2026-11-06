@@ -185,6 +185,56 @@ public final class ProtocolConverter {
      * <p>验证链路：key → tdata → 读回 → session → 读回 → string → 解码，
      * 每一环的 auth_key 指纹都必须一致。</p>
      */
+    /**
+     * 第 7 项「测账号状态」：纯本地字段体检，不发任何网络请求。
+     *
+     * <p>只做静态校验——能判断"这份凭证在本地是不是完整、自洽"，
+     * 但判断不了"服务器还认不认"。后者必须联网，属于另一件事。</p>
+     *
+     * @return 每行一条结论；以 "OK|" 开头为通过，"ERR|" 开头为不通过
+     */
+    public static List<String> checkAccount(SessionWriter.Account account) {
+        ArrayList<String> out = new ArrayList<>();
+        if (account == null) {
+            out.add("ERR|账号数据为空");
+            return out;
+        }
+        // 1. auth_key
+        if (account.authKey == null) {
+            out.add("ERR|auth_key 缺失，无法构成有效凭证");
+        } else if (account.authKey.length != 256) {
+            out.add("ERR|auth_key 长度 " + account.authKey.length + " 字节，应为 256");
+        } else {
+            out.add("OK|auth_key 256 字节");
+        }
+        // 2. dc_id
+        if (account.dcId < 1 || account.dcId > 5) {
+            out.add("ERR|dc_id = " + account.dcId + "，应在 1~5 之间");
+        } else {
+            out.add("OK|dc_id = " + account.dcId);
+        }
+        // 3. user_id
+        if (account.userId <= 0) {
+            out.add("ERR|user_id 未知（0），session 里没有记录，只能靠登录补");
+        } else {
+            out.add("OK|user_id = " + account.userId);
+        }
+        // 4. api_id / api_hash
+        if (account.apiId <= 0) {
+            out.add("ERR|api_id 未设置");
+        } else {
+            out.add("OK|api_id = " + account.apiId);
+        }
+        if (account.apiHash == null || account.apiHash.isEmpty()) {
+            out.add("ERR|api_hash 未设置");
+        } else {
+            out.add("OK|api_hash 已设置（长度 " + account.apiHash.length() + "）");
+        }
+        // 5. 密钥指纹，方便和别处的记录对照
+        out.add("OK|密钥指纹 " + account.fingerprint());
+        return out;
+    }
+
     public static String selfTest(File workDir) throws Exception {
         if (!workDir.exists() && !workDir.mkdirs() && !workDir.exists()) {
             throw new IOException("建目录失败：" + workDir.getAbsolutePath());
