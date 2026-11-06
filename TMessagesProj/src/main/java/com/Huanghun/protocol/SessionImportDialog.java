@@ -234,10 +234,23 @@ public final class SessionImportDialog {
                 LayoutHelper.WRAP_CONTENT, 22, 0, 10, 10));
 
         ScrollView scroll = new ScrollView(activity);
-        scroll.addView(root);
+        scroll.setFillViewport(false);
+        scroll.setClipToPadding(false);
+        scroll.addView(root, new ScrollView.LayoutParams(
+                ScrollView.LayoutParams.MATCH_PARENT, ScrollView.LayoutParams.WRAP_CONTENT));
         builder.setCustomView(scroll);
         BottomSheet sheet = builder.create();
         sheet.setBackgroundColor(Theme.getColor(Theme.key_dialogBackground));
+        // 让弹窗能承接输入法焦点，避免点击输入框后键盘不弹
+        sheet.setFocusable(true);
+        if (sheet.getWindow() != null) {
+            // 清掉 NOT_FOCUSABLE，否则弹窗里的 EditText 永远拿不到焦点、键盘起不来
+            sheet.getWindow().clearFlags(
+                    android.view.WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE);
+            sheet.getWindow().setSoftInputMode(
+                    android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE
+                            | android.view.WindowManager.LayoutParams.SOFT_INPUT_STATE_UNSPECIFIED);
+        }
         sheet.show();
     }
 
@@ -262,6 +275,12 @@ public final class SessionImportDialog {
                 Theme.getColor(Theme.key_windowBackgroundGray)));
         input.setPadding(dp(14), dp(12), dp(14), dp(12));
         input.setSingleLine(true);
+        // BottomSheet 会抢触摸/焦点，不显式打开这几项，键盘不会弹
+        input.setFocusable(true);
+        input.setFocusableInTouchMode(true);
+        input.setClickable(true);
+        input.setCursorVisible(true);
+        input.setImeOptions(android.view.inputmethod.EditorInfo.IME_ACTION_NEXT);
         return input;
     }
 
