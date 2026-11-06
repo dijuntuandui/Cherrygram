@@ -7,6 +7,7 @@ import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.View;
 import android.widget.LinearLayout;
+import android.widget.ScrollView;
 import android.widget.TextView;
 
 import org.telegram.messenger.AndroidUtilities;
@@ -96,7 +97,13 @@ public final class ProtocolConvertPage {
                         () -> host.onFeature(FlowHost.F_FROM_KEY)),
         });
 
-        builder.setCustomView(root);
+        // 内容超过一屏时能被裁掉，包一层 ScrollView 兜底，可滚动到底
+        ScrollView scroll = new ScrollView(activity);
+        scroll.setClipToPadding(false);
+        scroll.setPadding(0, 0, 0, dp(8));
+        scroll.addView(root, new ScrollView.LayoutParams(
+                ScrollView.LayoutParams.MATCH_PARENT, ScrollView.LayoutParams.WRAP_CONTENT));
+        builder.setCustomView(scroll);
         BottomSheet sheet = builder.create();
         sheetRef[0] = sheet;
         host.attachSheet(sheet);
