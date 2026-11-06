@@ -188,7 +188,10 @@ public final class SessionReader {
 
     // ---------------------------------------------------------- JSON
 
-    /** 读 JSON 归档，字段名与 SessionWriter.writeJson 对称。 */
+    /**
+     * 读 JSON 归档，字段名与 SessionWriter.writeJson 对称。
+     * 允许缺 auth_key：黄昏产出的 json 只有身份信息，密钥在同目录 .session 里。
+     */
     public static SessionWriter.Account readJson(File file) throws Exception {
         byte[] raw;
         try (FileInputStream stream = new FileInputStream(file)) {
@@ -197,18 +200,21 @@ public final class SessionReader {
         JSONObject payload = new JSONObject(new String(raw, StandardCharsets.UTF_8));
         SessionWriter.Account account = new SessionWriter.Account();
         String hexKey = payload.optString("auth_key", "");
-        if (hexKey.isEmpty()) {
-            throw new IOException("JSON 缺少 auth_key 字段");
+        if (!hexKey.isEmpty()) {
+            account.authKey = fromHex(hexKey);
         }
-        account.authKey = fromHex(hexKey);
-        account.dcId = payload.optInt("dc_id", 2);
+        account.dcId = payload.optInt("dc_id", 0);
         account.userId = payload.optLong("user_id", 0L);
         account.apiId = payload.optInt("api_id", SessionWriter.DESKTOP_API_ID);
         String apiHash = payload.optString("api_hash", "");
         account.apiHash = apiHash.isEmpty() ? SessionWriter.DESKTOP_API_HASH : apiHash;
         account.isBot = payload.optBoolean("is_bot", false);
         account.source = "json";
-        validateAccount(account);
+        // 黄昏的 json 只有身份信息没有 auth_key，密钥在同目录 .session 里。
+        // 缺 key 不成错，交给调用方与 session 合并；有 key 才做完整性校验。
+        if (account.authKey != null && account.authKey.length > 0) {
+            validateAccount(account);
+        }
         return account;
     }
 

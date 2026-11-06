@@ -372,7 +372,10 @@ public final class ProtocolConverterSheet {
         if (fromSession != null) {
             account = fromSession;
             if (fromJson != null) {
-                boolean sameKey = java.util.Arrays.equals(fromJson.authKey, fromSession.authKey);
+                // json 可能不带 auth_key（黄昏产物只有身份信息），此时不算冲突
+                boolean jsonHasKey = fromJson.authKey != null && fromJson.authKey.length > 0;
+                boolean sameKey = jsonHasKey
+                        && java.util.Arrays.equals(fromJson.authKey, fromSession.authKey);
                 if (fromJson.userId > 0) {
                     account.userId = fromJson.userId;
                 }
@@ -382,8 +385,16 @@ public final class ProtocolConverterSheet {
                 if (fromJson.apiHash != null && !fromJson.apiHash.isEmpty()) {
                     account.apiHash = fromJson.apiHash;
                 }
+                if (!jsonHasKey && fromJson.dcId >= 1 && fromJson.dcId <= 5) {
+                    // json 自带 dc 且 session 没给出有效值时补上
+                    if (account.dcId < 1 || account.dcId > 5) {
+                        account.dcId = fromJson.dcId;
+                    }
+                }
                 account.source = "session+json";
-                if (sameKey) {
+                if (!jsonHasKey) {
+                    report.addNote("\u5df2\u5c06 json \u4e0e session \u5408\u5e76\uff08json \u4ec5\u5e26\u8eab\u4efd\u4fe1\u606f\uff0c\u5bc6\u94a5\u53d6\u81ea session\uff09");
+                } else if (sameKey) {
                     report.addNote("\u5df2\u5c06 json \u4e0e session \u5408\u5e76\uff0cauth_key \u4e00\u81f4");
                 } else {
                     report.addNote("\u6ce8\u610f\uff1ajson \u4e0e session \u7684 auth_key \u4e0d\u4e00\u81f4\uff0c\u5df2\u4ee5 session \u4e3a\u51c6");
@@ -432,33 +443,45 @@ public final class ProtocolConverterSheet {
             report.addFail("\u751f\u6210\u5931\u8d25\uff1a" + describe(e));
             return report;
         }
-        // 打两个包：session 与 tdata 分开给。目录名必须与 ProtocolConverter.baseName 一致
+        // 打包成单个 zip，内容平铺（与黄昏原包一致）：xxx.session / xxx.json / 2fa.txt
         try {
             String base = account.userId > 0
                     ? String.valueOf(account.userId)
                     : "acct_" + account.fingerprint();
             File accountDir = new File(runDir, base);
-            File sessionZip = new File(runDir, "session.zip");
-            File tdataZip = new File(runDir, "tdata.zip");
+            File flatZip = new File(runDir, base + ".zip");
+            java.util.List<File> flat = new ArrayList<>();
             File[] children = accountDir.listFiles();
             if (children != null) {
-                java.util.List<File> sess = new ArrayList<>();
-                java.util.List<File> tdat = new ArrayList<>();
                 for (File child : children) {
+                    // tdata 目录是第 4 项的中间产物，不进用户包
                     if (child.getName().startsWith("tdata")) {
-                        tdat.add(child);
-                    } else {
-                        sess.add(child);
+                        continue;
+                    }
+                    flat.add(child);
+                }
+            }
+            // 补一份 2fa.txt（黄昏原包里有），内容取 json 里的二级密码
+            File twoFa = new File(accountDir, "2fa.txt");
+            if (!twoFa.isFile()) {
+                String pwd = readTwoFaFromJson(jsonFiles.isEmpty() ? null : jsonFiles.get(0));
+                if (pwd != null && !pwd.isEmpty()) {
+                    try {
+                        java.io.FileOutputStream fos = new java.io.FileOutputStream(twoFa);
+                        try {
+                            fos.write(pwd.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+                        } finally {
+                            try { fos.close(); } catch (Exception ignore) {}
+                        }
+                        flat.add(twoFa);
+                    } catch (Exception ignore) {
                     }
                 }
-                if (!sess.isEmpty()) {
-                    zipFiles(sess, sessionZip);
-                    report.addNote("\u5df2\u6253\u5305\uff1a" + sessionZip.getName());
-                }
-                if (!tdat.isEmpty()) {
-                    zipFiles(tdat, tdataZip);
-                    report.addNote("\u5df2\u6253\u5305\uff1a" + tdataZip.getName());
-                }
+            }
+            if (!flat.isEmpty()) {
+                zipFilesFlat(flat, flatZip);
+                report.addNote("\u5df2\u6253\u5305\uff1a" + flatZip.getName());
+                report.outputCount++;
             }
         } catch (Exception e) {
             report.addNote("\u6253\u5305\u5931\u8d25\uff1a" + describe(e));
@@ -617,11 +640,11 @@ public final class ProtocolConverterSheet {
             return report;
         }
 
-        // 统一打包成 zip，用户拿一个文件就够
+        // 统一打包成 zip，内容平铺，不带 acct_xxx/ 这层目录
         if (!produced.isEmpty()) {
             File zip = new File(runDir, "转换结果.zip");
             try {
-                zipDirectory(runDir, zip);
+                zipFlatByBase(runDir, zip);
                 report.addNote("已打包：" + zip.getName());
                 report.outputCount++;
             } catch (Exception e) {
@@ -659,6 +682,116 @@ public final class ProtocolConverterSheet {
     }
 
     /** 把目录（不含 zip 自身）打成压缩包。 */
+    /** 从黄昏 json 里取二级密码，取不到返回 null。 */
+    private static String readTwoFaFromJson(File jsonFile) {
+        if (jsonFile == null || !jsonFile.isFile()) {
+            return null;
+        }
+        try {
+            byte[] raw = new byte[(int) jsonFile.length()];
+            java.io.FileInputStream in = new java.io.FileInputStream(jsonFile);
+            try {
+                int off = 0;
+                int r;
+                while (off < raw.length && (r = in.read(raw, off, raw.length - off)) > 0) {
+                    off += r;
+                }
+            } finally {
+                try { in.close(); } catch (Exception ignore) {}
+            }
+            org.json.JSONObject obj = new org.json.JSONObject(
+                    new String(raw, java.nio.charset.StandardCharsets.UTF_8));
+            String pwd = obj.optString("twofa", "");
+            if (pwd.isEmpty()) {
+                pwd = obj.optString("password", "");
+            }
+            return pwd;
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    /** 把已有文件列表平铺写入 zip（不保留任何父目录层级）。 */
+    private static void zipFilesFlat(java.util.List<File> files, File zipFile) throws Exception {
+        try (ZipOutputStream zip = new ZipOutputStream(new FileOutputStream(zipFile))) {
+            for (File file : files) {
+                if (!file.isFile()) {
+                    continue;
+                }
+                zip.putNextEntry(new ZipEntry(file.getName()));
+                try (InputStream in = new java.io.FileInputStream(file)) {
+                    byte[] buf = new byte[8192];
+                    int len;
+                    while ((len = in.read(buf)) > 0) {
+                        zip.write(buf, 0, len);
+                    }
+                }
+                zip.closeEntry();
+            }
+        }
+    }
+
+    /**
+     * 把 runDir 下的产物平铺打包：进入 acct_* 子目录，把里面的文件直接放到 zip 根。
+     * 输出结构与黄昏原包一致，不再套文件夹。
+     */
+    private static void zipFlatByBase(File runDir, File zipFile) throws Exception {
+        File[] entries = runDir.listFiles();
+        if (entries == null || entries.length == 0) {
+            return;
+        }
+        try (ZipOutputStream zip = new ZipOutputStream(new FileOutputStream(zipFile))) {
+            java.util.Set<String> used = new java.util.HashSet<>();
+            for (File entry : entries) {
+                if (entry.equals(zipFile)) {
+                    continue;
+                }
+                if (entry.isDirectory()) {
+                    if (entry.getName().startsWith("tdata")) {
+                        continue;
+                    }
+                    File[] children = entry.listFiles();
+                    if (children == null) {
+                        continue;
+                    }
+                    for (File child : children) {
+                        if (!child.isFile() || child.getName().startsWith("tdata")) {
+                            continue;
+                        }
+                        String name = child.getName();
+                        if (!used.add(name)) {
+                            name = entry.getName() + "_" + name;
+                            used.add(name);
+                        }
+                        zip.putNextEntry(new ZipEntry(name));
+                        try (InputStream in = new java.io.FileInputStream(child)) {
+                            byte[] buf = new byte[8192];
+                            int len;
+                            while ((len = in.read(buf)) > 0) {
+                                zip.write(buf, 0, len);
+                            }
+                        }
+                        zip.closeEntry();
+                    }
+                } else if (entry.isFile()) {
+                    String name = entry.getName();
+                    if (name.endsWith(".zip") || !used.add(name)) {
+                        continue;
+                    }
+                    zip.putNextEntry(new ZipEntry(name));
+                    try (InputStream in = new java.io.FileInputStream(entry)) {
+                        byte[] buf = new byte[8192];
+                        int len;
+                        while ((len = in.read(buf)) > 0) {
+                            zip.write(buf, 0, len);
+                        }
+                    }
+                    zip.closeEntry();
+                }
+            }
+        }
+    }
+
     private static void zipDirectory(File dir, File zipFile) throws Exception {
         File[] files = dir.listFiles();
         if (files == null || files.length == 0) {
