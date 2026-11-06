@@ -92,7 +92,7 @@ public final class ProtocolConvertPage {
         addCard(activity, root, sheetRef, new Item[] {
                 new Item("生成新会话", "完整登录一次手机号账号，产出 session / tdata", false,
                         () -> host.onFeature(FlowHost.F_NEW_LOGIN)),
-                new Item("凭私钥生成", "手里有 256 字节 auth_key 即可凭空生成，不联网、不需密码", false,
+                new Item("凭已有会话导入", "选一份 .session，读出 dc_id 与 auth_key 后直接生成 session + tdata", true,
                         () -> host.onFeature(FlowHost.F_FROM_KEY)),
         });
 

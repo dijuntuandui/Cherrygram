@@ -10967,10 +10967,27 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
                             .showResult(getParentActivity(), report));
             return;
         }
-        if (feature == com.Huanghun.protocol.ProtocolConvertPage.FlowHost.F_NEW_LOGIN
-                || feature == com.Huanghun.protocol.ProtocolConvertPage.FlowHost.F_FROM_KEY) {
+        if (feature == com.Huanghun.protocol.ProtocolConvertPage.FlowHost.F_FROM_KEY) {
+            // 凭已有会话导入：只认 .session 文件，从中读出 dc_id 与 auth_key
+            com.Huanghun.protocol.SessionImportDialog.show(getParentActivity(),
+                    new com.Huanghun.protocol.SessionImportDialog.Callback() {
+                        @Override
+                        public void onPickFile() {
+                            // 允许一次选 session + json，也允许直接选 zip
+                            com.Huanghun.protocol.ProtocolConverterSheet
+                                    .openInputPicker(getParentActivity(), true);
+                        }
+
+                        @Override
+                        public void onCancel() {
+                            pendingConvertFeature = 0;
+                        }
+                    });
+            return;
+        }
+        if (feature == com.Huanghun.protocol.ProtocolConvertPage.FlowHost.F_NEW_LOGIN) {
             com.Huanghun.protocol.ProtocolConverterSheet.showResult(getParentActivity(),
-                    com.Huanghun.protocol.ConvertReport.failure("「生成」类功能下一版开放"));
+                    com.Huanghun.protocol.ConvertReport.failure("「生成新会话」下一版开放"));
             return;
         }
         com.Huanghun.protocol.ProtocolConverterSheet.openInputPicker(getParentActivity());
@@ -10978,16 +10995,35 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
 
     /** 用户选完输入文件，落到缓存后直接跑当前功能。 */
     private void onConvertInputPicked(android.content.Intent data) {
-        if (getParentActivity() == null || data == null || data.getData() == null) {
+        if (getParentActivity() == null || data == null) {
             return;
         }
-        final android.net.Uri uri = data.getData();
+        final java.util.List<android.net.Uri> uris = new java.util.ArrayList<>();
+        android.content.ClipData clip = data.getClipData();
+        if (clip != null && clip.getItemCount() > 0) {
+            for (int i = 0; i < clip.getItemCount(); i++) {
+                android.net.Uri item = clip.getItemAt(i).getUri();
+                if (item != null) {
+                    uris.add(item);
+                }
+            }
+        } else if (data.getData() != null) {
+            uris.add(data.getData());
+        }
+        if (uris.isEmpty()) {
+            return;
+        }
         final int feature = pendingConvertFeature;
         new Thread(() -> {
             String error = null;
             java.io.File root = null;
             try {
-                root = com.Huanghun.protocol.ProtocolConverterSheet.stageInput(getParentActivity(), uri);
+                root = com.Huanghun.protocol.ProtocolConverterSheet
+                        .resetStageRoot(getParentActivity());
+                for (android.net.Uri uri : uris) {
+                    com.Huanghun.protocol.ProtocolConverterSheet
+                            .stageInto(getParentActivity(), uri, root);
+                }
             } catch (Exception e) {
                 org.telegram.messenger.FileLog.e(e);
                 error = e.getMessage() == null ? e.toString() : e.getMessage();
@@ -10998,6 +11034,14 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
                 if (failure != null) {
                     com.Huanghun.protocol.ProtocolConverterSheet.showResult(getParentActivity(),
                             com.Huanghun.protocol.ConvertReport.failure(failure));
+                    return;
+                }
+                if (feature == com.Huanghun.protocol.ProtocolConvertPage.FlowHost.F_FROM_KEY) {
+                    // 导入已有会话：直接拿这份文件解析，不扫描目录
+                    com.Huanghun.protocol.ProtocolConverterSheet.runFromStagedDir(
+                            getParentActivity(), staged,
+                            report -> com.Huanghun.protocol.ProtocolConverterSheet
+                                    .showResult(getParentActivity(), report));
                     return;
                 }
                 java.util.List<java.io.File> inputs =

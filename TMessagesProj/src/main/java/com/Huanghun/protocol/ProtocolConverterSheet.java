@@ -82,9 +82,17 @@ public final class ProtocolConverterSheet {
 
     /** 打开输入选择器：文件或 zip。 */
     public static void openInputPicker(Activity activity) {
+        openInputPicker(activity, false);
+    }
+
+    /** multi=true 时允许一次选多个文件，用于「session + json」成对导入。 */
+    public static void openInputPicker(Activity activity, boolean multi) {
         Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
         intent.addCategory(Intent.CATEGORY_OPENABLE);
         intent.setType("*/*");
+        if (multi) {
+            intent.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true);
+        }
         try {
             activity.startActivityForResult(intent, REQ_INPUT);
         } catch (Exception e) {
@@ -94,10 +102,24 @@ public final class ProtocolConverterSheet {
 
     // ---------------------------------------------------------- 输入落地
 
-    /** 把用户选的 URI 落到私有缓存，解压 zip，返回可用的本地根目录。 */
-    public static File stageInput(Activity activity, Uri uri) throws Exception {
+    /** 清空缓存目录，供多选时第一次调用使用。 */
+    public static File resetStageRoot(Activity activity) throws Exception {
         File root = new File(activity.getCacheDir(), "protocol_convert_in");
         deleteTree(root);
+        if (!root.exists() && !root.mkdirs() && !root.exists()) {
+            throw new IOException("无法创建临时目录");
+        }
+        return root;
+    }
+
+    /** 把用户选的 URI 落到私有缓存，解压 zip，返回可用的本地根目录。 */
+    public static File stageInput(Activity activity, Uri uri) throws Exception {
+        File root = resetStageRoot(activity);
+        return stageInto(activity, uri, root);
+    }
+
+    /** 多选场景：逐个落到同一个目录，不清空。 */
+    public static File stageInto(Activity activity, Uri uri, File root) throws Exception {
         if (!root.exists() && !root.mkdirs() && !root.exists()) {
             throw new IOException("无法创建临时目录");
         }
@@ -266,6 +288,231 @@ public final class ProtocolConverterSheet {
             }
             AndroidUtilities.runOnUIThread(() -> callback.onDone(report));
         }, "protocol-convert").start();
+    }
+
+    /**
+     * 凭已有会话导入（第 9 项）。
+     *
+     * 不走「手打 auth_key」路线：auth_key 与账号之间没有可反查的映射，
+     * 服务端靠 auth_key_id（SHA1 前 8 字节）查表才知道对应哪个 user_id，
+     * 客户端本地无从得知。所以只接受 .session 文件，读出 dc_id 与 auth_key
+     * 原样使用，登得上就证明凭证有效。
+     */
+    public static void runFromSessionFile(final Activity activity, final File sessionFile,
+            final Callback callback) {
+        runFromStagedDir(activity, sessionFile, callback);
+    }
+
+    /**
+     * 第 9 项的实际执行入口。staged 可能是根目录（里面躺着 session / json / 解压后的 zip）。
+     * 策略：找 .session 拿 dc_id + auth_key，找 .json 补 userId / api_id / api_hash，
+     * 两边都有就合并且必须对得上；只找到 json 就直接用 json。
+     */
+    public static void runFromStagedDir(final Activity activity, final File staged,
+            final Callback callback) {
+        new Thread(() -> {
+            final ConvertReport report;
+            try {
+                report = executeFromStagedDir(staged);
+            } catch (Throwable e) {
+                FileLog.e(e);
+                final ConvertReport failed = ConvertReport.failure(
+                        e.getMessage() == null ? e.toString() : e.getMessage());
+                AndroidUtilities.runOnUIThread(() -> callback.onDone(failed));
+                return;
+            }
+            AndroidUtilities.runOnUIThread(() -> callback.onDone(report));
+        }, "protocol-import").start();
+    }
+
+    /**
+     * 解析 .session 后直接转换，同时打 session.zip 与 tdata.zip 两个包。
+     * 读到的 userId 原样保留（有效会话里就有）。
+     */
+    private static ConvertReport executeFromStagedDir(File staged) throws Exception {
+        ConvertReport report = new ConvertReport();
+        report.title = "\u51ed\u5df2\u6709\u4f1a\u8bdd\u5bfc\u5165";
+        if (staged == null || !staged.exists()) {
+            return ConvertReport.failure("\u6ca1\u6709\u53ef\u8bfb\u7684\u8f93\u5165");
+        }
+        // 1. 收集候选：所有 .session / .json（含解压后的子目录）
+        final java.util.List<File> sessionFiles = new ArrayList<>();
+        final java.util.List<File> jsonFiles = new ArrayList<>();
+        collectByExt(staged, sessionFiles, jsonFiles);
+        if (sessionFiles.isEmpty() && jsonFiles.isEmpty()) {
+            return ConvertReport.failure("\u91cc\u9762\u6ca1\u6709 .session \u6216 .json \u6587\u4ef6");
+        }
+
+        // 2. 先读 json（它带 userId / apiId，最完整）
+        SessionWriter.Account fromJson = null;
+        String jsonError = null;
+        if (!jsonFiles.isEmpty()) {
+            try {
+                fromJson = SessionReader.readJson(jsonFiles.get(0));
+            } catch (Exception e) {
+                jsonError = describe(e);
+            }
+        }
+
+        // 3. 再读 session（dc_id 与 auth_key 以它为准；userId 若 json 有则取 json）
+        SessionWriter.Account fromSession = null;
+        String sessionError = null;
+        if (!sessionFiles.isEmpty()) {
+            try {
+                fromSession = SessionReader.readSessionDb(sessionFiles.get(0));
+            } catch (Exception e) {
+                sessionError = describe(e);
+            }
+        }
+
+        SessionWriter.Account account;
+        if (fromSession != null) {
+            account = fromSession;
+            if (fromJson != null) {
+                boolean sameKey = java.util.Arrays.equals(fromJson.authKey, fromSession.authKey);
+                if (fromJson.userId > 0) {
+                    account.userId = fromJson.userId;
+                }
+                if (fromJson.apiId > 0) {
+                    account.apiId = fromJson.apiId;
+                }
+                if (fromJson.apiHash != null && !fromJson.apiHash.isEmpty()) {
+                    account.apiHash = fromJson.apiHash;
+                }
+                account.source = "session+json";
+                if (sameKey) {
+                    report.addNote("\u5df2\u5c06 json \u4e0e session \u5408\u5e76\uff0cauth_key \u4e00\u81f4");
+                } else {
+                    report.addNote("\u6ce8\u610f\uff1ajson \u4e0e session \u7684 auth_key \u4e0d\u4e00\u81f4\uff0c\u5df2\u4ee5 session \u4e3a\u51c6");
+                }
+            } else {
+                account.source = "session-import";
+                if (jsonError != null) {
+                    report.addNote("json \u8bfb\u53d6\u5931\u8d25\uff08\u4e0d\u5f71\u54cd\uff09\uff1a" + jsonError);
+                }
+            }
+        } else if (fromJson != null) {
+            account = fromJson;
+            report.addNote("\u6ca1\u6709\u8bfb\u5230\u53ef\u7528 session\uff0c\u6539\u7528 json");
+        } else {
+            return ConvertReport.failure("\u89e3\u6790\u5931\u8d25\uff1a"
+                    + (sessionError != null ? (".session " + sessionError) : "")
+                    + (jsonError != null ? " / .json " + jsonError : ""));
+        }
+
+        if (account.authKey == null || account.authKey.length != 256) {
+            return ConvertReport.failure("auth_key \u4e0d\u662f 256 \u5b57\u8282\uff0c\u4e0d\u662f\u5408\u6cd5\u7684 Telethon \u4f1a\u8bdd\u6587\u4ef6");
+        }
+        if (account.dcId < 1 || account.dcId > 5) {
+            return ConvertReport.failure("dc_id \u4e0d\u5728 1-5 \u8303\u56f4\uff08\u8bfb\u5230 " + account.dcId + "\uff09");
+        }
+        report.addNote("\u5df2\u8bfb\u5230 dc=" + account.dcId + "\uff0cauth_key " + account.authKey.length + " \u5b57\u8282");
+        report.addNote("auth_key_id " + shortKeyId(account.authKey));
+        if (account.userId > 0) {
+            report.addNote("userId " + account.userId + "\uff08\u6765\u6e90\uff1a" + account.source + "\uff09");
+        } else {
+            report.addNote("\u6ca1\u8bfb\u5230 userId\uff0c\u4ea7\u7269\u5c06\u4e0d\u5e26\u8d26\u53f7\u8eab\u4efd");
+        }
+
+        File runDir = ConvertReport.createRunDir();
+        report.runDir = runDir;
+        try {
+            ProtocolConverter.Result result = ProtocolConverter.convert(
+                    account, runDir, true,
+                    true, true, true, false, true);
+            report.addOk(result.summary());
+            for (String warning : result.warnings) {
+                report.addNote("\u6ce8\u610f " + warning);
+            }
+            report.outputCount += 2;
+        } catch (Exception e) {
+            report.addFail("\u751f\u6210\u5931\u8d25\uff1a" + describe(e));
+            return report;
+        }
+        // 打两个包：session 与 tdata 分开给。目录名必须与 ProtocolConverter.baseName 一致
+        try {
+            String base = account.userId > 0
+                    ? String.valueOf(account.userId)
+                    : "acct_" + account.fingerprint();
+            File accountDir = new File(runDir, base);
+            File sessionZip = new File(runDir, "session.zip");
+            File tdataZip = new File(runDir, "tdata.zip");
+            File[] children = accountDir.listFiles();
+            if (children != null) {
+                java.util.List<File> sess = new ArrayList<>();
+                java.util.List<File> tdat = new ArrayList<>();
+                for (File child : children) {
+                    if (child.getName().startsWith("tdata")) {
+                        tdat.add(child);
+                    } else {
+                        sess.add(child);
+                    }
+                }
+                if (!sess.isEmpty()) {
+                    zipFiles(sess, sessionZip);
+                    report.addNote("\u5df2\u6253\u5305\uff1a" + sessionZip.getName());
+                }
+                if (!tdat.isEmpty()) {
+                    zipFiles(tdat, tdataZip);
+                    report.addNote("\u5df2\u6253\u5305\uff1a" + tdataZip.getName());
+                }
+            }
+        } catch (Exception e) {
+            report.addNote("\u6253\u5305\u5931\u8d25\uff1a" + describe(e));
+        }
+        return report;
+    }
+
+    /** \u9012\u5f52\u6536\u96c6 .session \u4e0e .json\uff08\u5c42\u6570\u9650 4\uff09 */
+    private static void collectByExt(File root, java.util.List<File> sessions,
+            java.util.List<File> jsons) {
+        collectByExt(root, sessions, jsons, 0);
+    }
+
+    private static void collectByExt(File root, java.util.List<File> sessions,
+            java.util.List<File> jsons, int depth) {
+        if (root == null || depth > 4) {
+            return;
+        }
+        if (root.isFile()) {
+            String lower = root.getName().toLowerCase(Locale.ROOT);
+            if (lower.endsWith(".session")) {
+                sessions.add(root);
+            } else if (lower.endsWith(".json")) {
+                jsons.add(root);
+            }
+            return;
+        }
+        File[] children = root.listFiles();
+        if (children == null) {
+            return;
+        }
+        for (File child : children) {
+            collectByExt(child, sessions, jsons, depth + 1);
+        }
+    }
+
+    /** auth_key_id 是 auth_key 的 SHA1 前 8 字节，转十六进制方便对照。 */
+    private static String shortKeyId(byte[] authKey) {
+        try {
+            byte[] digest = java.security.MessageDigest.getInstance("SHA-1").digest(authKey);
+            StringBuilder sb = new StringBuilder();
+            for (int k = 0; k < 8; k++) {
+                sb.append(String.format("%02x", digest[k]));
+            }
+            return sb.toString();
+        } catch (Exception e) {
+            return "计算失败";
+        }
+    }
+
+    /** 把一批文件/目录打进 zip，条目名保留原有文件名。 */
+    private static void zipFiles(List<File> items, File zipFile) throws Exception {
+        try (ZipOutputStream zip = new ZipOutputStream(new FileOutputStream(zipFile))) {
+            for (File item : items) {
+                addToZip(zip, item, item.getName());
+            }
+        }
     }
 
     /** 真正干活的地方，全部在后台线程。 */
