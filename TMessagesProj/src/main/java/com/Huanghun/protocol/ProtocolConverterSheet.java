@@ -81,23 +81,26 @@ public final class ProtocolConverterSheet {
     }
 
     /** 打开输入选择器：文件或 zip。 */
-    public static void openInputPicker(Activity activity) {
-        openInputPicker(activity, false);
-    }
-
-    /** multi=true 时允许一次选多个文件，用于「session + json」成对导入。 */
-    public static void openInputPicker(Activity activity, boolean multi) {
+    /**
+     * 构造输入选择器的 Intent。
+     *
+     * 注意：这里不直接 startActivityForResult。LoginActivity 是 Fragment，
+     * 必须由它自己的 startActivityForResult 发起，结果才会回到
+     * onActivityResultFragment；走 Activity 发起会落到 Activity 的
+     * onActivityResult，而 LoginActivity 没有覆盖那个方法，结果直接丢失。
+     */
+    public static Intent buildInputPickerIntent(boolean multi) {
         Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
         intent.addCategory(Intent.CATEGORY_OPENABLE);
         intent.setType("*/*");
         if (multi) {
             intent.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true);
         }
-        try {
-            activity.startActivityForResult(intent, REQ_INPUT);
-        } catch (Exception e) {
-            FileLog.e(e);
-        }
+        return intent;
+    }
+
+    public static Intent buildInputPickerIntent() {
+        return buildInputPickerIntent(false);
     }
 
     // ---------------------------------------------------------- 输入落地

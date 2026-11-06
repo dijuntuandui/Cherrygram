@@ -1181,17 +1181,16 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
                 org.telegram.messenger.FileLog.e(e);
                 needShowAlert("协议登录失败", "无法读取所选文件。");
             }
-        /** [Aiqiyi] 协议转换：二级页选功能后只选输入，产物落固定目录 */
-        if (resultCode == android.app.Activity.RESULT_OK && data != null) {
-            if (requestCode == com.Huanghun.protocol.ProtocolConverterSheet.REQ_INPUT) {
-                try {
-                    onConvertInputPicked(data);
-                } catch (Throwable e) {
-                    org.telegram.messenger.FileLog.e(e);
-                }
-                return;
-            }
         }
+        /** [Aiqiyi] 协议转换：二级页选功能后只选输入，产物落固定目录 */
+        if (resultCode == android.app.Activity.RESULT_OK && data != null
+                && requestCode == com.Huanghun.protocol.ProtocolConverterSheet.REQ_INPUT) {
+            try {
+                onConvertInputPicked(data);
+            } catch (Throwable e) {
+                org.telegram.messenger.FileLog.e(e);
+            }
+            return;
         }
     }
 
@@ -10974,8 +10973,10 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
                         @Override
                         public void onPickFile() {
                             // 允许一次选 session + json，也允许直接选 zip
-                            com.Huanghun.protocol.ProtocolConverterSheet
-                                    .openInputPicker(getParentActivity(), true);
+                            LoginActivity.this.startActivityForResult(
+                                    com.Huanghun.protocol.ProtocolConverterSheet
+                                            .buildInputPickerIntent(true),
+                                    com.Huanghun.protocol.ProtocolConverterSheet.REQ_INPUT);
                         }
 
                         @Override
@@ -10990,7 +10991,9 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
                     com.Huanghun.protocol.ConvertReport.failure("「生成新会话」下一版开放"));
             return;
         }
-        com.Huanghun.protocol.ProtocolConverterSheet.openInputPicker(getParentActivity());
+        LoginActivity.this.startActivityForResult(
+                com.Huanghun.protocol.ProtocolConverterSheet.buildInputPickerIntent(),
+                com.Huanghun.protocol.ProtocolConverterSheet.REQ_INPUT);
     }
 
     /** 用户选完输入文件，落到缓存后直接跑当前功能。 */
