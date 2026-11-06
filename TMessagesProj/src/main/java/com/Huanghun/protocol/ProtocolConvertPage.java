@@ -90,9 +90,9 @@ public final class ProtocolConvertPage {
         // ==== 组三：生成 ====
         addSectionHeader(activity, root, "生成");
         addCard(activity, root, sheetRef, new Item[] {
-                new Item("生成新会话", "完整登录一次手机号账号，产出 session / tdata", false,
+                new Item("生成新会话", "自备私钥与账号 id，或直接选已有 session / zip，产出 session 与 tdata", true,
                         () -> host.onFeature(FlowHost.F_NEW_LOGIN)),
-                new Item("凭已有会话导入", "选一份 .session，读出 dc_id 与 auth_key 后直接生成 session + tdata", true,
+                new Item("凭私钥生成", "粘贴 512 位私钥与 dc_id 直接生成，也可以选 .session / zip 自动读取", true,
                         () -> host.onFeature(FlowHost.F_FROM_KEY)),
         });
 

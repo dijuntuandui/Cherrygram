@@ -10952,6 +10952,107 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
                 });
     }
 
+    /**
+     * 用户手填私钥后，直接装配凭证并产出全部格式。
+     *
+     * <p>不走登录流程：auth_key 本身就构成合法凭证，user_id 允许为 0，
+     * 服务端真正登录时按 auth_key_id 回填。产物落在
+     * /sdcard/Download/爱琦艺/协议转换/&lt;时间戳&gt;/ 下。</p>
+     */
+    private void runManualProtocolBuild(final String authKeyHex, final int dcId,
+            final long userId) {
+        if (getParentActivity() == null) {
+            return;
+        }
+        new Thread(() -> {
+            String error = null;
+            com.Huanghun.protocol.ProtocolConverter.Result result = null;
+            java.io.File runDir = null;
+            try {
+                // 1) hex -> 字节
+                if (authKeyHex == null || authKeyHex.length() != 512) {
+                    throw new IllegalArgumentException("私钥长度应为 512 位十六进制");
+                }
+                byte[] key = new byte[256];
+                for (int i = 0; i < 256; i++) {
+                    int hi = Character.digit(authKeyHex.charAt(i * 2), 16);
+                    int lo = Character.digit(authKeyHex.charAt(i * 2 + 1), 16);
+                    if (hi < 0 || lo < 0) {
+                        throw new IllegalArgumentException(
+                                "私钥第 " + (i * 2 + 1) + " 位不是十六进制字符");
+                    }
+                    key[i] = (byte) ((hi << 4) | lo);
+                }
+                // 2) 装配账号
+                com.Huanghun.protocol.SessionWriter.Account account =
+                        new com.Huanghun.protocol.SessionWriter.Account(key, dcId, userId);
+                account.source = "manual";
+                // 3) 输出目录（统一走 ConvertReport 的时间戳目录）
+                runDir = com.Huanghun.protocol.ConvertReport.createRunDir();
+                result = com.Huanghun.protocol.ProtocolConverter.convert(account, runDir, true);
+            } catch (Throwable e) {
+                org.telegram.messenger.FileLog.e(e);
+                error = e.getMessage() == null ? e.toString() : e.getMessage();
+            }
+            final String failure = error;
+            final com.Huanghun.protocol.ProtocolConverter.Result done = result;
+            final java.io.File dir = runDir;
+            org.telegram.messenger.AndroidUtilities.runOnUIThread(() -> {
+                if (getParentActivity() == null) {
+                    return;
+                }
+                if (failure != null) {
+                    com.Huanghun.protocol.ProtocolConverterSheet.showResult(
+                            getParentActivity(),
+                            com.Huanghun.protocol.ConvertReport.failure(failure));
+                    return;
+                }
+                com.Huanghun.protocol.ProtocolConverterSheet.showResult(
+                        getParentActivity(), toReport(done, dir));
+            });
+        }, "protocol-manual-build").start();
+    }
+
+    /** 把转换结果转成展示用的报告。 */
+    private static com.Huanghun.protocol.ConvertReport toReport(
+            com.Huanghun.protocol.ProtocolConverter.Result result, java.io.File runDir) {
+        com.Huanghun.protocol.ConvertReport report = new com.Huanghun.protocol.ConvertReport();
+        report.runDir = runDir;
+        if (result == null) {
+            report.addFail("没有产出任何结果");
+            return report;
+        }
+        report.title = "生成完成";
+        report.addOk(result.account == null ? "账号 ?" : result.account.label());
+        if (result.telethon != null) {
+            report.outputs.add(result.telethon);
+            report.addNote("telethon: " + result.telethon.getName());
+        }
+        if (result.pyrogram != null) {
+            report.outputs.add(result.pyrogram);
+            report.addNote("pyrogram: " + result.pyrogram.getName());
+        }
+        if (result.string != null) {
+            report.outputs.add(result.string);
+            report.addNote("string: " + result.string.getName());
+        }
+        if (result.json != null) {
+            report.outputs.add(result.json);
+            report.addNote("json: " + result.json.getName());
+        }
+        if (result.tdataDir != null) {
+            report.outputs.add(result.tdataDir);
+            report.addNote("tdata: " + result.tdataDir.getName() + "/");
+        }
+        report.outputCount = report.outputs.size();
+        if (result.warnings != null) {
+            for (String warning : result.warnings) {
+                report.addNote("注意: " + warning);
+            }
+        }
+        return report;
+    }
+
     /** 二级页点了某一项之后的动作。 */
     private void handleConvertFeature(int feature) {
         if (getParentActivity() == null) {
@@ -10966,9 +11067,10 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
                             .showResult(getParentActivity(), report));
             return;
         }
-        if (feature == com.Huanghun.protocol.ProtocolConvertPage.FlowHost.F_FROM_KEY) {
-            // 凭已有会话导入：只认 .session 文件，从中读出 dc_id 与 auth_key
+if (feature == com.Huanghun.protocol.ProtocolConvertPage.FlowHost.F_FROM_KEY) {
+            // 凭私钥生成：上面选文件，下面手填私钥 + dc_id
             com.Huanghun.protocol.SessionImportDialog.show(getParentActivity(),
+                    com.Huanghun.protocol.SessionImportDialog.MODE_FROM_KEY,
                     new com.Huanghun.protocol.SessionImportDialog.Callback() {
                         @Override
                         public void onPickFile() {
@@ -10980,6 +11082,11 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
                         }
 
                         @Override
+                        public void onManualInput(String authKeyHex, int dcId, long userId) {
+                            runManualProtocolBuild(authKeyHex, dcId, userId);
+                        }
+
+                        @Override
                         public void onCancel() {
                             pendingConvertFeature = 0;
                         }
@@ -10987,8 +11094,28 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
             return;
         }
         if (feature == com.Huanghun.protocol.ProtocolConvertPage.FlowHost.F_NEW_LOGIN) {
-            com.Huanghun.protocol.ProtocolConverterSheet.showResult(getParentActivity(),
-                    com.Huanghun.protocol.ConvertReport.failure("「生成新会话」下一版开放"));
+            // 生成新会话：用户自带完整凭据（含 user_id），不在这里走登录
+            com.Huanghun.protocol.SessionImportDialog.show(getParentActivity(),
+                    com.Huanghun.protocol.SessionImportDialog.MODE_NEW_SESSION,
+                    new com.Huanghun.protocol.SessionImportDialog.Callback() {
+                        @Override
+                        public void onPickFile() {
+                            LoginActivity.this.startActivityForResult(
+                                    com.Huanghun.protocol.ProtocolConverterSheet
+                                            .buildInputPickerIntent(true),
+                                    com.Huanghun.protocol.ProtocolConverterSheet.REQ_INPUT);
+                        }
+
+                        @Override
+                        public void onManualInput(String authKeyHex, int dcId, long userId) {
+                            runManualProtocolBuild(authKeyHex, dcId, userId);
+                        }
+
+                        @Override
+                        public void onCancel() {
+                            pendingConvertFeature = 0;
+                        }
+                    });
             return;
         }
         LoginActivity.this.startActivityForResult(
