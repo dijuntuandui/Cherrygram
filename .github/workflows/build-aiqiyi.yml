@@ -9,6 +9,9 @@ jobs:
   build:
     runs-on: ubuntu-latest
     timeout-minutes: 240
+    # [Aiqiyi] 默认 token 对 fork 仓库是只读，创建 Release 会被 403，必须显式开 contents: write
+    permissions:
+      contents: write
 
     steps:
       # [Aiqiyi] runner 磁盘不够，mergeReleaseNativeLibs 会报 No space left on device。
@@ -110,5 +113,5 @@ jobs:
           gh release create "$TAG" out/*.apk \
             --title "Aiqiyi build ${GITHUB_RUN_NUMBER}" \
             --notes "Auto build from ${GITHUB_SHA}" \
-            --repo "$GITHUB_REPOSITORY" || true
-          gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json assets -q '.assets[].name' || true
+            --repo "$GITHUB_REPOSITORY"
+          gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json assets -q '.assets[].name'

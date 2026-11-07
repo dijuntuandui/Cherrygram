@@ -11343,7 +11343,9 @@ public class ChatActivity extends BaseFragment implements
         if (getParentActivity() == null) {
             return;
         }
-        boolean visible = reactionsMentionCount > 0 && (chatMode == 0 || chatMode == MODE_SUGGESTIONS);
+        // [Aiqiyi] 跟随「屏蔽表情回应」开关：开关打开时消息侧边回应计数钮一并隐藏
+        boolean visible = reactionsMentionCount > 0 && (chatMode == 0 || chatMode == MODE_SUGGESTIONS)
+                && !uz.unnarsx.cherrygram.core.configs.CherrygramAppearanceConfig.INSTANCE.getAiqiyiHideReactionButton();
         sideControlsButtonsLayout.showButton(ChatActivitySideControlsButtonsLayout.BUTTON_REACTIONS, visible, animated);
         sideControlsButtonsLayout.setButtonCount(ChatActivitySideControlsButtonsLayout.BUTTON_REACTIONS, reactionsMentionCount, animated);
     }
