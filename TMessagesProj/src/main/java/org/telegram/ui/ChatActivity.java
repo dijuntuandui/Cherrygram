@@ -31573,9 +31573,9 @@ public class ChatActivity extends BaseFragment implements
             } else if (message.isForwardedChannelPost()) {
                 TLRPC.ChatFull chatInfo = getMessagesController().getChatFull(-message.getFromChatId());
                 if (chatInfo == null) {
-                    isReactionsAvailable = !CherrygramMessagesConfig.INSTANCE.getDisableReactionsOverlay();
+                    isReactionsAvailable = !CherrygramMessagesConfig.INSTANCE.getDisableReactionsOverlay() && !uz.unnarsx.cherrygram.core.configs.CherrygramAppearanceConfig.INSTANCE.getAiqiyiHideReactionButton();
                 } else {
-                    isReactionsAvailable = !CherrygramMessagesConfig.INSTANCE.getDisableReactionsOverlay()
+                    isReactionsAvailable = !CherrygramMessagesConfig.INSTANCE.getDisableReactionsOverlay() && !uz.unnarsx.cherrygram.core.configs.CherrygramAppearanceConfig.INSTANCE.getAiqiyiHideReactionButton()
                         && !isSecretChat()
                         && !isQuickRepliesOrWelcomeMessagesMode()
                         && !isInScheduleMode()
@@ -31587,7 +31587,7 @@ public class ChatActivity extends BaseFragment implements
                         );
                 }
             } else {
-                isReactionsAvailable = !CherrygramMessagesConfig.INSTANCE.getDisableReactionsOverlay()
+                isReactionsAvailable = !CherrygramMessagesConfig.INSTANCE.getDisableReactionsOverlay() && !uz.unnarsx.cherrygram.core.configs.CherrygramAppearanceConfig.INSTANCE.getAiqiyiHideReactionButton()
                         && !isSecretChat()
                         && !isQuickRepliesOrWelcomeMessagesMode()
                         && !isInScheduleMode()
@@ -32830,7 +32830,7 @@ public class ChatActivity extends BaseFragment implements
                         sheet.show();
                     }));
                 }
-                if (getMessageMenuHelper().allowNewMessageMenu() || (isReactionsAvailable && (!tags || !getMessagesController().premiumFeaturesBlocked()))) {
+                if (!uz.unnarsx.cherrygram.core.configs.CherrygramAppearanceConfig.INSTANCE.getAiqiyiHideReactionButton() && (getMessageMenuHelper().allowNewMessageMenu() || (isReactionsAvailable && (!tags || !getMessagesController().premiumFeaturesBlocked())))) {
                     int pad = 22;
                     int sPad = 24;
                     reactionsLayout.setPadding(dp(4) + (LocaleController.isRTL ? 0 : sPad), dp(4), dp(4) + (LocaleController.isRTL ? sPad : 0), dp(pad));

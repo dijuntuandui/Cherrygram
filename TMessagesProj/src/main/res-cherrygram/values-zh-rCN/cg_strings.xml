@@ -509,6 +509,8 @@
     <string name="AQY_HourlyChime_Desc">每到整点自动发出一条报时消息</string>
     <string name="AQY_Bookmarks">消息书签</string>
     <string name="AQY_Bookmarks_Desc">收藏任意消息，随时翻回去看</string>
+    <string name="AQY_HideReaction">屏蔽表情回应</string>
+    <string name="AQY_HideReaction_Desc">隐藏长按消息时的表情回应按钮</string>
     <string name="AQY_SyntaxHighlight">语法高亮</string>
     <string name="AQY_SyntaxHighlight_Desc">代码消息自动上色，按语言高亮关键字</string>
     <string name="AQY_ExtensionCleanup">扩展清理</string>

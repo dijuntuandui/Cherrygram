@@ -89,6 +89,8 @@ object CherrygramAppearanceConfig {
     var aiqiyiHourlyChime by sharedPreferences.boolean("AP_AiqiyiHourlyChime", false)
     /** 爱琦艺插件 - 消息书签 */
     var aiqiyiBookmarks by sharedPreferences.boolean("AP_AiqiyiBookmarks", true)
+    /** 爱琦艺插件 - 屏蔽表情回应按钮 */
+    var aiqiyiHideReactionButton by sharedPreferences.boolean("AP_AiqiyiHideReactionButton", false)
     /** 爱琦艺插件 - 语法高亮 */
     var aiqiyiSyntaxHighlight by sharedPreferences.boolean("AP_AiqiyiSyntaxHighlight", true)
     /** 爱琦艺插件 - 扩展清理 */

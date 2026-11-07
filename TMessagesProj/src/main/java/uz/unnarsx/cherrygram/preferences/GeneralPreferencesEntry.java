@@ -96,6 +96,7 @@ public class GeneralPreferencesEntry extends BaseCGPreferencesEntry {
     private final int aiqiyiDialogueBubbleRow = 45;
     private final int aiqiyiActiveZoneRow = 46;
     private final int aiqiyiCleanupRow = 50;
+    private final int aiqiyiHideReactionRow = 51;
 
     private boolean expandedArchiveStoriesSection = false;
 
@@ -310,6 +311,10 @@ public class GeneralPreferencesEntry extends BaseCGPreferencesEntry {
                     .slug("aiqiyi_bookmarks_list")
             );
         }
+        items.add(SettingsHelper.asSwitchCG(aiqiyiHideReactionRow, getString(R.string.AQY_HideReaction), getString(R.string.AQY_HideReaction_Desc))
+                .setChecked(CherrygramAppearanceConfig.INSTANCE.getAiqiyiHideReactionButton())
+                .slug("aiqiyi_hide_reaction")
+        );
         items.add(SettingsHelper.asSwitchCG(aiqiyiSyntaxHighlightRow, getString(R.string.AQY_SyntaxHighlight), getString(R.string.AQY_SyntaxHighlight_Desc))
                 .setChecked(CherrygramAppearanceConfig.INSTANCE.getAiqiyiSyntaxHighlight())
                 .slug("aiqiyi_syntax_highlight")
@@ -528,6 +533,9 @@ public class GeneralPreferencesEntry extends BaseCGPreferencesEntry {
         } else if (item.id == aiqiyiBookmarksRow) {
             CherrygramAppearanceConfig.INSTANCE.setAiqiyiBookmarks(!CherrygramAppearanceConfig.INSTANCE.getAiqiyiBookmarks());
             SettingsHelper.updateCheckState(view, CherrygramAppearanceConfig.INSTANCE.getAiqiyiBookmarks());
+        } else if (item.id == aiqiyiHideReactionRow) {
+            CherrygramAppearanceConfig.INSTANCE.setAiqiyiHideReactionButton(!CherrygramAppearanceConfig.INSTANCE.getAiqiyiHideReactionButton());
+            SettingsHelper.updateCheckState(view, CherrygramAppearanceConfig.INSTANCE.getAiqiyiHideReactionButton());
         } else if (item.id == aiqiyiSyntaxHighlightRow) {
             CherrygramAppearanceConfig.INSTANCE.setAiqiyiSyntaxHighlight(!CherrygramAppearanceConfig.INSTANCE.getAiqiyiSyntaxHighlight());
             SettingsHelper.updateCheckState(view, CherrygramAppearanceConfig.INSTANCE.getAiqiyiSyntaxHighlight());
