@@ -209,6 +209,15 @@ public final class SessionReader {
         String apiHash = payload.optString("api_hash", "");
         account.apiHash = apiHash.isEmpty() ? SessionWriter.DESKTOP_API_HASH : apiHash;
         account.isBot = payload.optBoolean("is_bot", false);
+        // [Aiqiyi] 会话续期凭证，导出时写入；老文件没有就留 null
+        String hexToken = payload.optString("future_auth_token", "");
+        if (!hexToken.isEmpty()) {
+            try {
+                account.futureAuthToken = fromHex(hexToken);
+            } catch (Throwable ignore) {
+                account.futureAuthToken = null;
+            }
+        }
         account.source = "json";
         // 黄昏的 json 只有身份信息没有 auth_key，密钥在同目录 .session 里。
         // 缺 key 不成错，交给调用方与 session 合并；有 key 才做完整性校验。

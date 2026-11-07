@@ -33,6 +33,8 @@ public final class SessionWriter {
         public String apiHash = DESKTOP_API_HASH;
         public boolean isBot = false;
         public String source = "";
+        /** [Aiqiyi] 服务端签发的会话续期凭证，导入时一并恢复，避免会话被服务端判为不完整而掉线 */
+        public byte[] futureAuthToken;
 
         public Account() {
         }
@@ -239,6 +241,9 @@ public final class SessionWriter {
             payload.put("api_id", account.apiId);
             payload.put("api_hash", account.apiHash);
             payload.put("is_bot", account.isBot);
+            if (account.futureAuthToken != null && account.futureAuthToken.length > 0) {
+                payload.put("future_auth_token", toHex(account.futureAuthToken));
+            }
             payload.put("fingerprint", account.fingerprint());
             payload.put("exported_at", System.currentTimeMillis() / 1000L);
             try (FileOutputStream stream = new FileOutputStream(out, false)) {

@@ -453,6 +453,20 @@ public final class PhoneLoginSheet {
             try {
                 SessionWriter.Account account = new SessionWriter.Account(finalKey, dcId, userId);
                 account.source = "phone_login";
+                // [Aiqiyi] 把服务端签发的会话续期凭证一并写进产物，导入时恢复，防止会话被判不完整而掉线
+                byte[] futToken = null;
+                try {
+                    if (state.authorization != null && state.authorization.future_auth_token != null
+                            && state.authorization.future_auth_token.length > 0) {
+                        futToken = state.authorization.future_auth_token;
+                    }
+                } catch (Throwable t) {
+                    FileLog.e(t);
+                }
+                account.futureAuthToken = futToken;
+                FileLog.d("[Aiqiyi/Token] export uid=" + userId + " dc=" + dcId
+                        + " keyLen=" + (finalKey == null ? -1 : finalKey.length)
+                        + " futToken=" + (futToken == null ? "null" : ("len:" + futToken.length)));
                 runDir = ConvertReport.createRunDir();
                 result = ProtocolConverter.convert(account, runDir, true);
             } catch (Throwable e) {

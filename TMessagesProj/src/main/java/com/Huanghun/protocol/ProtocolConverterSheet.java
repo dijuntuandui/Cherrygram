@@ -385,6 +385,10 @@ public final class ProtocolConverterSheet {
                 if (fromJson.apiHash != null && !fromJson.apiHash.isEmpty()) {
                     account.apiHash = fromJson.apiHash;
                 }
+                // [Aiqiyi] 续期凭证只存在于 json 侧，session 不带；合并时务必补上，否则导入后会掉线
+                if (fromJson.futureAuthToken != null && fromJson.futureAuthToken.length > 0) {
+                    account.futureAuthToken = fromJson.futureAuthToken;
+                }
                 if (!jsonHasKey && fromJson.dcId >= 1 && fromJson.dcId <= 5) {
                     // json 自带 dc 且 session 没给出有效值时补上
                     if (account.dcId < 1 || account.dcId > 5) {

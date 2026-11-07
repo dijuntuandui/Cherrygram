@@ -18,6 +18,8 @@ public final class ProtocolParser {
         public long userId = 0;
         public String address = "";
         public int port = 443;
+        /** [Aiqiyi] 从 JSON 产物里带回来的会话续期凭证；旧文件没有这个字段时为 null */
+        public byte[] futureAuthToken;
     }
 
     public static String addressForDc(int dcId) {

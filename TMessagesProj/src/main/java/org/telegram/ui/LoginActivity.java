@@ -10888,6 +10888,19 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
         MessagesController.getInstance(accountNum).loadWebBrowserConfig();
         MessagesController.getInstance(accountNum).checkPeerColors(false);
         MediaDataController.getInstance(accountNum).loadStickersByEmojiOrName(AndroidUtilities.STICKERS_PLACEHOLDER_PACK_NAME, false, true);
+        // [Aiqiyi/Token] 落盘自检：记录激活态与密钥是否真进了 native，重启丢号时对照这条日志
+        try {
+            byte[] liveKey = null;
+            try {
+                liveKey = ConnectionsManager.getInstance(accountNum).getCurrentAuthKey();
+            } catch (Throwable ignore) {
+            }
+            FileLog.d("[Aiqiyi/Token] saved slot=" + accountNum + " uid=" + user.id
+                    + " activated=" + UserConfig.getInstance(accountNum).isClientActivated()
+                    + " keyLen=" + (liveKey == null ? -1 : liveKey.length));
+        } catch (Throwable ignore) {
+        }
+
         return true;
     }
 

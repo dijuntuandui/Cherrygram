@@ -15,6 +15,7 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import org.telegram.messenger.AndroidUtilities;
+import org.telegram.messenger.FileLog;
 import org.telegram.messenger.UserConfig;
 import org.telegram.messenger.Utilities;
 import org.telegram.tgnet.ConnectionsManager;
@@ -231,7 +232,8 @@ public final class ProtocolLoginHelper {
                 @Override
                 public void onVerified(TLRPC.User user) {
                     AndroidUtilities.runOnUIThread(() -> recordVerifiedAccount(
-                            loginActivity, activity, candidates, batch, index, assignedAccountNum, data.dcId, user));
+                            loginActivity, activity, candidates, batch, index, assignedAccountNum, data.dcId, user,
+                            data.futureAuthToken));
                 }
 
                 @Override
@@ -270,7 +272,7 @@ public final class ProtocolLoginHelper {
                     }
                     AndroidUtilities.runOnUIThread(() -> recordVerifiedAccount(
                             loginActivity, activity, candidates, batch, index, accountNum,
-                            passkey.datacenterId, authorization.user));
+                            passkey.datacenterId, authorization.user, authorization.future_auth_token));
                 }
 
                 @Override
@@ -367,8 +369,24 @@ public final class ProtocolLoginHelper {
 
     private static void recordVerifiedAccount(LoginActivity loginActivity, Activity activity,
                                               ArrayList<ImportCandidate> candidates, BatchState batch,
-                                              int index, int accountNum, int datacenterId, TLRPC.User user) {
+                                              int index, int accountNum, int datacenterId, TLRPC.User user,
+                                              byte[] futureAuthToken) {
+        // [Aiqiyi/Token] 判重现场：命中哪一重、当前槽位状态，都留痕，方便定位「已存在」
+        try {
+            int byUser = findExistingAccountForUserId(user.id, accountNum);
+            int byKey = -1;
+            try {
+                byKey = findExistingAccountForAuthKeyForLog(accountNum);
+            } catch (Throwable ignore) {
+            }
+            FileLog.d("[Aiqiyi/Token] verify uid=" + user.id + " slot=" + accountNum + " dc=" + datacenterId
+                    + " byUser=" + byUser + " byKey=" + byKey
+                    + " inBatch=" + batch.importedUserIds.contains(user.id)
+                    + " token=" + (futureAuthToken == null ? "null" : ("len:" + futureAuthToken.length)));
+        } catch (Throwable ignore) {
+        }
         if (batch.importedUserIds.contains(user.id) || findExistingAccountForUserId(user.id, accountNum) >= 0) {
+            FileLog.d("[Aiqiyi/Token] skip-already-exists uid=" + user.id + " slot=" + accountNum);
             clearUnusedImportedKey(accountNum);
             batch.alreadyImportedCount++;
             batch.processedCount++;
@@ -381,18 +399,56 @@ public final class ProtocolLoginHelper {
                 clearUnusedImportedKey(accountNum);
                 batch.failedCount++;
             } else {
+                // [Aiqiyi/Token] 账号落盘成功后再恢复续期凭证；顺序反了会在重启时留下无 key 的空壳
+                saveFutureAuthToken(accountNum, user, futureAuthToken);
                 batch.importedUserIds.add(user.id);
                 batch.successCount++;
                 if (batch.firstSuccess == null) {
                     batch.firstSuccess = new ImportedAccount(accountNum, datacenterId, user);
                 }
             }
-        } catch (Throwable ignore) {
+        } catch (Throwable e) {
+            FileLog.e(e);
             clearUnusedImportedKey(accountNum);
             batch.failedCount++;
         }
         batch.processedCount++;
         startNextImport(loginActivity, activity, candidates, batch, index + 1);
+    }
+
+    /** [Aiqiyi/Token] 把产出的 future_auth_token 写进 saved_tokens_login，服务端续期时要用。 */
+    private static void saveFutureAuthToken(int accountNum, TLRPC.User user, byte[] token) {
+        if (token == null || token.length == 0) {
+            FileLog.d("[Aiqiyi/Token] no-token slot=" + accountNum + " uid=" + user.id);
+            return;
+        }
+        try {
+            TLRPC.TL_auth_authorization authorization = new TLRPC.TL_auth_authorization();
+            authorization.user = user;
+            authorization.future_auth_token = token;
+            authorization.flags = TLRPC.TL_auth_authorization.FLAG_2;
+            org.telegram.messenger.AuthTokensHelper.saveLogInToken(authorization);
+            FileLog.d("[Aiqiyi/Token] saved slot=" + accountNum + " uid=" + user.id + " len=" + token.length);
+        } catch (Throwable t) {
+            FileLog.e(t);
+            FileLog.d("[Aiqiyi/Token] save-failed slot=" + accountNum + " uid=" + user.id);
+        }
+    }
+
+    /** [Aiqiyi/Token] 只读探测：当前有没有别的生活账号用了同一把 key（用于判重日志）。 */
+    private static int findExistingAccountForAuthKeyForLog(int excludedAccount) {
+        for (int i = 0; i < org.telegram.messenger.UserConfig.MAX_ACCOUNT_COUNT; i++) {
+            if (i == excludedAccount) {
+                continue;
+            }
+            try {
+                if (org.telegram.messenger.UserConfig.getInstance(i).isClientActivated()) {
+                    return i;
+                }
+            } catch (Throwable ignore) {
+            }
+        }
+        return -1;
     }
 
     private static void recordFailure(LoginActivity loginActivity, Activity activity,
