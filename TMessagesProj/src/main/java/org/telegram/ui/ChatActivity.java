@@ -301,6 +301,10 @@ import org.telegram.ui.Components.quickforward.QuickShareSelectorOverlayLayout;
 import org.telegram.ui.Components.spoilers.SpoilerEffect;
 import org.telegram.ui.Components.voip.CellFlickerDrawable;
 import org.telegram.ui.Components.voip.VoIPHelper;
+import uz.unnarsx.cherrygram.core.huanghun.HuanghunBuiltinVideoPreview;
+import uz.unnarsx.cherrygram.core.huanghun.HuanghunRealtimeVideoFinalizer;
+import uz.unnarsx.cherrygram.core.huanghun.HuanghunRoundVideoComposer;
+import uz.unnarsx.cherrygram.core.huanghun.HuanghunVideoLibraryHelper;
 import org.telegram.ui.Delegates.ChatActivityMemberRequestsDelegate;
 import org.telegram.ui.Gifts.GiftSheet;
 import org.telegram.ui.Stars.StarReactionsOverlay;
@@ -640,6 +644,54 @@ public class ChatActivity extends BaseFragment implements
     private ChatActionCell infoTopView;
     private int hideDateDelay = 500;
     public InstantCameraViewBase instantCameraView;
+    // 视频专区：内置视频录制预览层，非空表示当前处于内置模式。
+    private HuanghunBuiltinVideoPreview huanghunBuiltinVideoPreview;
+    /** 视频专区：创建并挂载内置视频圆形预览层。失败时返回 false，官方相机流程不受影响。 */
+    private boolean startHuanghunBuiltinVideoPreview() {
+        if (!uz.unnarsx.cherrygram.core.configs.CherrygramCameraConfig.INSTANCE.getHuanghunBuiltinCameraEnabled()
+                || huanghunBuiltinVideoPreview != null || contentView == null || getContext() == null) {
+            return huanghunBuiltinVideoPreview != null;
+        }
+        ArrayList<String> paths = HuanghunVideoLibraryHelper.getVideoPaths(ApplicationLoader.applicationContext, currentAccount);
+        if (paths.isEmpty()) {
+            return false;
+        }
+        try {
+            HuanghunBuiltinVideoPreview preview = new HuanghunBuiltinVideoPreview(getContext(), paths, () -> {
+                // 确认按钮由预览层调用；此时才开启官方录制界面中的计时与发送控制。
+                if (huanghunBuiltinVideoPreview != null && huanghunBuiltinVideoPreview.isRecordingConfirmed() && chatActivityEnterView != null) {
+                    chatActivityEnterView.startHuanghunBuiltinVideoRecording();
+                }
+            });
+            int index = contentView.indexOfChild(chatInputViewsContainer);
+            if (index < 0) {
+                index = contentView.getChildCount();
+            }
+            index = Math.min(index + 1, contentView.getChildCount());
+            contentView.addView(preview, index, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT, Gravity.LEFT | Gravity.TOP));
+            if (!preview.start()) {
+                preview.release();
+                return false;
+            }
+            huanghunBuiltinVideoPreview = preview;
+            return true;
+        } catch (Throwable e) {
+            FileLog.e(e);
+            stopHuanghunBuiltinVideoPreview();
+            return false;
+        }
+    }
+    /** 视频专区：释放预览层并清理输入框等待确认状态。 */
+    private void stopHuanghunBuiltinVideoPreview() {
+        HuanghunBuiltinVideoPreview preview = huanghunBuiltinVideoPreview;
+        huanghunBuiltinVideoPreview = null;
+        if (chatActivityEnterView != null) {
+            chatActivityEnterView.cancelHuanghunBuiltinVideoPreparation();
+        }
+        if (preview != null) {
+            preview.release();
+        }
+    }
     private View overlayView;
     private boolean currentFloatingDateOnScreen;
     private boolean currentFloatingTopicOnScreen;
@@ -2528,6 +2580,68 @@ public class ChatActivity extends BaseFragment implements
 
         @Override
         public void needStartRecordVideo(int state, boolean notify, int scheduleDate, int scheduleRepeatPeriod, int ttl, long effectId, long stars) {
+            // 视频专区：仅在 state=0 且功能明确开启时接管。未开启、没有有效视频或预览创建失败时，下面的官方分支完全不变。
+            if (state == 0 && startHuanghunBuiltinVideoPreview()) {
+                // 第一次按下只进入取景调整：用户可先根据视频尺寸移动、缩放，
+                // 只有点击预览中的“确认开始”后才记录源片段和启动正式计时。
+                chatListView.stopScroll();
+                chatAdapter.updateRowsSafe();
+                return;
+            }
+            if (huanghunBuiltinVideoPreview != null) {
+                if (state == 1 || state == 3 || state == 4) {
+                    // 首次松手只是退出官方按住手势，取景预览必须保留，不能误发一段
+                    // 包含调整过程的视频；确认开始后才允许结束并进入发送。
+                    if (!huanghunBuiltinVideoPreview.isRecordingConfirmed()) {
+                        return;
+                    }
+                    // 实时编码器在预览仍存活时结束同一个 MP4；随后再取得快照，
+                    // 快照仅用于声音重建和实时编码不可用时的兼容回退。
+                    File realtimeRoundVideo = huanghunBuiltinVideoPreview.finishRealtimeRoundVideoRecording();
+                    ArrayList<HuanghunBuiltinVideoPreview.RecordingSnapshot> recordings = huanghunBuiltinVideoPreview.finishRecording();
+                    boolean hasRecording = recordings != null && !recordings.isEmpty();
+                    boolean hasRealtimeRoundVideo = realtimeRoundVideo != null && realtimeRoundVideo.isFile() && realtimeRoundVideo.length() > 0;
+                    // 内置预览不会发出 MediaController.recordStopped；先明确收尾输入框录制
+                    // 状态，再释放预览并转入实时单文件发送或兼容回退，保证点击停止有即时反馈。
+                    if (chatActivityEnterView != null) {
+                        chatActivityEnterView.finishHuanghunBuiltinVideoRecording(hasRealtimeRoundVideo || hasRecording);
+                    }
+                    stopHuanghunBuiltinVideoPreview();
+                    boolean roundMode = uz.unnarsx.cherrygram.core.configs.CherrygramCameraConfig.INSTANCE.getHuanghunBuiltinRoundVideo();
+                    boolean squareMode = uz.unnarsx.cherrygram.core.configs.CherrygramCameraConfig.INSTANCE.getHuanghunBuiltinSquareVideo();
+                    if (hasRealtimeRoundVideo && hasRecording) {
+                        try {
+                            if (roundMode) {
+                                sendHuanghunRealtimeRoundVideo(realtimeRoundVideo, recordings, notify, scheduleDate, scheduleRepeatPeriod, ttl, effectId, stars);
+                                Toast.makeText(getContext(), "实时圆形视频已进入发送队列", Toast.LENGTH_SHORT).show();
+                            } else if (squareMode) {
+                                sendHuanghunRealtimeSquareVideo(realtimeRoundVideo, recordings, notify, scheduleDate, scheduleRepeatPeriod, ttl, effectId, stars);
+                                Toast.makeText(getContext(), "方形视频已进入发送队列", Toast.LENGTH_SHORT).show();
+                            } else {
+                                // 设置页允许两种模式同时关闭；此时不应把内置内容误发成任意一种模式。
+                                realtimeRoundVideo.delete();
+                                Toast.makeText(getContext(), "未开启圆形视频或方形视频，已恢复官方相机录制", Toast.LENGTH_SHORT).show();
+                            }
+                        } catch (Throwable error) {
+                            FileLog.e(error);
+                            //noinspection ResultOfMethodCallIgnored
+                            realtimeRoundVideo.delete();
+                            if (hasRecording && roundMode) {
+                                sendHuanghunBuiltinRoundVideos(recordings, notify, scheduleDate, scheduleRepeatPeriod, ttl, effectId, stars);
+                            } else if (squareMode) {
+                                Toast.makeText(getContext(), "方形视频生成失败，请重新录制", Toast.LENGTH_SHORT).show();
+                            }
+                        }
+                    } else if (hasRecording && roundMode) {
+                        sendHuanghunBuiltinRoundVideos(recordings, notify, scheduleDate, scheduleRepeatPeriod, ttl, effectId, stars);
+                    } else if (hasRecording && squareMode) {
+                        Toast.makeText(getContext(), "方形视频生成失败，请重新录制", Toast.LENGTH_SHORT).show();
+                    }
+                } else if (state == 2 || state == 5) {
+                    stopHuanghunBuiltinVideoPreview();
+                }
+                return;
+            }
             checkInstantCameraView();
             if (instantCameraView != null) {
                 if (state == 0) {
@@ -11114,6 +11228,290 @@ public class ChatActivity extends BaseFragment implements
         dimBehindView(enable ? 0.5f : 0, false, true);
     }
 
+    private void sendHuanghunBuiltinRoundVideos(ArrayList<HuanghunBuiltinVideoPreview.RecordingSnapshot> recordings, boolean notify, int scheduleDate, int scheduleRepeatPeriod, int ttl, long effectId, long stars) {
+        if (recordings == null || recordings.isEmpty()) {
+            return;
+        }
+        if (recordings.size() == 1) {
+            sendHuanghunBuiltinRoundVideo(recordings.get(0), notify, scheduleDate, scheduleRepeatPeriod, ttl, effectId, stars);
+            return;
+        }
+        final ArrayList<HuanghunBuiltinVideoPreview.RecordingSnapshot> segments = new ArrayList<>(recordings);
+        // 跨源视频现在通过一个共享编码器写入连续时间轴；立即给出明确反馈，避免用户
+        // 在第二段停止后误以为没有响应，同时不提前创建会卡住的占位消息。
+        Toast.makeText(getContext(), "正在生成一条连续圆形视频，请稍候", Toast.LENGTH_SHORT).show();
+        Utilities.globalQueue.postRunnable(() -> {
+            File combinedVideo = HuanghunRoundVideoComposer.composeVideoOnly(segments);
+            AndroidUtilities.runOnUIThread(() -> {
+                if (combinedVideo == null || !combinedVideo.isFile() || combinedVideo.length() <= 0) {
+                    Toast.makeText(getContext(), "连续圆形视频生成失败，请重新录制", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                try {
+                    sendHuanghunCombinedRoundVideo(combinedVideo, segments, notify, scheduleDate, scheduleRepeatPeriod, ttl, effectId, stars);
+                    Toast.makeText(getContext(), "圆形视频已进入发送队列", Toast.LENGTH_SHORT).show();
+                } catch (Throwable error) {
+                    FileLog.e(error);
+                    //noinspection ResultOfMethodCallIgnored
+                    combinedVideo.delete();
+                    Toast.makeText(getContext(), "圆形视频发送准备失败，请重新录制", Toast.LENGTH_SHORT).show();
+                }
+            });
+        });
+    }
+
+    /**
+     * 圆形模式与方形模式共享同一个最终文件准备步骤。启用视频声音时，最终文件在发送前已经
+     * 包含 AAC 音轨；随后明确禁止普通视频转换，以免上传队列把 roundVideo 降级为方形视频。
+     */
+    private void sendHuanghunRealtimeRoundVideo(File realtimeVideo, ArrayList<HuanghunBuiltinVideoPreview.RecordingSnapshot> recordings, boolean notify, int scheduleDate, int scheduleRepeatPeriod, int ttl, long effectId, long stars) {
+        sendHuanghunFinalizedRealtimeVideo(realtimeVideo, recordings, true, notify, scheduleDate, scheduleRepeatPeriod, ttl, effectId, stars);
+    }
+
+    private void sendHuanghunRealtimeSquareVideo(File realtimeVideo, ArrayList<HuanghunBuiltinVideoPreview.RecordingSnapshot> recordings, boolean notify, int scheduleDate, int scheduleRepeatPeriod, int ttl, long effectId, long stars) {
+        sendHuanghunFinalizedRealtimeVideo(realtimeVideo, recordings, false, notify, scheduleDate, scheduleRepeatPeriod, ttl, effectId, stars);
+    }
+
+    private void sendHuanghunFinalizedRealtimeVideo(File realtimeVideo, ArrayList<HuanghunBuiltinVideoPreview.RecordingSnapshot> recordings, boolean roundVideo, boolean notify, int scheduleDate, int scheduleRepeatPeriod, int ttl, long effectId, long stars) {
+        if (realtimeVideo == null || !realtimeVideo.isFile() || realtimeVideo.length() <= 0) {
+            return;
+        }
+        final ArrayList<HuanghunBuiltinVideoPreview.RecordingSnapshot> sourceRecordings = recordings == null ? new ArrayList<>() : new ArrayList<>(recordings);
+        final boolean convertToGif = uz.unnarsx.cherrygram.core.configs.CherrygramCameraConfig.INSTANCE.getHuanghunVideoToGif();
+        final boolean includeSound = uz.unnarsx.cherrygram.core.configs.CherrygramCameraConfig.INSTANCE.getHuanghunBuiltinVideoSound() && !convertToGif;
+        if (includeSound) {
+            Toast.makeText(getContext(), "正在封装视频原声，请稍候", Toast.LENGTH_SHORT).show();
+        }
+        Utilities.globalQueue.postRunnable(() -> {
+            File finalizedVideo = includeSound ? HuanghunRealtimeVideoFinalizer.finalizeWithSourceAudio(realtimeVideo, sourceRecordings) : realtimeVideo;
+            final boolean hasFinalizedSound = finalizedVideo != null && finalizedVideo.isFile() && finalizedVideo.length() > 0;
+            // A source video is allowed to have no AAC track. Keep the valid realtime picture and
+            // send it silently instead of discarding a completed recording.
+            if (!hasFinalizedSound) {
+                finalizedVideo = realtimeVideo;
+                if (includeSound) {
+                    AndroidUtilities.runOnUIThread(() -> Toast.makeText(getContext(), "所选视频没有可用原声，已按无声视频发送", Toast.LENGTH_SHORT).show());
+                }
+            }
+            if (finalizedVideo == null || !finalizedVideo.isFile() || finalizedVideo.length() <= 0) {
+                AndroidUtilities.runOnUIThread(() -> Toast.makeText(getContext(), "录制视频文件无效，无法发送", Toast.LENGTH_LONG).show());
+                return;
+            }
+            final File videoToSend = finalizedVideo;
+            final boolean videoHasSound = hasFinalizedSound;
+            long totalDuration = 0L;
+            for (HuanghunBuiltinVideoPreview.RecordingSnapshot recording : sourceRecordings) {
+                if (recording != null && recording.endTime > recording.startTime) {
+                    totalDuration += recording.endTime - recording.startTime;
+                }
+            }
+            final long duration = Math.max(1L, totalDuration);
+            AndroidUtilities.runOnUIThread(() -> {
+                if (!videoToSend.isFile()) {
+                    return;
+                }
+                long estimatedSize = Math.max(1L, videoToSend.length());
+                MediaController.PhotoEntry entry = new MediaController.PhotoEntry(0, 0, System.currentTimeMillis(), videoToSend.getAbsolutePath(), Math.max(1, (int) Math.ceil(duration / 1000.0d)), true, 360, 360, estimatedSize);
+                entry.isVideo = true;
+                entry.width = 360;
+                entry.height = 360;
+                entry.duration = Math.max(1, (int) Math.ceil(duration / 1000.0d));
+                entry.ttl = ttl;
+                entry.effectId = effectId;
+
+                int sourceBitrate = MediaController.getVideoBitrate(videoToSend.getAbsolutePath());
+                if (sourceBitrate <= 0) {
+                    sourceBitrate = 850_000;
+                }
+                VideoEditedInfo info = new VideoEditedInfo();
+                info.originalPath = videoToSend.getAbsolutePath();
+                info.startTime = -1;
+                info.endTime = -1;
+                info.roundVideo = convertToGif ? false : roundVideo;
+                info.estimatedSize = estimatedSize;
+                info.originalDuration = duration * 1000L;
+                info.estimatedDuration = duration;
+                info.originalWidth = info.resultWidth = 360;
+                info.originalHeight = info.resultHeight = 360;
+                info.originalBitrate = sourceBitrate;
+                // 最终文件已完成视频与原声封装。-2 会让 needConvert() 返回 false，确保圆形文档属性原样上传。
+                // 正码率 + 静音会触发官方 SendMessagesHelper 的动画文档属性。
+                info.bitrate = convertToGif ? Math.max(850_000, sourceBitrate) : -2;
+                info.framerate = 25;
+                info.muted = convertToGif || !videoHasSound;
+                info.notReadyYet = false;
+                info.thumb = SendMessagesHelper.createVideoThumbnailAtTime(videoToSend.getAbsolutePath(), 0);
+                entry.editedInfo = info;
+                entry.isMuted = convertToGif || !videoHasSound;
+                sendMedia(entry, info, notify, scheduleDate, scheduleRepeatPeriod, false, stars);
+            });
+        });
+    }
+
+    /**
+     * 复用现有跨段合成使用的官方 MixedSoundInfo 时间轴：实时 MP4 提供连续画面，
+     * 每个内置源视频仅提供相同录制区间的原声，转换器负责统一重采样、编码和封装。
+     */
+    private void attachHuanghunBuiltinVideoAudio(VideoEditedInfo info, ArrayList<HuanghunBuiltinVideoPreview.RecordingSnapshot> recordings) {
+        info.muted = !uz.unnarsx.cherrygram.core.configs.CherrygramCameraConfig.INSTANCE.getHuanghunBuiltinVideoSound();
+        if (info.muted || recordings == null) {
+            return;
+        }
+        long timelineOffsetUs = 0;
+        for (HuanghunBuiltinVideoPreview.RecordingSnapshot recording : recordings) {
+            if (recording == null || recording.path == null || recording.endTime <= recording.startTime) {
+                continue;
+            }
+            MediaCodecVideoConvertor.MixedSoundInfo soundInfo = new MediaCodecVideoConvertor.MixedSoundInfo(recording.path);
+            soundInfo.startTime = timelineOffsetUs;
+            soundInfo.audioOffset = recording.startTime * 1000L;
+            soundInfo.duration = (recording.endTime - recording.startTime) * 1000L;
+            info.mixedSoundInfos.add(soundInfo);
+            timelineOffsetUs += soundInfo.duration;
+        }
+    }
+
+    private void sendHuanghunCombinedRoundVideo(File combinedVideo, ArrayList<HuanghunBuiltinVideoPreview.RecordingSnapshot> recordings, boolean notify, int scheduleDate, int scheduleRepeatPeriod, int ttl, long effectId, long stars) {
+        long totalDuration = 0;
+        for (HuanghunBuiltinVideoPreview.RecordingSnapshot recording : recordings) {
+            if (recording != null && recording.endTime > recording.startTime) {
+                totalDuration += recording.endTime - recording.startTime;
+            }
+        }
+        if (totalDuration <= 0) {
+            combinedVideo.delete();
+            return;
+        }
+        int sourceBitrate = MediaController.getVideoBitrate(combinedVideo.getAbsolutePath());
+        if (sourceBitrate <= 0) {
+            sourceBitrate = 850_000;
+        }
+        long estimatedSize = Math.max(1L, totalDuration * sourceBitrate / 8_000L);
+        MediaController.PhotoEntry entry = new MediaController.PhotoEntry(0, 0, System.currentTimeMillis(), combinedVideo.getAbsolutePath(), Math.max(1, (int) Math.ceil(totalDuration / 1000.0d)), true, 360, 360, estimatedSize);
+        // sendMedia 会同时持有 PhotoEntry 与 VideoEditedInfo；两者都明确声明为方形视频，
+        // 避免异步发送层在重建媒体条目时把实时文件重新识别成普通矩形视频。
+        entry.isVideo = true;
+        entry.width = 360;
+        entry.height = 360;
+        entry.duration = Math.max(1, (int) Math.ceil(totalDuration / 1000.0d));
+        entry.ttl = ttl;
+        entry.effectId = effectId;
+
+        VideoEditedInfo info = new VideoEditedInfo();
+        info.originalPath = combinedVideo.getAbsolutePath();
+        boolean convertToGif = uz.unnarsx.cherrygram.core.configs.CherrygramCameraConfig.INSTANCE.getHuanghunVideoToGif();
+        info.roundVideo = convertToGif ? false : true;
+        info.startTime = -1;
+        info.endTime = -1;
+        // VideoEditedInfo.originalDuration 与转换器时间轴均使用微秒；
+        // estimatedDuration 仍供消息 UI 使用毫秒。
+        info.originalDuration = totalDuration * 1000L;
+        info.estimatedDuration = totalDuration;
+        info.estimatedSize = estimatedSize;
+        info.originalWidth = 360;
+        info.originalHeight = 360;
+        info.resultWidth = 360;
+        info.resultHeight = 360;
+        info.originalBitrate = sourceBitrate;
+        info.bitrate = Math.max(850_000, sourceBitrate);
+        info.framerate = 25;
+        info.notReadyYet = false;
+        info.thumb = SendMessagesHelper.createVideoThumbnailAtTime(combinedVideo.getAbsolutePath(), 0);
+        info.muted = uz.unnarsx.cherrygram.core.configs.CherrygramCameraConfig.INSTANCE.getHuanghunVideoToGif() || !uz.unnarsx.cherrygram.core.configs.CherrygramCameraConfig.INSTANCE.getHuanghunBuiltinVideoSound();
+        // 与官方 InstantCameraView 保持同一条元数据引用，确保 roundVideo 标记贯穿
+        // 本地待发送消息、转换队列及最终 TL_documentAttributeVideo.round_message。
+        entry.editedInfo = info;
+        entry.isMuted = info.muted;
+
+        if (!info.muted) {
+            long timelineOffsetUs = 0;
+            for (HuanghunBuiltinVideoPreview.RecordingSnapshot recording : recordings) {
+                if (recording == null || recording.path == null || recording.endTime <= recording.startTime) {
+                    continue;
+                }
+                MediaCodecVideoConvertor.MixedSoundInfo soundInfo = new MediaCodecVideoConvertor.MixedSoundInfo(recording.path);
+                soundInfo.startTime = timelineOffsetUs;
+                soundInfo.audioOffset = recording.startTime * 1000L;
+                soundInfo.duration = (recording.endTime - recording.startTime) * 1000L;
+                info.mixedSoundInfos.add(soundInfo);
+                timelineOffsetUs += soundInfo.duration;
+            }
+        }
+        sendMedia(entry, info, notify, scheduleDate, scheduleRepeatPeriod, false, stars);
+    }
+
+    private void sendHuanghunBuiltinRoundVideo(HuanghunBuiltinVideoPreview.RecordingSnapshot recording, boolean notify, int scheduleDate, int scheduleRepeatPeriod, int ttl, long effectId, long stars) {
+        File file = recording == null || recording.path == null ? null : new File(recording.path);
+        if (file == null || !file.isFile() || file.length() <= 0 || recording.endTime <= recording.startTime) {
+            return;
+        }
+        int originalWidth = recording.originalWidth > 0 ? recording.originalWidth : 360;
+        int originalHeight = recording.originalHeight > 0 ? recording.originalHeight : 360;
+        long recordedDuration = recording.endTime - recording.startTime;
+        // 不能让转换器以默认的 0 码率工作，否则部分设备会输出损坏、无法播放的 MP4。
+        int sourceBitrate = MediaController.getVideoBitrate(recording.path);
+        if (sourceBitrate <= 0) {
+            sourceBitrate = 1_500_000;
+        }
+        int targetBitrate = MediaController.makeVideoBitrate(originalHeight, originalWidth, sourceBitrate, 360, 360);
+        if (targetBitrate <= 0) {
+            targetBitrate = 850_000;
+        }
+        long estimatedSize = Math.max(1L, recordedDuration * targetBitrate / 8_000L);
+        MediaController.PhotoEntry entry = new MediaController.PhotoEntry(0, 0, System.currentTimeMillis(), recording.path, 0, true, 0, 0, estimatedSize);
+        entry.ttl = ttl;
+        entry.effectId = effectId;
+
+        VideoEditedInfo info = new VideoEditedInfo();
+        info.originalPath = recording.path;
+        boolean convertToGif = uz.unnarsx.cherrygram.core.configs.CherrygramCameraConfig.INSTANCE.getHuanghunVideoToGif();
+        info.roundVideo = convertToGif ? false : true;
+        // VideoEditedInfo 的裁切时间使用微秒；录制快照与 MediaPlayer 使用毫秒。
+        // 未转换会使转换器错误裁切到无效区间并长期无法生成输出文件。
+        info.startTime = recording.startTime * 1000L;
+        info.endTime = recording.endTime * 1000L;
+        info.originalDuration = recording.originalDuration;
+        info.estimatedDuration = recordedDuration;
+        info.estimatedSize = estimatedSize;
+        info.originalWidth = originalWidth;
+        info.originalHeight = originalHeight;
+        info.resultWidth = 360;
+        info.resultHeight = 360;
+        info.originalBitrate = sourceBitrate;
+        info.bitrate = targetBitrate;
+        info.framerate = 25;
+        // 此路径需要先由官方转换器生成独立输出文件。notReadyYet 只适用于
+        // 官方即时相机“编码器仍在写同一文件”的场景；这里若置为 true，
+        // 延迟发送队列会主动跳过上传，且没有编码完成回调解除标记，导致永久卡发送。
+        info.notReadyYet = false;
+        info.thumb = SendMessagesHelper.createVideoThumbnailAtTime(recording.path, recording.startTime * 1000L);
+        info.muted = convertToGif || !uz.unnarsx.cherrygram.core.configs.CherrygramCameraConfig.INSTANCE.getHuanghunBuiltinVideoSound();
+
+        // 通过裁切状态强制官方转换器生成新的 360×360 圆形视频文件，
+        // 同时保留用户在预览窗口中选择的缩放和位移取景。
+        MediaController.CropState crop = new MediaController.CropState();
+        float sourceAspect = originalWidth / (float) originalHeight;
+        crop.cropPw = sourceAspect > 1f ? 1f / sourceAspect : 1f;
+        crop.cropPh = sourceAspect < 1f ? sourceAspect : 1f;
+        crop.cropScale = Math.max(1f, recording.framingScale);
+        // TextureView 预览中的位移是屏幕像素；转换器的 cropPx/cropPy 则是
+        // “已缩放源视频”的归一化位移。此前直接除以圆窗尺寸，遗漏了 cover
+        // 基础缩放与用户缩放，造成预览已移动而输出仍接近中心。
+        float previewBaseScale = Math.max(
+                recording.viewportWidth / (float) Math.max(1, originalWidth),
+                recording.viewportHeight / (float) Math.max(1, originalHeight)
+        );
+        float previewScale = Math.max(0.0001f, previewBaseScale * crop.cropScale);
+        crop.cropPx = recording.framingOffsetX / (Math.max(1, originalWidth) * previewScale);
+        // CropState 使用 Android 屏幕坐标语义；TextureRenderer 会在 OpenGL 绘制时
+        // 自行转换 Y 轴。这里再取反会使预览向下移动而最终视频向上偏移。
+        crop.cropPy = recording.framingOffsetY / (Math.max(1, originalHeight) * previewScale);
+        crop.transformWidth = info.resultWidth;
+        crop.transformHeight = info.resultHeight;
+        info.cropState = crop;
+
+        sendMedia(entry, info, notify, scheduleDate, scheduleRepeatPeriod, false, stars);
+    }
     private void checkInstantCameraView() {
         if (instantCameraView != null || !CameraView.isCameraAllowed() || getContext() == null) {
             return;

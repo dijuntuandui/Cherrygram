@@ -11935,6 +11935,17 @@ public class SendMessagesHelper extends BaseController implements NotificationCe
         return videoEditedInfo;
     }
 
+    /**
+     * 视频专区：将普通本地视频标记为 Telegram 的无声动画文档。该处理仅作用于聊天发送，
+     * 不改变“作为文件发送”与故事回复中的原有语义。
+     */
+    private static void applyHuanghunVideoToGif(VideoEditedInfo videoEditedInfo, boolean forceDocument, TL_stories.StoryItem storyItem) {
+        if (videoEditedInfo != null && !forceDocument && storyItem == null
+                && uz.unnarsx.cherrygram.core.configs.CherrygramCameraConfig.INSTANCE.getHuanghunVideoToGif()) {
+            videoEditedInfo.roundVideo = false;
+            videoEditedInfo.muted = true;
+        }
+    }
     @UiThread
     public static void prepareSendingVideo(AccountInstance accountInstance, String videoPath, VideoEditedInfo info, String coverPath, TLRPC.Photo coverPhoto, long dialogId, MessageObject replyToMsg, MessageObject replyToTopMsg, TL_stories.StoryItem storyItem, ChatActivity.ReplyQuote quote, ArrayList<TLRPC.MessageEntity> entities, int ttl, MessageObject editingMessageObject, boolean notify, int scheduleDate, int scheduleRepeatPeriod, boolean forceDocument, boolean hasMediaSpoilers, CharSequence caption, SendMessageChatArguments sendMessageChatArguments, long effectId, long stars) {
         prepareSendingVideo(accountInstance, videoPath, info, coverPath, coverPhoto, dialogId, replyToMsg, replyToTopMsg, storyItem, quote, entities, ttl, editingMessageObject, notify, scheduleDate, scheduleRepeatPeriod, forceDocument, hasMediaSpoilers, caption, sendMessageChatArguments, effectId, stars, 0, null);
@@ -11950,7 +11961,8 @@ public class SendMessagesHelper extends BaseController implements NotificationCe
         }
         new Thread(() -> {
             final VideoEditedInfo videoEditedInfo = info != null ? info : createCompressionSettings(videoPath, 0);
-
+            // 视频专区：视频转 GIF（无声）开关。仅作用于聊天发送，不影响作为文件发送与故事回复。
+            applyHuanghunVideoToGif(videoEditedInfo, forceDocument, storyItem);
             boolean isEncrypted = DialogObject.isEncryptedDialog(dialogId);
 
             boolean isRound = videoEditedInfo != null && videoEditedInfo.roundVideo;

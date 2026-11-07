@@ -34,6 +34,7 @@ import java.util.Set;
 import uz.unnarsx.cherrygram.core.CherrygramLogger;
 import uz.unnarsx.cherrygram.aiqiyi.cleanup.AiqiyiCleanup;
 import uz.unnarsx.cherrygram.core.configs.CherrygramAppearanceConfig;
+import uz.unnarsx.cherrygram.core.configs.CherrygramCameraConfig;
 import uz.unnarsx.cherrygram.core.configs.CherrygramCoreConfig;
 import uz.unnarsx.cherrygram.core.configs.CherrygramMessagesConfig;
 import uz.unnarsx.cherrygram.core.firebase.FirebaseAnalyticsHelper;
@@ -95,6 +96,7 @@ public class GeneralPreferencesEntry extends BaseCGPreferencesEntry {
     private final int aiqiyiFakeLocationRow = 43;
     private final int aiqiyiDialogueBubbleRow = 45;
     private final int aiqiyiActiveZoneRow = 46;
+    private final int aiqiyiVideoZoneRow = 52;
     private final int aiqiyiCleanupRow = 50;
     private final int aiqiyiHideReactionRow = 51;
 
@@ -339,6 +341,10 @@ public class GeneralPreferencesEntry extends BaseCGPreferencesEntry {
                         getString(R.string.AQY_ActiveZone), getZoneSummary())
                 .slug("aqy_zone_entry")
         );
+        items.add(SettingsHelper.asTextDetail(aiqiyiVideoZoneRow, 0,
+                        getString(R.string.AQY_VideoZone), getVideoZoneSummary())
+                .slug("aqy_video_zone_entry")
+        );
         items.add(SettingsHelper.asTextDetail(aiqiyiCleanupRow, 0,
                         getString(R.string.AQY_Cleanup_Title), getCleanupSummary())
                 .slug("aqy_cleanup_entry")
@@ -545,6 +551,8 @@ public class GeneralPreferencesEntry extends BaseCGPreferencesEntry {
             presentFragment(new uz.unnarsx.cherrygram.aiqiyi.dialogue.AiqiyiDialogueEntry());
         } else if (item.id == aiqiyiActiveZoneRow) {
             presentFragment(new uz.unnarsx.cherrygram.aiqiyi.zone.AiqiyiZoneEntry());
+        } else if (item.id == aiqiyiVideoZoneRow) {
+            presentFragment(new uz.unnarsx.cherrygram.aiqiyi.videozone.AiqiyiVideoZoneEntry());
         } else if (item.id == aiqiyiCleanupRow) {
             presentFragment(new uz.unnarsx.cherrygram.aiqiyi.cleanup.AiqiyiCleanupEntry());
         }
@@ -681,6 +689,22 @@ public class GeneralPreferencesEntry extends BaseCGPreferencesEntry {
                 .replace("%2$s", dir);
     }
 
+    /** 视频专区入口摘要：显示已启用状态与库中视频数量。 */
+    private CharSequence getVideoZoneSummary() {
+        try {
+            if (!CherrygramCameraConfig.INSTANCE.getHuanghunBuiltinCameraEnabled()) {
+                return getString(R.string.AQY_VideoZone_Off);
+            }
+            int count = uz.unnarsx.cherrygram.core.huanghun.HuanghunVideoLibraryHelper
+                    .getVideoCount(org.telegram.messenger.ApplicationLoader.applicationContext, currentAccount);
+            if (count <= 0) {
+                return getString(R.string.AQY_VideoZone_Empty);
+            }
+            return getString(R.string.AQY_VideoZone_On, count);
+        } catch (Throwable e) {
+            return getString(R.string.AQY_VideoZone_Off);
+        }
+    }
     private CharSequence getCleanupSummary() {
         try {
             return org.telegram.messenger.AndroidUtilities

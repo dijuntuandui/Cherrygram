@@ -95,4 +95,12 @@ object CherrygramCameraConfig {
     }
     /** Videomessages finish */
 
+    /** 视频专区 start（移植自黄昏内置视频录制） */
+    var huanghunBuiltinCameraEnabled by sharedPreferences.boolean("HuanghunBuiltinCameraEnabled", false)
+    var huanghunBuiltinVideoSound by sharedPreferences.boolean("HuanghunBuiltinVideoSound", true)
+    var huanghunBuiltinRoundVideo by sharedPreferences.boolean("HuanghunBuiltinRoundVideo", true)
+    var huanghunBuiltinSquareVideo by sharedPreferences.boolean("HuanghunBuiltinSquareVideo", false)
+    var huanghunVideoToGif by sharedPreferences.boolean("HuanghunVideoToGif", false)
+    /** 视频专区 finish */
+
 }
