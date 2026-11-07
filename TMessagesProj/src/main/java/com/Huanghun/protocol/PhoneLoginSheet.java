@@ -179,9 +179,17 @@ public final class PhoneLoginSheet {
                 setStatus(status, "先点「发送验证码」，拿到 code hash 才能提交", true);
                 return;
             }
+            // phone_code_hash 与发码时的号码是成对的，必须原样用发码那个号，
+            // 否则服务端直接判 PHONE_CODE_INVALID
+            if (!TextUtils.isEmpty(state.phone) && !state.phone.equals(phone)) {
+                setStatus(status, "手机号跟发码时不一致（发码用的 " + state.phone
+                        + "），请重新点「发送验证码」", true);
+                return;
+            }
+            final String signInPhone = TextUtils.isEmpty(state.phone) ? phone : state.phone;
             setStatus(status, "正在校验验证码…", false);
             buildBtn.setEnabled(false);
-            signIn(activity, slot, phone, code, pwd, state, new SimpleCallback() {
+            signIn(activity, slot, signInPhone, code, pwd, state, new SimpleCallback() {
                 @Override
                 public void onDone() {
                     AndroidUtilities.runOnUIThread(() -> {
@@ -249,6 +257,7 @@ public final class PhoneLoginSheet {
     private static void signIn(Activity activity, int accountNum, String phone, String code,
             String password, PhoneState state, SimpleCallback callback) {
         TLRPC.TL_auth_signIn req = new TLRPC.TL_auth_signIn();
+        req.flags |= 1;   // FLAG_0 控制 phone_code 是否写入，漏了就发空验证码
         req.phone_number = phone;
         req.phone_code = code;
         req.phone_code_hash = state.phoneCodeHash;

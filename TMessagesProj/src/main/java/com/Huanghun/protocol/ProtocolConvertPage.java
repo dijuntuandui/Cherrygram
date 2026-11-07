@@ -93,6 +93,8 @@ public final class ProtocolConvertPage {
         addCard(activity, root, sheetRef, new Item[] {
                 new Item("手机号登录生成", "输入手机号 → 验证码 → 二级密码，登录成功后自动产出 session 与 tdata", true,
                         () -> host.onFeature(FlowHost.F_NEW_LOGIN)),
+                new Item("凭私钥生成", "粘贴 512 位 auth_key + dc_id，直接装配成 session 与 tdata", true,
+                        () -> host.onFeature(FlowHost.F_FROM_KEY)),
                 new Item("当前账号导出", "不用重新登录，直接把本机已登录账号导出成 session 与 tdata", true,
                         () -> host.onFeature(FlowHost.F_FROM_ACCOUNT)),
         });
