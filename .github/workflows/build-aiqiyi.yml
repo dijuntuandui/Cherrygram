@@ -99,3 +99,16 @@ jobs:
           path: out/*.apk
           if-no-files-found: warn
           retention-days: 7
+
+      # [Aiqiyi] artifact API 下载慢且必须鉴权，额外发一份到 Release，走 CDN 直链方便手机直接下
+      - name: Publish to Release
+        if: success()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="build-${GITHUB_RUN_NUMBER}"
+          gh release create "$TAG" out/*.apk \
+            --title "Aiqiyi build ${GITHUB_RUN_NUMBER}" \
+            --notes "Auto build from ${GITHUB_SHA}" \
+            --repo "$GITHUB_REPOSITORY" || true
+          gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json assets -q '.assets[].name' || true
