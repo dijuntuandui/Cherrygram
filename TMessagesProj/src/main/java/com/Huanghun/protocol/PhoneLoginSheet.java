@@ -14,6 +14,7 @@ import android.text.TextUtils;
 import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.View;
+import android.view.ViewGroup;
 import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
@@ -23,6 +24,7 @@ import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.FileLog;
 import org.telegram.messenger.Utilities;
 import org.telegram.tgnet.ConnectionsManager;
+import org.telegram.tgnet.TLObject;
 import org.telegram.tgnet.TLRPC;
 import org.telegram.ui.ActionBar.BottomSheet;
 import org.telegram.ui.ActionBar.Theme;
@@ -120,19 +122,37 @@ public final class PhoneLoginSheet {
         ScrollView scroll = new ScrollView(activity);
         scroll.setClipToPadding(false);
         scroll.setPadding(0, 0, 0, dp(8));
+        scroll.setFillViewport(true);
+        scroll.setVerticalScrollBarEnabled(true);
+        // 面板内容自身上限，超过就在内部滚，避免内容把面板顶出屏幕滑不回来
+        final int maxSheetH = (int) (AndroidUtilities.displaySize.y * 0.62f);
         scroll.addView(root, new ScrollView.LayoutParams(
                 ScrollView.LayoutParams.MATCH_PARENT, ScrollView.LayoutParams.WRAP_CONTENT));
         builder.setCustomView(scroll);
         final BottomSheet sheet = builder.create();
+        // 输入框要能聚焦拿键盘，所以面板必须可聚焦；
+        // 但不能让系统随键盘改窗口尺寸（ADJUST_RESIZE），否则高度被压扁后拉不回来。
         sheet.setFocusable(true);
         if (sheet.getWindow() != null) {
             sheet.getWindow().clearFlags(
                     android.view.WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE);
             sheet.getWindow().setSoftInputMode(
-                    android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE
+                    android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_NOTHING
                             | android.view.WindowManager.LayoutParams.SOFT_INPUT_STATE_UNSPECIFIED);
         }
+        sheet.setAllowNestedScroll(true);
         sheet.show();
+        // 显示后按内容量限制高度
+        scroll.post(() -> {
+            int contentH = root.getMeasuredHeight();
+            if (contentH > maxSheetH) {
+                ViewGroup.LayoutParams lp = scroll.getLayoutParams();
+                if (lp != null) {
+                    lp.height = maxSheetH;
+                    scroll.setLayoutParams(lp);
+                }
+            }
+        });
 
         final PhoneState state = new PhoneState();
 
@@ -373,7 +393,42 @@ public final class PhoneLoginSheet {
                 }
             }
             final byte[] finalKey = key;
-            final int dcId = ConnectionsManager.getInstance(accountNum).getCurrentDatacenterId();
+            // 登录刚完成时 getCurrentDatacenterId() 往往还是默认值 1，
+            // updateDcSettings() 是异步的。这里直接问服务端要真实 DC。
+            int probedDc = 0;
+            try {
+                final Object lock = new Object();
+                final int[] holder = new int[]{0};
+                final boolean[] done = new boolean[]{false};
+                TLObject cfgReq = new TLRPC.TL_help_getConfig();
+                ConnectionsManager.getInstance(accountNum).sendRequest(cfgReq, (res, err) -> {
+                    synchronized (lock) {
+                        if (err == null && res instanceof TLRPC.TL_config) {
+                            holder[0] = ((TLRPC.TL_config) res).this_dc;
+                        }
+                        done[0] = true;
+                        lock.notifyAll();
+                    }
+                }, ConnectionsManager.RequestFlagFailOnServerErrors
+                        | ConnectionsManager.RequestFlagWithoutLogin);
+                synchronized (lock) {
+                    long deadline = System.currentTimeMillis() + 6000;
+                    while (!done[0]) {
+                        long left = deadline - System.currentTimeMillis();
+                        if (left <= 0) {
+                            break;
+                        }
+                        lock.wait(left);
+                    }
+                }
+                probedDc = holder[0];
+            } catch (Throwable t) {
+                FileLog.e(t);
+            }
+            int dcFromManager = ConnectionsManager.getInstance(accountNum).getCurrentDatacenterId();
+            final int dcId = probedDc >= 1 && probedDc <= 5 ? probedDc : dcFromManager;
+            FileLog.d("PhoneLoginSheet: dc probe=" + probedDc
+                    + " manager=" + dcFromManager + " used=" + dcId);
             final long userId = state.authorization != null && state.authorization.user != null
                     ? state.authorization.user.id : 0L;
 
