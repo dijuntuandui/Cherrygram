@@ -215,7 +215,8 @@ public final class ProtocolLoginHelper {
                     ? candidate.sessionData
                     : ProtocolParser.parseTelethonSession(candidate.file);
             long authKeyId = getAuthKeyId(data.authKey);
-            if (batch.importedAuthKeyIds.contains(authKeyId) || findExistingAccountForAuthKey(authKeyId) >= 0) {
+            // [Aiqiyi] 只拦批内重复，不拦本地已存在的 key：用户要求「成功就直接登进去」
+            if (batch.importedAuthKeyIds.contains(authKeyId)) {
                 batch.alreadyImportedCount++;
                 batch.processedCount++;
                 startNextImport(loginActivity, activity, candidates, batch, index + 1);
@@ -385,7 +386,26 @@ public final class ProtocolLoginHelper {
                     + " token=" + (futureAuthToken == null ? "null" : ("len:" + futureAuthToken.length)));
         } catch (Throwable ignore) {
         }
-        if (batch.importedUserIds.contains(user.id) || findExistingAccountForUserId(user.id, accountNum) >= 0) {
+        // [Aiqiyi] 不再因为「账号已存在」跳过。
+        try {
+            int liveSlot = findExistingAccountForUserId(user.id, accountNum);
+            if (liveSlot >= 0) {
+                final int target = liveSlot;
+                FileLog.d("[Aiqiyi/Token] reuse-live-slot uid=" + user.id
+                        + " from=" + accountNum + " to=" + target);
+                clearUnusedImportedKey(accountNum);
+                batch.importedUserIds.add(user.id);
+                batch.successCount++;
+                batch.processedCount++;
+                if (batch.firstSuccess == null) {
+                    batch.firstSuccess = new ImportedAccount(target, datacenterId, user);
+                }
+                startNextImport(loginActivity, activity, candidates, batch, index + 1);
+                return;
+            }
+        } catch (Throwable ignore) {
+        }
+        if (batch.importedUserIds.contains(user.id)) {
             FileLog.d("[Aiqiyi/Token] skip-already-exists uid=" + user.id + " slot=" + accountNum);
             clearUnusedImportedKey(accountNum);
             batch.alreadyImportedCount++;
