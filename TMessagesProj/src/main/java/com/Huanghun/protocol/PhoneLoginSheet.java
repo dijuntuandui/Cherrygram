@@ -70,20 +70,20 @@ public final class PhoneLoginSheet {
         final EditText phoneInput = buildInput(activity, "手机号（含国家码，如 +8613800138000）");
         phoneInput.setInputType(InputType.TYPE_CLASS_PHONE);
         root.addView(phoneInput, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT,
-                dp(48), 22, 0, 22, 10));
+                dp(44), 20, 0, 20, 8));
 
         // ---------------- 验证码 ----------------
         final EditText codeInput = buildInput(activity, "验证码（去 777000 查）");
         codeInput.setInputType(InputType.TYPE_CLASS_NUMBER);
         root.addView(codeInput, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT,
-                dp(48), 22, 0, 22, 10));
+                dp(44), 20, 0, 20, 8));
 
         // ---------------- 二级密码 ----------------
         final EditText pwdInput = buildInput(activity, "二级密码（没开就留空）");
         pwdInput.setInputType(InputType.TYPE_CLASS_TEXT
                 | InputType.TYPE_TEXT_VARIATION_PASSWORD);
         root.addView(pwdInput, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT,
-                dp(48), 22, 0, 22, 12));
+                dp(44), 20, 0, 20, 12));
 
         // ---------------- 状态 ----------------
         final TextView status = new TextView(activity);
@@ -104,7 +104,7 @@ public final class PhoneLoginSheet {
                 Theme.getColor(Theme.key_featuredStickers_addButton),
                 Theme.getColor(Theme.key_featuredStickers_addButtonPressed)));
         root.addView(sendBtn, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT,
-                dp(44), 22, 0, 22, 8));
+                dp(42), 20, 0, 20, 8));
 
         final TextView buildBtn = new TextView(activity);
         buildBtn.setText("生成协议文件");
@@ -115,7 +115,7 @@ public final class PhoneLoginSheet {
                 Theme.getColor(Theme.key_featuredStickers_addButton),
                 Theme.getColor(Theme.key_featuredStickers_addButtonPressed)));
         root.addView(buildBtn, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT,
-                dp(44), 22, 0, 22, 16));
+                dp(42), 20, 0, 20, 14));
 
         ScrollView scroll = new ScrollView(activity);
         scroll.setClipToPadding(false);
@@ -518,9 +518,16 @@ public final class PhoneLoginSheet {
         input.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 14);
         input.setHintTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteGrayText3));
         input.setTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteBlackText));
-        input.setBackground(Theme.createRoundRectDrawable(dp(12),
-                Theme.getColor(Theme.key_windowBackgroundGray)));
-        input.setPadding(dp(14), dp(12), dp(14), dp(12));
+        // 浅描边圆角，别做成大黑块
+        android.graphics.drawable.GradientDrawable bg = new android.graphics.drawable.GradientDrawable();
+        bg.setShape(android.graphics.drawable.GradientDrawable.RECTANGLE);
+        bg.setCornerRadius(dp(10));
+        bg.setColor(Theme.getColor(Theme.key_windowBackgroundGray));
+        bg.setStroke(Math.max(1, AndroidUtilities.dp(0.5f)),
+                Theme.getColor(Theme.key_divider));
+        input.setBackground(bg);
+        input.setPadding(dp(14), dp(6), dp(14), dp(6));
+        input.setMinHeight(0);
         input.setSingleLine(true);
         input.setFocusable(true);
         input.setFocusableInTouchMode(true);
