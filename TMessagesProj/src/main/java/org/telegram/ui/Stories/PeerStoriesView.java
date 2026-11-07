@@ -5907,7 +5907,7 @@ public class PeerStoriesView extends SizeNotifierFrameLayout implements Notifica
                 } else {
                     repostCounterVisible = false;
                 }
-                if (storyItem.views.reactions_count > 0) {
+                if (storyItem.views.reactions_count > 0 && !uz.unnarsx.cherrygram.core.configs.CherrygramAppearanceConfig.INSTANCE.getAiqiyiHideReactionButton()) {
                     reactionsCounter.setText(Integer.toString(storyItem.views.reactions_count), animated && reactionsCounterVisible);
                     reactionsCounterVisible = true;
                 } else {
