@@ -2149,31 +2149,55 @@ public class ThemeActivity extends BaseFragment implements NotificationCenter.No
         if (uri == null) {
             return;
         }
+        FileLog.e("AQYDIAG step0 enter saveDynamicVideoWallpaper uri=" + uri);
         final AlertDialog progress = new AlertDialog(getParentActivity(), AlertDialog.ALERT_TYPE_SPINNER);
         progress.setCanCancel(true);
-        progress.show();
+        try {
+            progress.show();
+            FileLog.e("AQYDIAG step1 spinner shown, showing=" + progress.isShowing());
+        } catch (Throwable t) {
+            FileLog.e("AQYDIAG step1 spinner show FAILED", t);
+            return;
+        }
         new Thread(() -> {
+            FileLog.e("AQYDIAG step2 worker thread started");
             String path = null;
             try {
                 path = DynamicVideoWallpaperHelper.importVideo(ApplicationLoader.applicationContext, uri);
-            } catch (Exception e) {
-                FileLog.e(e);
+                FileLog.e("AQYDIAG step3 importVideo returned path=" + path);
+            } catch (Throwable e) {
+                FileLog.e("AQYDIAG step3 importVideo THREW", e);
             }
+            FileLog.e("AQYDIAG step4 posting to UI thread");
             final String finalPath = path;
             AndroidUtilities.runOnUIThread(() -> {
+                FileLog.e("AQYDIAG step5 UI callback entered");
                 try {
                     progress.dismiss();
-                } catch (Exception ignore) {
+                    FileLog.e("AQYDIAG step6 spinner dismissed");
+                } catch (Throwable ignore) {
+                    FileLog.e("AQYDIAG step6 dismiss FAILED", ignore);
                 }
                 if (finalPath != null) {
-                    DynamicVideoWallpaperHelper.saveVideo(ApplicationLoader.applicationContext, currentAccount, 0, finalPath);
-                    DynamicVideoWallpaperHelper.notifyWallpaperChanged(currentAccount, 0);
+                    try {
+                        DynamicVideoWallpaperHelper.saveVideo(ApplicationLoader.applicationContext, currentAccount, 0, finalPath);
+                        FileLog.e("AQYDIAG step7 saveVideo done");
+                    } catch (Throwable t) {
+                        FileLog.e("AQYDIAG step7 saveVideo THREW", t);
+                    }
+                    try {
+                        DynamicVideoWallpaperHelper.notifyWallpaperChanged(currentAccount, 0);
+                        FileLog.e("AQYDIAG step8 notify done");
+                    } catch (Throwable t) {
+                        FileLog.e("AQYDIAG step8 notify THREW", t);
+                    }
                     if (listAdapter != null) {
                         listAdapter.notifyDataSetChanged();
                     }
                 } else {
                     showDynamicVideoWallpaperDialog(getString(R.string.AQY_SetDynamicWallpaper), getString(R.string.AQY_ImportFailed));
                 }
+                FileLog.e("AQYDIAG step9 UI callback finished");
             });
         }, "aqy-import-video").start();
     }
