@@ -2271,7 +2271,7 @@ public class ThemeActivity extends BaseFragment implements NotificationCenter.No
     }
 
     private void confirmClearDynamicVideoWallpaper() {
-        AlertDialog dlg = new AlertDialog(getParentActivity(), 3);
+        AlertDialog dlg = new AlertDialog(getParentActivity(), AlertDialog.ALERT_TYPE_MESSAGE);
         dlg.setTitle(getString(R.string.AQY_DeleteDynamicWallpaper));
         dlg.setMessage(getString(R.string.AQY_DeleteDynamicWallpaperConfirm));
         dlg.setPositiveButton(getString(R.string.Delete), (d, w) -> {
@@ -2287,7 +2287,7 @@ public class ThemeActivity extends BaseFragment implements NotificationCenter.No
     }
 
     private void showDynamicVideoWallpaperDialog(String title, String message) {
-        AlertDialog dlg = new AlertDialog(getParentActivity(), 3);
+        AlertDialog dlg = new AlertDialog(getParentActivity(), AlertDialog.ALERT_TYPE_MESSAGE);
         dlg.setTitle(title);
         dlg.setMessage(message);
         dlg.setPositiveButton(getString(R.string.OK), null);
