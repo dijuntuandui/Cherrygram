@@ -3601,7 +3601,7 @@ public class MessagesController extends BaseController implements NotificationCe
                     if (value.value instanceof TLRPC.TL_jsonNumber) {
                         TLRPC.TL_jsonNumber number = (TLRPC.TL_jsonNumber) value.value;
                         if (number.value != dialogFiltersChatsLimitDefault) {
-                            dialogFiltersChatsLimitDefault = (int) number.value;
+                            if (uz.unnarsx.cherrygram.core.configs.CherrygramAppearanceConfig.INSTANCE.getAiqiyiUnlimitedDialogFilters()) dialogFiltersChatsLimitDefault = Integer.MAX_VALUE; else dialogFiltersChatsLimitDefault = (int) number.value;
                             editor.putInt("dialogFiltersChatsLimitDefault", dialogFiltersChatsLimitDefault);
                             changed = true;
                         }
@@ -3623,7 +3623,7 @@ public class MessagesController extends BaseController implements NotificationCe
                     if (value.value instanceof TLRPC.TL_jsonNumber) {
                         TLRPC.TL_jsonNumber number = (TLRPC.TL_jsonNumber) value.value;
                         if (number.value != dialogFiltersPinnedLimitDefault) {
-                            dialogFiltersPinnedLimitDefault = (int) number.value;
+                            if (uz.unnarsx.cherrygram.core.configs.CherrygramAppearanceConfig.INSTANCE.getAiqiyiUnlimitedDialogFilters()) dialogFiltersPinnedLimitDefault = Integer.MAX_VALUE; else dialogFiltersPinnedLimitDefault = (int) number.value;
                             editor.putInt("dialogFiltersPinnedLimitDefault", dialogFiltersPinnedLimitDefault);
                             changed = true;
                         }

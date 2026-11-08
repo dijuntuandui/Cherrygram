@@ -386,6 +386,11 @@ public class AlertsCreator {
                 request instanceof TLRPC.TL_messages_migrateChat ||
                 request instanceof TL_phone.inviteToGroupCall) {
             if (fragment != null && error.text.equals("CHANNELS_TOO_MUCH")) {
+                // [Aiqiyi] 突破加入频道上限：跳过官方引导页，直接显示原始错误
+                if (uz.unnarsx.cherrygram.core.configs.CherrygramAppearanceConfig.INSTANCE.getAiqiyiUnlimitedChannelJoin()) {
+                    showAddUserAlert(error, fragment, args != null && args.length > 0 ? (Boolean) args[0] : false, args != null && args.length > 1 ? (Boolean) args[1] : false, request);
+                    return null;
+                }
                 if (fragment.getParentActivity() != null) {
                     fragment.showDialog(new LimitReachedBottomSheet(fragment, fragment.getParentActivity(), LimitReachedBottomSheet.TYPE_TO0_MANY_COMMUNITIES, currentAccount, null));
                 } else {
@@ -411,6 +416,11 @@ public class AlertsCreator {
                 fragment = LaunchActivity.getLastFragment();
             }
             if (error.text.equals("CHANNELS_TOO_MUCH")) {
+                // [Aiqiyi] 突破加入频道上限：跳过官方引导页
+                if (uz.unnarsx.cherrygram.core.configs.CherrygramAppearanceConfig.INSTANCE.getAiqiyiUnlimitedChannelJoin()) {
+                    showAddUserAlert(error, fragment, false, false, request);
+                    return null;
+                }
                 if (fragment.getParentActivity() != null) {
                     fragment.showDialog(new LimitReachedBottomSheet(fragment, fragment.getParentActivity(), LimitReachedBottomSheet.TYPE_TO0_MANY_COMMUNITIES, currentAccount, null));
                 } else {
@@ -420,13 +430,19 @@ public class AlertsCreator {
             } else if (error.text.startsWith("FLOOD_WAIT")) {
                 showFloodWaitAlert(error.text, fragment);
             } else {
-                showAddUserAlert(error, fragment, false, false, request);
+                showAddUserAlert(error, fragment, false,
+                        false, request);
             }
         } else if (request instanceof TLRPC.TL_channels_createChannel) {
             if (fragment == null) {
                 fragment = LaunchActivity.getLastFragment();
             }
             if (error.text.equals("CHANNELS_TOO_MUCH")) {
+                // [Aiqiyi] 突破加入频道上限：跳过官方引导页
+                if (uz.unnarsx.cherrygram.core.configs.CherrygramAppearanceConfig.INSTANCE.getAiqiyiUnlimitedChannelJoin()) {
+                    showAddUserAlert(error, fragment, false, false, request);
+                    return null;
+                }
                 if (fragment.getParentActivity() != null) {
                     fragment.showDialog(new LimitReachedBottomSheet(fragment, fragment.getParentActivity(), LimitReachedBottomSheet.TYPE_TO0_MANY_COMMUNITIES, currentAccount, null));
                 } else {
@@ -436,7 +452,8 @@ public class AlertsCreator {
             } else if (error.text.startsWith("FLOOD_WAIT")) {
                 showFloodWaitAlert(error.text, fragment);
             } else {
-                showAddUserAlert(error, fragment, false, false, request);
+                showAddUserAlert(error, fragment, false,
+                        false, request);
             }
         } else if (request instanceof TLRPC.TL_messages_editMessage) {
             if (!error.text.equals("MESSAGE_NOT_MODIFIED")) {

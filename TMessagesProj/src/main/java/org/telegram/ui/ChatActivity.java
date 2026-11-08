@@ -13007,6 +13007,10 @@ public class ChatActivity extends BaseFragment implements
     }
 
     private boolean hasSelectedNoforwardsMessage() {
+        // [Aiqiyi] 强制破解转发：开关打开时，受保护消息不再被拦截，允许进入转发流程
+        if (uz.unnarsx.cherrygram.aiqiyi.AiqiyiForceForwardHelper.isEnabled()) {
+            return false;
+        }
         try {
             for (int i = 0; i < selectedMessagesIds.length; ++i) {
                 for (int j = 0; j < selectedMessagesIds[i].size(); ++j) {
@@ -19995,7 +19999,7 @@ public class ChatActivity extends BaseFragment implements
                     if (!messageObject.canDeleteMessage(chatMode == MODE_SCHEDULED, currentChat)) {
                         cantDeleteMessagesCount++;
                     }
-                    boolean noforwards = isPeerNoForwards();
+                    boolean noforwards = isPeerNoForwards() && !uz.unnarsx.cherrygram.aiqiyi.AiqiyiForceForwardHelper.isEnabled();
                     if (chatMode == MODE_SCHEDULED || !messageObject.canForwardMessage() || noforwards) {
                         cantForwardMessagesCount++;
                     } else {

@@ -86,6 +86,10 @@ public class GeneralPreferencesEntry extends BaseCGPreferencesEntry {
     private final int aiqiyiUnlimitedPinsRow = 33;
     private final int aiqiyiUnlimitedFoldersRow = 34;
     private final int aiqiyiUnlimitedFavedStickersRow = 35;
+    // [Aiqiyi] 芒果移植：频道上限 / 分组限制 / 强制转发
+    private final int aiqiyiUnlimitedChannelJoinRow = 60;
+    private final int aiqiyiUnlimitedDialogFiltersRow = 61;
+    private final int aiqiyiForceForwardRow = 62;
 
     // ===== 第一批（黄昏迁移）=====
     private final int aiqiyiSpecialAttentionRow = 37;
@@ -293,6 +297,19 @@ public class GeneralPreferencesEntry extends BaseCGPreferencesEntry {
         items.add(SettingsHelper.asSwitchCG(aiqiyiUnlimitedFavedStickersRow, getString(R.string.AQY_UnlimitedFavedStickers), getString(R.string.AQY_UnlimitedFavedStickers_Desc))
                 .setChecked(CherrygramAppearanceConfig.INSTANCE.getAiqiyiUnlimitedFavedStickers())
                 .slug("aiqiyi_unlimited_faved_stickers")
+        );
+        // [Aiqiyi] 芒果移植：频道上限 / 分组限制 / 强制转发
+        items.add(SettingsHelper.asSwitchCG(aiqiyiUnlimitedChannelJoinRow, getString(R.string.AQY_UnlimitedChannelJoin), getString(R.string.AQY_UnlimitedChannelJoin_Desc))
+                .setChecked(CherrygramAppearanceConfig.INSTANCE.getAiqiyiUnlimitedChannelJoin())
+                .slug("aiqiyi_unlimited_channel_join")
+        );
+        items.add(SettingsHelper.asSwitchCG(aiqiyiUnlimitedDialogFiltersRow, getString(R.string.AQY_UnlimitedDialogFilters), getString(R.string.AQY_UnlimitedDialogFilters_Desc))
+                .setChecked(CherrygramAppearanceConfig.INSTANCE.getAiqiyiUnlimitedDialogFilters())
+                .slug("aiqiyi_unlimited_dialog_filters")
+        );
+        items.add(SettingsHelper.asSwitchCG(aiqiyiForceForwardRow, getString(R.string.AQY_ForceForward), getString(R.string.AQY_ForceForward_Desc))
+                .setChecked(CherrygramAppearanceConfig.INSTANCE.getAiqiyiForceForward())
+                .slug("aiqiyi_force_forward")
         );
         // ===== 第一批（黄昏迁移）=====
         items.add(SettingsHelper.asSwitchCG(aiqiyiSpecialAttentionRow, getString(R.string.AQY_SpecialAttention), getString(R.string.AQY_SpecialAttention_Desc))
@@ -524,6 +541,16 @@ public class GeneralPreferencesEntry extends BaseCGPreferencesEntry {
             CherrygramAppearanceConfig.INSTANCE.setAiqiyiUnlimitedFavedStickers(!CherrygramAppearanceConfig.INSTANCE.getAiqiyiUnlimitedFavedStickers());
             SettingsHelper.updateCheckState(view, CherrygramAppearanceConfig.INSTANCE.getAiqiyiUnlimitedFavedStickers());
             uz.unnarsx.cherrygram.aiqiyi.AiqiyiLimitsHelper.applyLimits();
+        } else if (item.id == aiqiyiUnlimitedChannelJoinRow) {
+            CherrygramAppearanceConfig.INSTANCE.setAiqiyiUnlimitedChannelJoin(!CherrygramAppearanceConfig.INSTANCE.getAiqiyiUnlimitedChannelJoin());
+            SettingsHelper.updateCheckState(view, CherrygramAppearanceConfig.INSTANCE.getAiqiyiUnlimitedChannelJoin());
+        } else if (item.id == aiqiyiUnlimitedDialogFiltersRow) {
+            CherrygramAppearanceConfig.INSTANCE.setAiqiyiUnlimitedDialogFilters(!CherrygramAppearanceConfig.INSTANCE.getAiqiyiUnlimitedDialogFilters());
+            SettingsHelper.updateCheckState(view, CherrygramAppearanceConfig.INSTANCE.getAiqiyiUnlimitedDialogFilters());
+            uz.unnarsx.cherrygram.aiqiyi.AiqiyiLimitsHelper.applyLimits();
+        } else if (item.id == aiqiyiForceForwardRow) {
+            CherrygramAppearanceConfig.INSTANCE.setAiqiyiForceForward(!CherrygramAppearanceConfig.INSTANCE.getAiqiyiForceForward());
+            SettingsHelper.updateCheckState(view, CherrygramAppearanceConfig.INSTANCE.getAiqiyiForceForward());
         } else if (item.id == aiqiyiSelfCertRow) {
             CherrygramAppearanceConfig.INSTANCE.setAiqiyiSelfCertBadge(!CherrygramAppearanceConfig.INSTANCE.getAiqiyiSelfCertBadge());
             SettingsHelper.updateCheckState(view, CherrygramAppearanceConfig.INSTANCE.getAiqiyiSelfCertBadge());

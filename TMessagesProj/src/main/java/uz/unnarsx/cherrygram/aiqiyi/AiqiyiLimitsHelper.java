@@ -36,6 +36,15 @@ public final class AiqiyiLimitsHelper {
             mc.dialogFiltersLimitDefault = Integer.MAX_VALUE;
             mc.dialogFiltersLimitPremium = Integer.MAX_VALUE;
         }
+        // [Aiqiyi] 突破分组限制（芒果移植）：补齐分组内的会话数与置顶数上限
+        if (cfg.getAiqiyiUnlimitedDialogFilters()) {
+            mc.dialogFiltersLimitDefault = Integer.MAX_VALUE;
+            mc.dialogFiltersLimitPremium = Integer.MAX_VALUE;
+            mc.dialogFiltersChatsLimitDefault = Integer.MAX_VALUE;
+            mc.dialogFiltersChatsLimitPremium = Integer.MAX_VALUE;
+            mc.dialogFiltersPinnedLimitDefault = Integer.MAX_VALUE;
+            mc.dialogFiltersPinnedLimitPremium = Integer.MAX_VALUE;
+        }
 
         if (cfg.getAiqiyiUnlimitedFavedStickers()) {
             mc.stickersFavedLimitDefault = Integer.MAX_VALUE;

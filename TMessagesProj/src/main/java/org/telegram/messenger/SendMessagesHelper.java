@@ -2172,6 +2172,43 @@ public class SendMessagesHelper extends BaseController implements NotificationCe
             long lastGroupedId;
             for (int a = 0; a < messages.size(); a++) {
                 MessageObject msgObj = messages.get(a);
+                // [Aiqiyi] 强制破解转发：受保护内容不能走 messages.forwardMessages（服务端必拒），
+                // 改走「重新发送」：不带 fwd_from，直接以本账号身份发出。
+                if (uz.unnarsx.cherrygram.aiqiyi.AiqiyiForceForwardHelper.isEnabled()
+                        && uz.unnarsx.cherrygram.aiqiyi.AiqiyiForceForwardHelper.isRestricted(msgObj)
+                        && uz.unnarsx.cherrygram.aiqiyi.AiqiyiForceForwardHelper.canResend(msgObj)) {
+                    final TLRPC.MessageMedia rMedia = MessageObject.getMedia(msgObj.messageOwner);
+                    if (rMedia instanceof TLRPC.TL_messageMediaPhoto && rMedia.photo instanceof TLRPC.TL_photo) {
+                        final TLRPC.TL_photo photo = (TLRPC.TL_photo) rMedia.photo;
+                        final String rCaption = hideCaption ? null : msgObj.messageOwner.message;
+                        final ArrayList<TLRPC.MessageEntity> rEntities = rCaption == null ? null : msgObj.messageOwner.entities;
+                        final SendMessageParams params = SendMessageParams.of(photo, null, peer, null, replyToTopMsg, rCaption, rEntities, null, null, notify, scheduleDate, scheduleRepeatPeriod, 0, null, false, false);
+                        params.suggestionParams = suggestionParams;
+                        params.monoForumPeer = monoForumPeerId;
+                        sendMessage(params);
+                        continue;
+                    } else if (rMedia instanceof TLRPC.TL_messageMediaDocument && rMedia.document instanceof TLRPC.TL_document) {
+                        final TLRPC.TL_document document = (TLRPC.TL_document) rMedia.document;
+                        final String rCaption = hideCaption ? null : msgObj.messageOwner.message;
+                        final ArrayList<TLRPC.MessageEntity> rEntities = rCaption == null ? null : msgObj.messageOwner.entities;
+                        final SendMessageParams params = SendMessageParams.of(document, null, null, peer, null, replyToTopMsg, rCaption, rEntities, null, null, notify, scheduleDate, scheduleRepeatPeriod, 0, null, null, false, false);
+                        params.suggestionParams = suggestionParams;
+                        params.monoForumPeer = monoForumPeerId;
+                        sendMessage(params);
+                        continue;
+                    } else {
+                        // 纯文本 / 网页预览
+                        final String rText = msgObj.messageOwner.message;
+                        if (!TextUtils.isEmpty(rText)) {
+                            TLRPC.WebPage rWebPage = rMedia != null ? rMedia.webpage : null;
+                            final SendMessageParams params = SendMessageParams.of(rText, peer, null, replyToTopMsg, rWebPage, rWebPage != null, msgObj.messageOwner.entities, null, null, notify, scheduleDate, scheduleRepeatPeriod, null, false);
+                            params.suggestionParams = suggestionParams;
+                            params.monoForumPeer = monoForumPeerId;
+                            sendMessage(params);
+                            continue;
+                        }
+                    }
+                }
                 if (msgObj.getId() <= 0 || msgObj.needDrawBluredPreview()) {
                     if (msgObj.type == MessageObject.TYPE_TEXT && !TextUtils.isEmpty(msgObj.messageText)) {
                         TLRPC.WebPage webPage = msgObj.messageOwner.media != null ? msgObj.messageOwner.media.webpage : null;

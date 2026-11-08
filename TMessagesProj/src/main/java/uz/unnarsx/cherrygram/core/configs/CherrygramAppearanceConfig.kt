@@ -40,6 +40,12 @@ object CherrygramAppearanceConfig {
     var aiqiyiUnlimitedFolders by sharedPreferences.boolean("AP_AiqiyiUnlimitedFolders", true)
     /** 爱琦艺插件 - 无限收藏贴纸（不限收藏贴纸数量） */
     var aiqiyiUnlimitedFavedStickers by sharedPreferences.boolean("AP_AiqiyiUnlimitedFavedStickers", true)
+    /** [Aiqiyi] 突破加入频道上限 - 仅在收到 CHANNELS_TOO_MUCH 时跳过官方引导页，服务端真实限制仍然生效 */
+    var aiqiyiUnlimitedChannelJoin by sharedPreferences.boolean("AP_AiqiyiUnlimitedChannelJoin", false)
+    /** [Aiqiyi] 突破分组限制 - 把分组数量/会话数/置顶数上限顶到极大值 */
+    var aiqiyiUnlimitedDialogFilters by sharedPreferences.boolean("AP_AiqiyiUnlimitedDialogFilters", true)
+    /** [Aiqiyi] 强制破解转发 - 对禁止转发的内容走「重新发送」通道 */
+    var aiqiyiForceForward by sharedPreferences.boolean("AP_AiqiyiForceForward", true)
 
     // ===== 第一批（黄昏迁移）=====
     /** 爱琦艺插件 - 特别关注 */

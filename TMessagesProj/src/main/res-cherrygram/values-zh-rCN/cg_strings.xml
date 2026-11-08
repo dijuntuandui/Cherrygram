@@ -498,6 +498,13 @@
     <string name="AQY_UnlimitedFolders_Desc">解除文件夹数量上限，不再被服务器锁定多余文件夹</string>
     <string name="AQY_UnlimitedFavedStickers">无限收藏贴纸</string>
     <string name="AQY_UnlimitedFavedStickers_Desc">解除收藏贴纸数量上限，想存多少存多少</string>
+    <!-- [Aiqiyi] 芒果移植：频道上限 / 分组限制 / 强制转发 -->
+    <string name="AQY_UnlimitedChannelJoin">突破加入频道上限</string>
+    <string name="AQY_UnlimitedChannelJoin_Desc">超出上限时不再弹出官方引导页，直接显示原始错误。注意：服务端的真实限制仍然生效，此开关只改变本地提示</string>
+    <string name="AQY_UnlimitedDialogFilters">突破分组限制</string>
+    <string name="AQY_UnlimitedDialogFilters_Desc">解除分组数量、单分组会话数与分组内置顶数上限</string>
+    <string name="AQY_ForceForward">强制破解转发</string>
+    <string name="AQY_ForceForward_Desc">允许对禁止转发的内容转发，实际通过重新发送实现。阅后即焚、直播位置等内容不受支持</string>
     <!-- 第一批：黄昏迁移 -->
     <string name="AQY_SpecialAttention">特别关注</string>
     <string name="AQY_SpecialAttention_Desc">被特别关注的人发消息时单独提醒，不混在普通消息里</string>
