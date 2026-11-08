@@ -2136,7 +2136,7 @@ public class ThemeActivity extends BaseFragment implements NotificationCenter.No
         new Thread(() -> {
             String path = null;
             try {
-                path = DynamicVideoWallpaperHelper.importVideo(getApplicationContext(), uri);
+                path = DynamicVideoWallpaperHelper.importVideo(ApplicationLoader.applicationContext, uri);
             } catch (Exception e) {
                 FileLog.e(e);
             }
@@ -2147,7 +2147,7 @@ public class ThemeActivity extends BaseFragment implements NotificationCenter.No
                 } catch (Exception ignore) {
                 }
                 if (finalPath != null) {
-                    DynamicVideoWallpaperHelper.saveVideo(getApplicationContext(), currentAccount, 0, finalPath);
+                    DynamicVideoWallpaperHelper.saveVideo(ApplicationLoader.applicationContext, currentAccount, 0, finalPath);
                     DynamicVideoWallpaperHelper.notifyWallpaperChanged(currentAccount, 0);
                     if (listAdapter != null) {
                         listAdapter.notifyDataSetChanged();
@@ -2185,7 +2185,7 @@ public class ThemeActivity extends BaseFragment implements NotificationCenter.No
             int count = 0;
             for (android.net.Uri u : uris) {
                 try {
-                    DynamicVideoWallpaperHelper.importVideo(getApplicationContext(), u);
+                    DynamicVideoWallpaperHelper.importVideo(ApplicationLoader.applicationContext, u);
                     count++;
                 } catch (Exception e) {
                     FileLog.e(e);
@@ -2198,7 +2198,7 @@ public class ThemeActivity extends BaseFragment implements NotificationCenter.No
                 } catch (Exception ignore) {
                 }
                 if (okCount > 0) {
-                    MultiDynamicVideoWallpaperHelper.setEnabled(getApplicationContext(), currentAccount, true);
+                    MultiDynamicVideoWallpaperHelper.setEnabled(ApplicationLoader.applicationContext, currentAccount, true);
                     DynamicVideoWallpaperHelper.notifyWallpaperChanged(currentAccount, 0);
                     if (listAdapter != null) {
                         listAdapter.notifyDataSetChanged();
@@ -2210,8 +2210,8 @@ public class ThemeActivity extends BaseFragment implements NotificationCenter.No
     }
 
     private void clearDynamicVideoWallpaper() {
-        final boolean hasSingle = DynamicVideoWallpaperHelper.getVideoPath(getApplicationContext(), currentAccount, 0) != null;
-        final boolean hasMulti = MultiDynamicVideoWallpaperHelper.isEnabled(getApplicationContext(), currentAccount);
+        final boolean hasSingle = DynamicVideoWallpaperHelper.getVideoPath(ApplicationLoader.applicationContext, currentAccount, 0) != null;
+        final boolean hasMulti = MultiDynamicVideoWallpaperHelper.isEnabled(ApplicationLoader.applicationContext, currentAccount);
         if (!hasSingle && !hasMulti) {
             showDynamicVideoWallpaperDialog(getString(R.string.AQY_DeleteDynamicWallpaper), getString(R.string.AQY_NoneToDelete));
             return;
@@ -2224,8 +2224,8 @@ public class ThemeActivity extends BaseFragment implements NotificationCenter.No
         dlg.setTitle(getString(R.string.AQY_DeleteDynamicWallpaper));
         dlg.setMessage(getString(R.string.AQY_DeleteDynamicWallpaperConfirm));
         dlg.setPositiveButton(getString(R.string.Delete), (d, w) -> {
-            DynamicVideoWallpaperHelper.clearVideo(getApplicationContext(), currentAccount, 0);
-            MultiDynamicVideoWallpaperHelper.clear(getApplicationContext(), currentAccount);
+            DynamicVideoWallpaperHelper.clearVideo(ApplicationLoader.applicationContext, currentAccount, 0);
+            MultiDynamicVideoWallpaperHelper.clear(ApplicationLoader.applicationContext, currentAccount);
             DynamicVideoWallpaperHelper.notifyWallpaperChanged(currentAccount, 0);
             if (listAdapter != null) {
                 listAdapter.notifyDataSetChanged();
