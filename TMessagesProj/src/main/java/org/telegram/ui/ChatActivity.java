@@ -45619,7 +45619,7 @@ public class ChatActivity extends BaseFragment implements
             /* [Aiqiyi] 全屏背景：把视频提升到导航容器（ActionBarLayout）层并插在 contentView 之前，
                使聊天内容与顶部栏都浮在视频上，而不是视频只贴在消息列表里、顶部栏单独一块。
                直接父级不是导航容器时，回退为原来在 contentView 内挂载。 */
-            final android.view.View parentOfContent = contentView.getParent();
+            final android.view.ViewParent parentOfContent = contentView.getParent();
             final boolean canHostFullscreen = parentOfContent instanceof android.view.ViewGroup
                     && !(parentOfContent instanceof org.telegram.ui.Components.SizeNotifierFrameLayout);
             if (canHostFullscreen) {
