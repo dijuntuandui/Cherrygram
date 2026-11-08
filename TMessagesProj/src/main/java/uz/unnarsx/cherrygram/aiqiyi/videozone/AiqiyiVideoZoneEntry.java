@@ -6,6 +6,8 @@
  */
 package uz.unnarsx.cherrygram.aiqiyi.videozone;
 
+import static org.telegram.messenger.LocaleController.getString;
+
 import android.view.View;
 
 import org.telegram.messenger.ApplicationLoader;
@@ -79,7 +81,7 @@ public class AiqiyiVideoZoneEntry extends BaseCGPreferencesEntry {
         );
         items.add(SettingsHelper.asTextDetail(manageVideosRow, 0,
                         getString(R.string.AQY_VideoZone_Manage),
-                        getString(R.string.AQY_VideoZone_Manage_Desc, videoCount()))
+                        getString(R.string.AQY_VideoZone_Manage_Desc, String.valueOf(videoCount())))
                 .slug("aqy_video_zone_manage")
         );
         items.add(UItem.asShadow(getString(R.string.AQY_VideoZone_Library_Note)));
