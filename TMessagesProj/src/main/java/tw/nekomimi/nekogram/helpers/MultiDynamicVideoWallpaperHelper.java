@@ -335,43 +335,106 @@ public final class MultiDynamicVideoWallpaperHelper {
         }
     }
 
-    private static int readOrientation(String path) {
-        MediaMetadataRetriever retriever = new MediaMetadataRetriever();
+
+
+
+
+    private static final long METADATA_TIMEOUT_MS = 3000L;
+
+    /**
+     * 某些机型（vivo/iQOO 解码器）在 MediaMetadataRetriever 上会卡死在 native 层，
+     * Java 层 catch 接不到。统一在独立线程里读元数据并加超时，超时即放弃。
+     */
+    private static <T> T withMetadataTimeout(java.util.concurrent.Callable<T> task, T fallback, String tag) {
+        java.util.concurrent.ExecutorService pool = java.util.concurrent.Executors.newSingleThreadExecutor(r -> {
+            Thread t = new Thread(r, "aqy-meta-" + tag);
+            t.setDaemon(true);
+            return t;
+        });
         try {
-            retriever.setDataSource(path);
-            int width = Integer.parseInt(retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH));
-            int height = Integer.parseInt(retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT));
-            String rotation = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_ROTATION);
-            int angle = rotation == null ? 0 : Integer.parseInt(rotation);
-            if (angle == 90 || angle == 270) {
-                int temp = width;
-                width = height;
-                height = temp;
-            }
-            return height > width ? 1 : 0;
-        } catch (Throwable e) {
-            return 0;
-        } finally {
+            java.util.concurrent.Future<T> future = pool.submit(task);
             try {
-                retriever.release();
-            } catch (Throwable ignore) {
+                return future.get(METADATA_TIMEOUT_MS, java.util.concurrent.TimeUnit.MILLISECONDS);
+            } catch (java.util.concurrent.TimeoutException e) {
+                future.cancel(true);
+                FileLog.e("aqy: metadata timeout (" + tag + ")");
+                return fallback;
+            } catch (Throwable e) {
+                FileLog.e(e);
+                return fallback;
             }
+        } finally {
+            pool.shutdownNow();
         }
     }
 
-    private static long readDuration(String path) {
-        MediaMetadataRetriever retriever = new MediaMetadataRetriever();
-        try {
-            retriever.setDataSource(path);
-            return Long.parseLong(retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION));
-        } catch (Throwable e) {
-            return 0;
-        } finally {
+    private static int readOrientation(final String path) {
+        return withMetadataTimeout(() -> {
+            MediaMetadataRetriever retriever = new MediaMetadataRetriever();
             try {
-                retriever.release();
-            } catch (Throwable ignore) {
+                retriever.setDataSource(path);
+                String w = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH);
+                String h = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT);
+                if (w == null || h == null) {
+                    // 元数据读不到时不要误删用户视频，按可用放行
+                    return 1;
+                }
+                int width;
+                int height;
+                try {
+                    width = Integer.parseInt(w);
+                    height = Integer.parseInt(h);
+                } catch (NumberFormatException e) {
+                    return 1;
+                }
+                if (width <= 0 || height <= 0) {
+                    return 1;
+                }
+                String rotation = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_ROTATION);
+                int angle = 0;
+                if (rotation != null) {
+                    try {
+                        angle = Integer.parseInt(rotation);
+                    } catch (NumberFormatException ignore) {
+                    }
+                }
+                if (angle == 90 || angle == 270) {
+                    int temp = width;
+                    width = height;
+                    height = temp;
+                }
+                // 只有明显横屏（宽大于高 1.2 倍以上）才拒绝，方形/近方形一律放行
+                return (width > height * 1.2f) ? 0 : 1;
+            } catch (Throwable e) {
+                return 1;
+            } finally {
+                try {
+                    retriever.release();
+                } catch (Throwable ignore) {
+                }
             }
-        }
+        }, 1, "orient");
+    }
+
+    private static long readDuration(final String path) {
+        return withMetadataTimeout(() -> {
+            MediaMetadataRetriever retriever = new MediaMetadataRetriever();
+            try {
+                retriever.setDataSource(path);
+                String d = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION);
+                if (d == null) {
+                    return 0L;
+                }
+                return Long.parseLong(d);
+            } catch (Throwable e) {
+                return 0L;
+            } finally {
+                try {
+                    retriever.release();
+                } catch (Throwable ignore) {
+                }
+            }
+        }, 0L, "duration");
     }
 
     private static ArrayList<String> readPaths(Context c, int account) {

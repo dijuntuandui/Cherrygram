@@ -933,6 +933,8 @@
     <string name="AQY_PickFailed">无法打开视频选择器</string>
     <string name="AQY_ImportFailed">视频导入失败</string>
     <string name="AQY_ImportedCount">已导入</string>
+    <string name="AQY_SkippedLandscape">横屏视频已跳过</string>
+    <string name="AQY_FailedCount">失败</string>
     <string name="AQY_NoneToDelete">当前没有可删除的动态壁纸</string>
     <string name="AQY_DeleteDynamicWallpaperConfirm">将删除此账号已设置的动态壁纸，确定继续？</string>
 </resources>

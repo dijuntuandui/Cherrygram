@@ -1013,6 +1013,8 @@
     <string name="AQY_PickFailed">Cannot open video picker</string>
     <string name="AQY_ImportFailed">Failed to import video</string>
     <string name="AQY_ImportedCount">Imported</string>
+    <string name="AQY_SkippedLandscape">Landscape videos skipped</string>
+    <string name="AQY_FailedCount">Failed</string>
     <string name="AQY_NoneToDelete">No dynamic wallpaper to delete</string>
     <string name="AQY_DeleteDynamicWallpaperConfirm">This will remove the dynamic wallpaper set for this account. Continue?</string>
 </resources>

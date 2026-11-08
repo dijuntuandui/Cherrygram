@@ -2101,16 +2101,35 @@ public class ThemeActivity extends BaseFragment implements NotificationCenter.No
     private static final int REQUEST_CODE_DYNAMIC_WALLPAPER = 5199;
     private static final int REQUEST_CODE_MULTI_DYNAMIC_WALLPAPER = 5200;
 
+
+
+
+
     private void chooseDynamicVideoWallpaper() {
         try {
             android.content.Intent intent = new android.content.Intent(android.content.Intent.ACTION_GET_CONTENT);
             intent.setType("video/*");
             intent.addCategory(android.content.Intent.CATEGORY_OPENABLE);
-            startActivityForResult(intent, REQUEST_CODE_DYNAMIC_WALLPAPER);
+            startPickForResult(intent, REQUEST_CODE_DYNAMIC_WALLPAPER);
         } catch (Exception e) {
             FileLog.e(e);
             showDynamicVideoWallpaperDialog(getString(R.string.AQY_SetDynamicWallpaper), getString(R.string.AQY_PickFailed));
         }
+    }
+
+    /**
+     * BaseFragment.startActivityForResult 依赖 parentLayout，为 null 时会静默失败，
+     * 表现为点击后既不弹选择器也不报错。这里只走 Activity 这一条通路，
+     * 回调用 LaunchActivity 的 onActivityResult 统一分发到 onActivityResultFragment。
+     */
+    private void startPickForResult(android.content.Intent intent, int requestCode) {
+        android.app.Activity activity = getParentActivity();
+        if (activity == null) {
+            FileLog.e(new RuntimeException("aqy: pick video failed, parent activity is null"));
+            showDynamicVideoWallpaperDialog(getString(R.string.AQY_SetDynamicWallpaper), getString(R.string.AQY_PickFailed));
+            return;
+        }
+        activity.startActivityForResult(intent, requestCode);
     }
 
     private void chooseMultiDynamicVideoWallpaper() {
@@ -2119,7 +2138,7 @@ public class ThemeActivity extends BaseFragment implements NotificationCenter.No
             intent.setType("video/*");
             intent.putExtra(android.content.Intent.EXTRA_ALLOW_MULTIPLE, true);
             intent.addCategory(android.content.Intent.CATEGORY_OPENABLE);
-            startActivityForResult(intent, REQUEST_CODE_MULTI_DYNAMIC_WALLPAPER);
+            startPickForResult(intent, REQUEST_CODE_MULTI_DYNAMIC_WALLPAPER);
         } catch (Exception e) {
             FileLog.e(e);
             showDynamicVideoWallpaperDialog(getString(R.string.AQY_MultiDynamicWallpaper), getString(R.string.AQY_PickFailed));
@@ -2131,7 +2150,7 @@ public class ThemeActivity extends BaseFragment implements NotificationCenter.No
             return;
         }
         final AlertDialog progress = new AlertDialog(getParentActivity(), AlertDialog.ALERT_TYPE_SPINNER);
-        progress.setCanCancel(false);
+        progress.setCanCancel(true);
         progress.show();
         new Thread(() -> {
             String path = null;
@@ -2179,32 +2198,40 @@ public class ThemeActivity extends BaseFragment implements NotificationCenter.No
             return;
         }
         final AlertDialog progress = new AlertDialog(getParentActivity(), AlertDialog.ALERT_TYPE_SPINNER);
-        progress.setCanCancel(false);
+        progress.setCanCancel(true);
         progress.show();
         new Thread(() -> {
-            int count = 0;
-            for (android.net.Uri u : uris) {
-                try {
-                    DynamicVideoWallpaperHelper.importVideo(ApplicationLoader.applicationContext, u);
-                    count++;
-                } catch (Exception e) {
-                    FileLog.e(e);
-                }
+            MultiDynamicVideoWallpaperHelper.FetchResult result = null;
+            try {
+                result = MultiDynamicVideoWallpaperHelper.importLocalVideos(ApplicationLoader.applicationContext, currentAccount, uris);
+            } catch (Throwable e) {
+                FileLog.e(e);
             }
-            final int okCount = count;
+            final MultiDynamicVideoWallpaperHelper.FetchResult res = result;
             AndroidUtilities.runOnUIThread(() -> {
                 try {
                     progress.dismiss();
                 } catch (Exception ignore) {
                 }
-                if (okCount > 0) {
-                    MultiDynamicVideoWallpaperHelper.setEnabled(ApplicationLoader.applicationContext, currentAccount, true);
+                if (res != null && res.imported > 0) {
                     DynamicVideoWallpaperHelper.notifyWallpaperChanged(currentAccount, 0);
-                    if (listAdapter != null) {
-                        listAdapter.notifyDataSetChanged();
+                }
+                if (listAdapter != null) {
+                    listAdapter.notifyDataSetChanged();
+                }
+                StringBuilder sb = new StringBuilder();
+                if (res == null) {
+                    sb.append(getString(R.string.AQY_ImportFailed));
+                } else {
+                    sb.append(getString(R.string.AQY_ImportedCount)).append(" ").append(res.imported);
+                    if (res.skippedLandscape > 0) {
+                        sb.append("\n").append(getString(R.string.AQY_SkippedLandscape)).append(" ").append(res.skippedLandscape);
+                    }
+                    if (res.errors != null && !res.errors.isEmpty()) {
+                        sb.append("\n").append(getString(R.string.AQY_FailedCount)).append(" ").append(res.errors.size());
                     }
                 }
-                showDynamicVideoWallpaperDialog(getString(R.string.AQY_MultiDynamicWallpaper), getString(R.string.AQY_ImportedCount) + " " + okCount);
+                showDynamicVideoWallpaperDialog(getString(R.string.AQY_MultiDynamicWallpaper), sb.toString());
             });
         }, "aqy-import-videos").start();
     }

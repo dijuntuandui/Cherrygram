@@ -234,6 +234,55 @@ public final class DynamicVideoWallpaperHelper {
         return "disabled_" + key(account, dialogId);
     }
 
+    private static final long METADATA_TIMEOUT_MS = 3000L;
+
+    /**
+     * 部分机型（vivo/iQOO 的媒体解码器）在 MediaMetadataRetriever 处理某些编码时
+     * 会卡在 native 层不返回，Java 层 catch 接不到，导致调用线程永久阻塞。
+     * 这里把元数据读取丢到独立线程并加超时，超时即视为不可判定，放行让播放器自行处理。
+     *
+     * @return 时长毫秒；-1 表示超时或无法判定（调用方应放行）
+     */
+    private static long readDurationWithTimeout(final String path, long timeoutMs) {
+        java.util.concurrent.ExecutorService pool = java.util.concurrent.Executors.newSingleThreadExecutor(r -> {
+            Thread t = new Thread(r, "aqy-metadata");
+            t.setDaemon(true);
+            return t;
+        });
+        try {
+            java.util.concurrent.Future<Long> future = pool.submit(() -> {
+                MediaMetadataRetriever retriever = new MediaMetadataRetriever();
+                try {
+                    retriever.setDataSource(path);
+                    String duration = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION);
+                    if (duration == null) {
+                        return -1L;
+                    }
+                    return Long.parseLong(duration);
+                } catch (Throwable e) {
+                    return -1L;
+                } finally {
+                    try {
+                        retriever.release();
+                    } catch (Throwable ignore) {
+                    }
+                }
+            });
+            try {
+                return future.get(timeoutMs, java.util.concurrent.TimeUnit.MILLISECONDS);
+            } catch (java.util.concurrent.TimeoutException e) {
+                future.cancel(true);
+                FileLog.e("aqy: metadata timeout for " + path);
+                return -1L;
+            } catch (Throwable e) {
+                FileLog.e(e);
+                return -1L;
+            }
+        } finally {
+            pool.shutdownNow();
+        }
+    }
+
     public static String importVideo(Context context, Uri source) throws IOException {
         if (source == null) {
             throw new IOException("未读取到所选视频。");
@@ -272,22 +321,13 @@ public final class DynamicVideoWallpaperHelper {
             throw new IOException("所选视频为空或无法读取。");
         }
 
-        MediaMetadataRetriever retriever = new MediaMetadataRetriever();
-        try {
-            retriever.setDataSource(target.getAbsolutePath());
-            String duration = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION);
-            if (duration == null || Long.parseLong(duration) <= 0) {
-                throw new IOException("所选文件不是可播放的视频。");
-            }
-        } catch (RuntimeException e) {
+        // 元数据校验带超时：某些机型解码器会卡死在 native 层，
+        // 超时时不再阻塞线程，直接放行交给播放器自行判断。
+        long duration = readDurationWithTimeout(target.getAbsolutePath(), METADATA_TIMEOUT_MS);
+        if (duration == 0) {
             //noinspection ResultOfMethodCallIgnored
             target.delete();
-            throw new IOException("所选文件不是可播放的视频。", e);
-        } finally {
-            try {
-                retriever.release();
-            } catch (Throwable ignore) {
-            }
+            throw new IOException("所选文件不是可播放的视频。");
         }
         return target.getAbsolutePath();
     }
