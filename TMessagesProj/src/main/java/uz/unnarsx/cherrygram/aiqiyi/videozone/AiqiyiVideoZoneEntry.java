@@ -7,15 +7,24 @@
 package uz.unnarsx.cherrygram.aiqiyi.videozone;
 
 import static org.telegram.messenger.LocaleController.getString;
-
+import android.app.Activity;
+import android.content.ClipData;
+import android.content.Intent;
+import android.net.Uri;
 import android.view.View;
 
+import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.ApplicationLoader;
+import org.telegram.messenger.FileLog;
 import org.telegram.messenger.R;
+import org.telegram.messenger.Utilities;
+import org.telegram.ui.ActionBar.AlertDialog;
+import org.telegram.ui.Components.BulletinFactory;
 import org.telegram.ui.Components.UItem;
 import org.telegram.ui.Components.UniversalAdapter;
 
 import java.util.ArrayList;
+
 
 import uz.unnarsx.cherrygram.core.configs.CherrygramCameraConfig;
 import uz.unnarsx.cherrygram.core.huanghun.HuanghunVideoLibraryActivity;
@@ -32,6 +41,8 @@ public class AiqiyiVideoZoneEntry extends BaseCGPreferencesEntry {
     private final int roundVideoRow = 524;
     private final int squareVideoRow = 525;
     private final int videoToGifRow = 526;
+
+    private static final int REQUEST_AIQIYI_BUILTIN_VIDEOS = 0x5A71;
 
     @Override
     protected CharSequence getTitle() {
@@ -118,6 +129,110 @@ public class AiqiyiVideoZoneEntry extends BaseCGPreferencesEntry {
         );
     }
 
+    /**
+     * 打开系统文件选择器，只允许选择视频，支持多选。
+     * 参考黄昏实现：ACTION_OPEN_DOCUMENT + CATEGORY_OPENABLE + video/*。
+     */
+    private void chooseBuiltinVideos() {
+        if (getParentActivity() == null) {
+            return;
+        }
+        try {
+            Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+            intent.addCategory(Intent.CATEGORY_OPENABLE);
+            intent.setType("video/*");
+            intent.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true);
+            intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+            startActivityForResult(intent, REQUEST_AIQIYI_BUILTIN_VIDEOS);
+        } catch (Throwable e) {
+            FileLog.e(e);
+            showVideoInfo("无法选择视频", "无法打开系统视频选择器，请稍后重试。");
+        }
+    }
+
+    /**
+     * 将选中的视频复制到应用私有视频库。
+     * 复制、时长校验都在后台线程完成，单个文件失败不影响同批次其它视频。
+     */
+    private void importBuiltinVideos(ArrayList<Uri> sources) {
+        if (sources == null || sources.isEmpty() || getParentActivity() == null) {
+            showVideoInfo("导入失败", "未读取到所选视频，请重新选择。");
+            return;
+        }
+        final AlertDialog progress = new AlertDialog(getParentActivity(), AlertDialog.ALERT_TYPE_SPINNER);
+        progress.setMessage("正在保存并验证所选视频，请稍候。");
+        progress.setCancelable(false);
+        showDialog(progress);
+        final int account = currentAccount;
+        Utilities.globalQueue.postRunnable(() -> {
+            HuanghunVideoLibraryHelper.ImportResult result;
+            try {
+                result = HuanghunVideoLibraryHelper.importVideos(ApplicationLoader.applicationContext, account, sources);
+            } catch (Throwable e) {
+                FileLog.e(e);
+                ArrayList<String> errors = new ArrayList<>();
+                String message = e.getMessage();
+                errors.add(message == null || message.length() == 0 ? "视频导入失败，请稍后重试。" : message);
+                result = new HuanghunVideoLibraryHelper.ImportResult(0, errors);
+            }
+            final HuanghunVideoLibraryHelper.ImportResult importResult = result;
+            AndroidUtilities.runOnUIThread(() -> {
+                if (progress.isShowing()) {
+                    progress.dismiss();
+                }
+                if (listView != null && listView.adapter != null) {
+                    listView.adapter.update(true);
+                }
+                if (importResult.importedCount > 0) {
+                    String message = "已导入 " + importResult.importedCount + " 个内置视频。";
+                    if (importResult.hasErrors()) {
+                        message += "部分文件未能导入。";
+                    }
+                    BulletinFactory.of(AiqiyiVideoZoneEntry.this).createSimpleBulletin(R.raw.done, message).show();
+                } else {
+                    String message = importResult.errors.isEmpty() ? "所选视频无法导入，请更换视频后重试。" : importResult.errors.get(0);
+                    showVideoInfo("导入失败", message);
+                }
+            });
+        });
+    }
+
+    private void showVideoInfo(String title, String message) {
+        if (getParentActivity() == null) {
+            return;
+        }
+        showDialog(new AlertDialog.Builder(getParentActivity(), getResourceProvider())
+                .setTitle(title)
+                .setMessage(message)
+                .setPositiveButton(getString(R.string.OK), null)
+                .create());
+    }
+
+    @Override
+    public void onActivityResultFragment(int requestCode, int resultCode, Intent data) {
+        if (requestCode == REQUEST_AIQIYI_BUILTIN_VIDEOS && resultCode == Activity.RESULT_OK) {
+            ArrayList<Uri> sources = new ArrayList<>();
+            if (data != null) {
+                ClipData clipData = data.getClipData();
+                if (clipData != null) {
+                    for (int i = 0; i < clipData.getItemCount(); i++) {
+                        Uri uri = clipData.getItemAt(i).getUri();
+                        if (uri != null && !sources.contains(uri)) {
+                            sources.add(uri);
+                        }
+                    }
+                }
+                Uri singleUri = data.getData();
+                if (singleUri != null && !sources.contains(singleUri)) {
+                    sources.add(singleUri);
+                }
+            }
+            importBuiltinVideos(sources);
+            return;
+        }
+        super.onActivityResultFragment(requestCode, resultCode, data);
+    }
+
     @Override
     protected void onClick(UItem item, View view, int position, float x, float y) {
         if (item.id == enabledRow) {
@@ -125,7 +240,7 @@ public class AiqiyiVideoZoneEntry extends BaseCGPreferencesEntry {
             SettingsHelper.updateCheckState(view, cfg().getHuanghunBuiltinCameraEnabled());
             listView.adapter.update(true);
         } else if (item.id == pickVideosRow) {
-            presentFragment(new HuanghunVideoLibraryActivity(false, false));
+            chooseBuiltinVideos();
         } else if (item.id == manageVideosRow) {
             presentFragment(new HuanghunVideoLibraryActivity(true, false));
         } else if (item.id == videoSoundRow) {
