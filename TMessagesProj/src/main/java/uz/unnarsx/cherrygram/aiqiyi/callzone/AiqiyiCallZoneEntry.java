@@ -43,6 +43,8 @@ public class AiqiyiCallZoneEntry extends BaseCGPreferencesEntry {
     private final int pickCallVideosRow = 622;
     private final int callVideoSoundRow = 623;
     private final int viewCallVideosRow = 624;
+    // [Aiqiyi] 删除入口：进入 deleteMode=true 的视频库页面，带勾选与删除按钮。
+    private final int deleteCallVideosRow = 625;
 
     private static final int REQUEST_AIQIYI_CALL_VIDEOS = 0x5A72;
 
@@ -114,6 +116,11 @@ public class AiqiyiCallZoneEntry extends BaseCGPreferencesEntry {
                             "查看内置视频",
                             "管理已导入的通话内置视频")
                     .slug("aqy_call_view_videos")
+            );
+            items.add(SettingsHelper.asTextDetail(deleteCallVideosRow, 0,
+                            "删除内置视频",
+                            "勾选并删除已导入的视频")
+                    .slug("aqy_call_delete_videos")
             );
         }
         items.add(UItem.asShadow("通话内置视频仅保存在当前设备和当前账号中，与视频录制专区完全隔离。开启虚拟摄像头并在视频通话中开启摄像头后，将循环播放所选视频；通话界面会显示上一个、下一个、暂停和播放控制按钮。视频会保持原始宽高比例，自适应通话画面。"));
@@ -260,6 +267,8 @@ public class AiqiyiCallZoneEntry extends BaseCGPreferencesEntry {
             SettingsHelper.updateCheckState(view, enabled);
         } else if (item.id == viewCallVideosRow) {
             presentFragment(new HuanghunCallVideoLibraryActivity(false));
+        } else if (item.id == deleteCallVideosRow) {
+            presentFragment(new HuanghunCallVideoLibraryActivity(true));
         } else {
             super.onClick(item, view, position, x, y);
         }
