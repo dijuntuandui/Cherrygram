@@ -1,0 +1,55 @@
+// [Aiqiyi] 全局仓库重定向 init script
+//
+// 背景：GitHub Releases 当前持续 504。而 mavenCentral()/gradlePluginPortal()
+// 里的很多 artifact 会 307 跳到 github.com/*/releases，全部下不来。
+//
+// 逐个项目文件改太脆（子模块 TMessagesProj_Modules 有自己的仓库声明），
+// 这里在 Gradle 生命周期的最早阶段把所有已知上游仓库改成国内镜像。
+//
+// 用法：通过 -I 传给 gradlew，或放到 ~/.gradle/init.d/
+
+def MIRRORS = [
+    // gradlePluginPortal / plugins.gradle.org
+    'https://plugins.gradle.org/m2'            : 'https://maven.aliyun.com/repository/gradle-plugin',
+    'https://plugins.gradle.org/m2/'           : 'https://maven.aliyun.com/repository/gradle-plugin',
+    'https://repo.maven.apache.org/maven2'     : 'https://maven.aliyun.com/repository/public',
+    'https://repo.maven.apache.org/maven2/'    : 'https://maven.aliyun.com/repository/public',
+    'https://repo1.maven.org/maven2'           : 'https://maven.aliyun.com/repository/public',
+    'https://repo1.maven.org/maven2/'          : 'https://maven.aliyun.com/repository/public',
+    'https://dl.google.com/dl/android/maven2'  : 'https://maven.aliyun.com/repository/google',
+    'https://dl.google.com/dl/android/maven2/' : 'https://maven.aliyun.com/repository/google',
+    'https://maven.google.com'                 : 'https://maven.aliyun.com/repository/google',
+    'https://maven.google.com/'                : 'https://maven.aliyun.com/repository/google',
+    'https://jitpack.io'                       : 'https://maven.aliyun.com/repository/public',
+    'https://jitpack.io/'                      : 'https://maven.aliyun.com/repository/public',
+]
+
+def rewrite = { repos ->
+    repos.withType(MavenArtifactRepository).configureEach { repo ->
+        def u = repo.url.toString()
+        // 去掉结尾斜杠再比对，命中就换镜像
+        def key = u.endsWith('/') ? u[0..-2] : u
+        for (entry in MIRRORS) {
+            def from = entry.key.endsWith('/') ? entry.key[0..-2] : entry.key
+            if (key == from || u == entry.key) {
+                println "[Aiqiyi-init] repo ${u} -> ${entry.value}"
+                repo.url = entry.value
+                break
+            }
+        }
+    }
+}
+
+beforeSettings { settings ->
+    rewrite(settings.pluginManagement.repositories)
+}
+
+settingsEvaluated { settings ->
+    rewrite(settings.dependencyResolutionManagement.repositories)
+    rewrite(settings.buildscript.repositories)
+}
+
+allprojects { project ->
+    rewrite(project.buildscript.repositories)
+    rewrite(project.repositories)
+}
