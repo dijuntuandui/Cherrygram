@@ -1,3 +1,15 @@
+
+// [Aiqiyi] 国内镜像优先，绕开 gradlePluginPortal -> github.com/JetBrains/*/releases 的 504
+pluginManagement {
+    repositories {
+        maven { url 'https://maven.aliyun.com/repository/gradle-plugin' }
+        maven { url 'https://maven.aliyun.com/repository/public' }
+        gradlePluginPortal()
+        google()
+        mavenCentral()
+    }
+}
+
 include ':TMessagesProj'
 include ':TMessagesProj_App'
 include ':TMessagesProj_AppHuawei'
@@ -9,6 +21,7 @@ project(':jlatexmath').projectDir = new File(rootDir, 'TMessagesProj/lib/jlatexm
 
 dependencyResolutionManagement {
     repositories {
+        maven { url 'https://maven.aliyun.com/repository/public' }
         google()
         mavenCentral()
     }

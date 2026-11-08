@@ -21,6 +21,10 @@ gradlePlugin {
 }
 
 repositories {
+    // [Aiqiyi] 同上：gradlePluginPortal 会跳 github.com/JetBrains/*/releases，
+    // 当前 504。kotlin-compiler-embeddable 由 kotlin-dsl 插件拉取，必须走镜像。
+    maven("https://maven.aliyun.com/repository/gradle-plugin")
+    maven("https://maven.aliyun.com/repository/public")
     google()
     mavenCentral()
     gradlePluginPortal()

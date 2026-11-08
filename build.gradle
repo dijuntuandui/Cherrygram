@@ -1,6 +1,10 @@
 // Top-level build file where you can add configuration options common to all sub-projects/modules.
 buildscript {
     repositories {
+        // [Aiqiyi] gradlePluginPortal 会 307 跳到 github.com/JetBrains/*/releases，
+        // 该域当前持续 504。国内镜像优先命中，绕开 GitHub Releases。
+        maven { url 'https://maven.aliyun.com/repository/gradle-plugin' }
+        maven { url 'https://maven.aliyun.com/repository/public' }
         mavenCentral()
         google()
         gradlePluginPortal()
