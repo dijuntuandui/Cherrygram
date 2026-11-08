@@ -45606,7 +45606,9 @@ public class ChatActivity extends BaseFragment implements
 
     /** [Aiqiyi] 将动态视频壁纸挂到聊天根容器，失败时不干扰正常背景。 */
     private void attachAqyWallpaper() {
-        if (aqyWallpaperPlayer != null || contentView == null || currentChat == null) {
+        // 注意：不能判断 currentChat 是否为 null。私聊和机器人没有 chat 对象，
+        // currentChat 恒为 null，那样会把私聊/机器人整类场景全部挡掉。
+        if (aqyWallpaperPlayer != null || contentView == null) {
             return;
         }
         try {

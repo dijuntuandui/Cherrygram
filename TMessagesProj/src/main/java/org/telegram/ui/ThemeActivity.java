@@ -1166,8 +1166,8 @@ public class ThemeActivity extends BaseFragment implements NotificationCenter.No
                 DynamicVideoWallpaperHelper.notifyWallpaperChanged(currentAccount, 0);
                 listAdapter.notifyItemChanged(position);
             } else if (position == multiDynamicViewRow) {
-                // [Aiqiyi] 查看已导入列表
-                showDynamicVideoWallpaperDialog(getString(R.string.AQY_MultiDynamicList), String.valueOf(MultiDynamicVideoWallpaperHelper.getVideoCount(context, currentAccount)));
+                // [Aiqiyi] 打开动态壁纸库管理页
+                presentFragment(new uz.unnarsx.cherrygram.aiqiyi.wallpaper.AiqiyiDynamicWallpaperLibraryActivity(true));
             } else if (position == changeUserColor) {
                 presentFragment(new PeerColorActivity(0).setOnApplied(this));
             } else if (position == sendByEnterRow) {
@@ -2261,13 +2261,16 @@ public class ThemeActivity extends BaseFragment implements NotificationCenter.No
     }
 
     private void clearDynamicVideoWallpaper() {
+        /* 不能用 isEnabled 判断：requiresGlobalWallpaperReset 标记存在时它会返回 false，
+           导致明明有视频却直接弹「没有可删除的」。这里只看列表里实际有没有东西。 */
         final boolean hasSingle = DynamicVideoWallpaperHelper.getVideoPath(ApplicationLoader.applicationContext, currentAccount, 0) != null;
-        final boolean hasMulti = MultiDynamicVideoWallpaperHelper.isEnabled(ApplicationLoader.applicationContext, currentAccount);
+        final boolean hasMulti = MultiDynamicVideoWallpaperHelper.getVideoCount(ApplicationLoader.applicationContext, currentAccount) > 0;
         if (!hasSingle && !hasMulti) {
             showDynamicVideoWallpaperDialog(getString(R.string.AQY_DeleteDynamicWallpaper), getString(R.string.AQY_NoneToDelete));
             return;
         }
-        confirmClearDynamicVideoWallpaper();
+        // [Aiqiyi] 进管理页逐项勾选删除，比一次性清空更可控
+        presentFragment(new uz.unnarsx.cherrygram.aiqiyi.wallpaper.AiqiyiDynamicWallpaperLibraryActivity(true));
     }
 
     private void confirmClearDynamicVideoWallpaper() {
