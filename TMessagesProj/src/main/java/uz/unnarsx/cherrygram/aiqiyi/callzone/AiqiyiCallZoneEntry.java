@@ -208,7 +208,7 @@ public class AiqiyiCallZoneEntry extends BaseCGPreferencesEntry {
         showDialog(new AlertDialog.Builder(getParentActivity(), getResourceProvider())
                 .setTitle(title)
                 .setMessage(message)
-                .setPositiveButton(getString(R.string.OK), null)
+                .setPositiveButton(ApplicationLoader.applicationContext.getString(R.string.OK), null)
                 .create());
     }
 

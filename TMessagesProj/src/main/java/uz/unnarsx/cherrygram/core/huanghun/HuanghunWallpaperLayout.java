@@ -20,6 +20,14 @@ public class HuanghunWallpaperLayout extends SizeNotifierFrameLayout {
         super(context);
     }
 
+    /**
+     * 兼容 HuanghunCallVideoLibraryActivity 的调用签名 (Context, account)。
+     * 本精简版不按 account 区分壁纸缓存，账号参数仅用于保持调用方不变。
+     */
+    public HuanghunWallpaperLayout(Context context, int account) {
+        super(context);
+    }
+
     @Override
     protected void onAttachedToWindow() {
         super.onAttachedToWindow();
