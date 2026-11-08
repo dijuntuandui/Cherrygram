@@ -170,8 +170,12 @@ public class BlurredBackgroundProviderImpl {
         return new BlurredBackgroundProviderBuilder(resourcesProvider)
                 .setBackgroundColor((r, isDark) -> {
                     if (!checkBlurEnabled(resourcesProvider)) {
-                        return ColorUtils.setAlphaComponent(Theme.getColor(isDark ?
-                            Theme.key_actionBarDefault : Theme.key_chat_topPanelBackground, r), 255);
+                        /* [Aiqiyi] 模糊不可用时不要把顶部栏画成不透明实色，
+                           否则聊天动态视频壁纸会被这块纯黑完全挡住。
+                           改为高透明度底，让下层 video 层透出来。 */
+                        final int base = Theme.getColor(isDark ?
+                                Theme.key_actionBarDefault : Theme.key_chat_topPanelBackground, r);
+                        return Theme.multAlpha(base, isDark ? 0.32f : 0.55f);
                     }
 
                     final float alpha = LiteMode.isEnabled(LiteMode.FLAG_LIQUID_GLASS) ? 0.85f : 0.76f;
