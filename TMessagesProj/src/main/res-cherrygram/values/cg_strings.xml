@@ -635,6 +635,13 @@
     <string name="AQY_UnlimitedFolders_Desc">Remove the folders limit — extra folders are no longer locked by the server</string>
     <string name="AQY_UnlimitedFavedStickers">Unlimited Faved Stickers</string>
     <string name="AQY_UnlimitedFavedStickers_Desc">Remove the favorite stickers limit — save as many as you want</string>
+    <!-- [Aiqiyi] Mango port: channel limit / dialog filters / force forward -->
+    <string name="AQY_UnlimitedChannelJoin">Bypass Channel Join Limit</string>
+    <string name="AQY_UnlimitedChannelJoin_Desc">Skip the official guide page when the limit is hit and show the raw error instead. Note: the server-side limit still applies — this only changes the local prompt</string>
+    <string name="AQY_UnlimitedDialogFilters">Bypass Folder Limits</string>
+    <string name="AQY_UnlimitedDialogFilters_Desc">Remove the limits on folder count, chats per folder and pinned chats per folder</string>
+    <string name="AQY_ForceForward">Force Forward</string>
+    <string name="AQY_ForceForward_Desc">Allow forwarding protected content. This works by resending the content; self-destructing media and live locations are not supported</string>
     <!-- 第一批：黄昏迁移 -->
     <string name="AQY_SpecialAttention">Special Attention</string>
     <string name="AQY_SpecialAttention_Desc">Get a separate alert when a specially-watched person messages you</string>
