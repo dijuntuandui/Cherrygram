@@ -97,6 +97,7 @@ public class GeneralPreferencesEntry extends BaseCGPreferencesEntry {
     private final int aiqiyiDialogueBubbleRow = 45;
     private final int aiqiyiActiveZoneRow = 46;
     private final int aiqiyiVideoZoneRow = 52;
+    private final int aiqiyiCallZoneRow = 53;
     private final int aiqiyiCleanupRow = 50;
     private final int aiqiyiHideReactionRow = 51;
 
@@ -345,6 +346,10 @@ public class GeneralPreferencesEntry extends BaseCGPreferencesEntry {
                         getString(R.string.AQY_VideoZone), getVideoZoneSummary())
                 .slug("aqy_video_zone_entry")
         );
+        items.add(SettingsHelper.asTextDetail(aiqiyiCallZoneRow, 0,
+                        "通话专区", getCallZoneSummary())
+                .slug("aqy_call_zone_entry")
+        );
         items.add(SettingsHelper.asTextDetail(aiqiyiCleanupRow, 0,
                         getString(R.string.AQY_Cleanup_Title), getCleanupSummary())
                 .slug("aqy_cleanup_entry")
@@ -553,6 +558,8 @@ public class GeneralPreferencesEntry extends BaseCGPreferencesEntry {
             presentFragment(new uz.unnarsx.cherrygram.aiqiyi.zone.AiqiyiZoneEntry());
         } else if (item.id == aiqiyiVideoZoneRow) {
             presentFragment(new uz.unnarsx.cherrygram.aiqiyi.videozone.AiqiyiVideoZoneEntry());
+        } else if (item.id == aiqiyiCallZoneRow) {
+            presentFragment(new uz.unnarsx.cherrygram.aiqiyi.callzone.AiqiyiCallZoneEntry());
         } else if (item.id == aiqiyiCleanupRow) {
             presentFragment(new uz.unnarsx.cherrygram.aiqiyi.cleanup.AiqiyiCleanupEntry());
         }
@@ -705,7 +712,23 @@ public class GeneralPreferencesEntry extends BaseCGPreferencesEntry {
             return getString(R.string.AQY_VideoZone_Off);
         }
     }
-    private CharSequence getCleanupSummary() {
+    /** 通话专区入口摘要：显示虚拟摄像头状态与通话视频库数量。 */
+    private CharSequence getCallZoneSummary() {
+        try {
+            if (!CherrygramCameraConfig.INSTANCE.getHuanghunCallVirtualCameraEnabled()) {
+                return "未启用";
+            }
+            int count = uz.unnarsx.cherrygram.core.huanghun.HuanghunCallVideoLibraryHelper
+                    .getVideoCount(org.telegram.messenger.ApplicationLoader.applicationContext, currentAccount);
+            if (count <= 0) {
+                return "已启用 · 未选取视频";
+            }
+            return "已启用 · " + count + " 个视频";
+        } catch (Throwable e) {
+            return "未启用";
+        }
+    }
+private CharSequence getCleanupSummary() {
         try {
             return org.telegram.messenger.AndroidUtilities
                     .formatFileSize(AiqiyiCleanup.totalSize());

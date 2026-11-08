@@ -103,4 +103,15 @@ object CherrygramCameraConfig {
     var huanghunVideoToGif by sharedPreferences.boolean("HuanghunVideoToGif", false)
     /** 视频专区 finish */
 
+    /** 通话专区 start（移植自黄昏通话虚拟摄像头） */
+    const val HuanghunCallCamFront = 0
+    const val HuanghunCallCamRear = 1
+    const val HuanghunCallCamScreen = 2
+    // 0=前置，1=后置，2=手机屏幕；默认后置，保持官方默认通话体验。
+    var huanghunCallDefaultCamera by sharedPreferences.int("HuanghunCallDefaultCamera", HuanghunCallCamRear)
+    // 关闭时通话始终走 Telegram 官方前后摄像头或屏幕共享采集流程。
+    var huanghunCallVirtualCameraEnabled by sharedPreferences.boolean("HuanghunCallVirtualCameraEnabled", false)
+    // 开启虚拟摄像头时默认保留内置视频原声，用户可在通话专区关闭。
+    var huanghunCallVirtualVideoSound by sharedPreferences.boolean("HuanghunCallVirtualVideoSound", true)
+    /** 通话专区 finish */
 }
