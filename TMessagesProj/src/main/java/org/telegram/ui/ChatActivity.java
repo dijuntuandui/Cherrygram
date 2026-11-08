@@ -30729,6 +30729,8 @@ public class ChatActivity extends BaseFragment implements
     @Override
     public void onResume() {
         super.onResume();
+        // [Aiqiyi] 回到聊天页时重新挂上动态壁纸。
+        attachAqyWallpaper();
         checkShowBlur(false);
         activityResumeTime = System.currentTimeMillis();
         if (openImport && getSendMessagesHelper().getImportingHistory(dialog_id) != null) {
@@ -30941,6 +30943,8 @@ public class ChatActivity extends BaseFragment implements
     @Override
     public void onPause() {
         super.onPause();
+        // [Aiqiyi] 视频层已提升到导航容器，离开聊天页必须撤掉，否则会盖住即将进入的页面。
+        releaseAqyWallpaper();
         scrolling = false;
         if (scrimPopupWindow != null) {
             scrimPopupWindow.setPauseNotifications(false);
@@ -45612,9 +45616,19 @@ public class ChatActivity extends BaseFragment implements
             return;
         }
         try {
-            // contentAnchor 传 null，走 SizeNotifierFrameLayout 分支，确保视频插在 backgroundView 之后而不是被它盖住。
-            aqyWallpaperPlayer = tw.nekomimi.nekogram.helpers.DynamicVideoWallpaperHelper.attach(
-                    contentView, null, getContext(), currentAccount, getDialogId());
+            /* [Aiqiyi] 全屏背景：把视频提升到导航容器（ActionBarLayout）层并插在 contentView 之前，
+               使聊天内容与顶部栏都浮在视频上，而不是视频只贴在消息列表里、顶部栏单独一块。
+               直接父级不是导航容器时，回退为原来在 contentView 内挂载。 */
+            final android.view.View parentOfContent = contentView.getParent();
+            final boolean canHostFullscreen = parentOfContent instanceof android.view.ViewGroup
+                    && !(parentOfContent instanceof org.telegram.ui.Components.SizeNotifierFrameLayout);
+            if (canHostFullscreen) {
+                aqyWallpaperPlayer = tw.nekomimi.nekogram.helpers.DynamicVideoWallpaperHelper.attach(
+                        (android.view.ViewGroup) parentOfContent, contentView, getContext(), currentAccount, getDialogId());
+            } else {
+                aqyWallpaperPlayer = tw.nekomimi.nekogram.helpers.DynamicVideoWallpaperHelper.attach(
+                        contentView, null, getContext(), currentAccount, getDialogId());
+            }
         } catch (Throwable t) {
             org.telegram.messenger.FileLog.e("AQY attach wallpaper failed", t);
             aqyWallpaperPlayer = null;
