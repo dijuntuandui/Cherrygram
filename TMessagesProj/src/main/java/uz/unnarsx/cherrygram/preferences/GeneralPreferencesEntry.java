@@ -700,7 +700,7 @@ public class GeneralPreferencesEntry extends BaseCGPreferencesEntry {
             if (count <= 0) {
                 return getString(R.string.AQY_VideoZone_Empty);
             }
-            return getString(R.string.AQY_VideoZone_On, String.valueOf(count));
+            return org.telegram.messenger.LocaleController.formatString(R.string.AQY_VideoZone_On, count);
         } catch (Throwable e) {
             return getString(R.string.AQY_VideoZone_Off);
         }

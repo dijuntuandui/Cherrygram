@@ -81,7 +81,7 @@ public class AiqiyiVideoZoneEntry extends BaseCGPreferencesEntry {
         );
         items.add(SettingsHelper.asTextDetail(manageVideosRow, 0,
                         getString(R.string.AQY_VideoZone_Manage),
-                        getString(R.string.AQY_VideoZone_Manage_Desc, String.valueOf(videoCount())))
+                        org.telegram.messenger.LocaleController.formatString(R.string.AQY_VideoZone_Manage_Desc, videoCount()))
                 .slug("aqy_video_zone_manage")
         );
         items.add(UItem.asShadow(getString(R.string.AQY_VideoZone_Library_Note)));
