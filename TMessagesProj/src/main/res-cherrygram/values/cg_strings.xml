@@ -1000,4 +1000,19 @@
     <string name="AQY_Proto_Passkey2_Desc">Alternate channel</string>
     <string name="AQY_Proto_NotReady">This method is not wired up yet</string>
     <string name="AQY_Proto_NotReady_Desc">Entry point is ready, import logic still in progress</string>
+    <string name="AQY_DynamicWallpaperGlobal">New Dynamic Wallpaper on All Devices</string>
+    <string name="AQY_On">On</string>
+    <string name="AQY_Off">Off</string>
+    <string name="AQY_SetDynamicWallpaper">Set Dynamic Wallpaper...</string>
+    <string name="AQY_DeleteDynamicWallpaper">Delete Dynamic Wallpaper</string>
+    <string name="AQY_MultiDynamicWallpaper">Import Multiple Videos...</string>
+    <string name="AQY_MultiDynamicMode">Loop Playback</string>
+    <string name="AQY_ModeOrder">In Order</string>
+    <string name="AQY_ModeRandom">Random</string>
+    <string name="AQY_MultiDynamicList">Dynamic Wallpaper List</string>
+    <string name="AQY_PickFailed">Cannot open video picker</string>
+    <string name="AQY_ImportFailed">Failed to import video</string>
+    <string name="AQY_ImportedCount">Imported</string>
+    <string name="AQY_NoneToDelete">No dynamic wallpaper to delete</string>
+    <string name="AQY_DeleteDynamicWallpaperConfirm">This will remove the dynamic wallpaper set for this account. Continue?</string>
 </resources>

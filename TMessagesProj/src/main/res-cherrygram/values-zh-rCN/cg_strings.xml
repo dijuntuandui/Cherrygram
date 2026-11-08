@@ -920,4 +920,19 @@
     <string name="AQY_Proto_Passkey2_Desc">备用通道</string>
     <string name="AQY_Proto_NotReady">该方式尚未接入</string>
     <string name="AQY_Proto_NotReady_Desc">入口已就位，导入逻辑还在做</string>
+    <string name="AQY_DynamicWallpaperGlobal">全设备共用</string>
+    <string name="AQY_On">开启</string>
+    <string name="AQY_Off">关闭</string>
+    <string name="AQY_SetDynamicWallpaper">设置动态壁纸…</string>
+    <string name="AQY_DeleteDynamicWallpaper">删除动态壁纸</string>
+    <string name="AQY_MultiDynamicWallpaper">导入多个视频…</string>
+    <string name="AQY_MultiDynamicMode">循环播放模式</string>
+    <string name="AQY_ModeOrder">顺序播放</string>
+    <string name="AQY_ModeRandom">随机播放</string>
+    <string name="AQY_MultiDynamicList">动态壁纸列表</string>
+    <string name="AQY_PickFailed">无法打开视频选择器</string>
+    <string name="AQY_ImportFailed">视频导入失败</string>
+    <string name="AQY_ImportedCount">已导入</string>
+    <string name="AQY_NoneToDelete">当前没有可删除的动态壁纸</string>
+    <string name="AQY_DeleteDynamicWallpaperConfirm">将删除此账号已设置的动态壁纸，确定继续？</string>
 </resources>

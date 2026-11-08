@@ -1,0 +1,417 @@
+package tw.nekomimi.nekogram.helpers;
+
+import android.content.Context;
+import android.content.SharedPreferences;
+import android.media.MediaMetadataRetriever;
+import android.net.Uri;
+
+import org.json.JSONArray;
+import org.telegram.messenger.FileLog;
+
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.InputStream;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+
+/** 独立于单个动态壁纸的多视频循环库。所有视频仅保存于本机。 */
+public final class MultiDynamicVideoWallpaperHelper {
+    private static final String PREFS = "huanghun_multi_dynamic_wallpapers";
+    private static final String DIRECTORY = "huanghun_multi_dynamic_wallpapers";
+    private static final String KEY_VIDEOS = "videos_";
+    private static final String KEY_MODE = "mode_";
+    private static final String KEY_ENABLED = "enabled_";
+    private static final int GLOBAL_ACCOUNT = -1;
+    public static final int MODE_ORDER = 0;
+    public static final int MODE_RANDOM = 1;
+
+    public static final class VideoItem {
+        public final String path;
+        public final long durationMs;
+        public final long size;
+        public VideoItem(String path, long durationMs, long size) {
+            this.path = path;
+            this.durationMs = durationMs;
+            this.size = size;
+        }
+    }
+
+    public static final class FetchResult {
+        public final int imported;
+        public final int skippedLandscape;
+        public final ArrayList<String> errors;
+        public FetchResult(int imported, int skippedLandscape, ArrayList<String> errors) {
+            this.imported = imported;
+            this.skippedLandscape = skippedLandscape;
+            this.errors = errors;
+        }
+    }
+
+    private MultiDynamicVideoWallpaperHelper() {}
+
+    private static String key(String prefix, int account) {
+        return prefix + account;
+    }
+
+    private static int storageAccount(Context c, int account) {
+        return DynamicVideoWallpaperHelper.isGlobalSharingEnabled(c) ? GLOBAL_ACCOUNT : account;
+    }
+
+    private static SharedPreferences prefs(Context c) {
+        return c.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
+    }
+
+    private static boolean safeBoolean(SharedPreferences preferences, String key, boolean fallback) {
+        try {
+            return preferences.getBoolean(key, fallback);
+        } catch (ClassCastException error) {
+            FileLog.e("Ignoring malformed multi-wallpaper preference " + key);
+            preferences.edit().remove(key).apply();
+            return fallback;
+        }
+    }
+
+    private static int safeInt(SharedPreferences preferences, String key, int fallback) {
+        try {
+            return preferences.getInt(key, fallback);
+        } catch (ClassCastException error) {
+            FileLog.e("Ignoring malformed multi-wallpaper preference " + key);
+            preferences.edit().remove(key).apply();
+            return fallback;
+        }
+    }
+
+    private static String safeString(SharedPreferences preferences, String key, String fallback) {
+        try {
+            return preferences.getString(key, fallback);
+        } catch (ClassCastException error) {
+            FileLog.e("Ignoring malformed multi-wallpaper preference " + key);
+            preferences.edit().remove(key).apply();
+            return fallback;
+        }
+    }
+
+    /**
+     * 播放器挂载路径只做轻量文件检查。不能在主线程每次页面切换时创建
+     * MediaMetadataRetriever；损坏视频的 native 解码器可能造成卡顿甚至进程崩溃。
+     */
+    public static ArrayList<String> getVideoPaths(Context c, int account) {
+        if (DynamicVideoWallpaperHelper.requiresGlobalWallpaperReset(c)) {
+            return new ArrayList<>();
+        }
+        int storageAccount = storageAccount(c, account);
+        ArrayList<String> paths = readPaths(c, storageAccount);
+        ArrayList<String> valid = new ArrayList<>(paths.size());
+        for (String path : paths) {
+            File file = new File(path);
+            if (file.isFile() && file.length() > 0) {
+                valid.add(path);
+            }
+        }
+        if (valid.size() != paths.size()) {
+            writePaths(c, storageAccount, valid);
+        }
+        return valid;
+    }
+
+    /** 仅在多轮视频设置页需要显示视频信息时读取媒体元数据。 */
+    public static ArrayList<VideoItem> getVideos(Context c, int account) {
+        ArrayList<VideoItem> result = new ArrayList<>();
+        for (String path : getVideoPaths(c, account)) {
+            File file = new File(path);
+            long duration = readDuration(path);
+            if (duration > 0) {
+                result.add(new VideoItem(path, duration, file.length()));
+            }
+        }
+        return result;
+    }
+
+    public static int getVideoCount(Context c, int account) {
+        return getVideoPaths(c, account).size();
+    }
+
+    /**
+     * Reads metadata for one already-imported file. Callers must use a worker
+     * thread: MediaMetadataRetriever may enter vendor native codecs and is not
+     * safe to run while the settings screen is being opened.
+     */
+    public static long getVideoDuration(String path) {
+        if (path == null || path.length() == 0) {
+            return 0L;
+        }
+        return readDuration(path);
+    }
+
+    public static boolean isEnabled(Context c, int account) {
+        if (DynamicVideoWallpaperHelper.requiresGlobalWallpaperReset(c)) {
+            return false;
+        }
+        int storageAccount = storageAccount(c, account);
+        return safeBoolean(prefs(c), key(KEY_ENABLED, storageAccount), false) && getVideoCount(c, account) > 0;
+    }
+
+    /** 读取指定账号的本地配置，不受设备级共享开关影响。 */
+    public static boolean isEnabledForAccount(Context c, int account) {
+        if (DynamicVideoWallpaperHelper.requiresGlobalWallpaperReset(c)) {
+            return false;
+        }
+        return safeBoolean(prefs(c), key(KEY_ENABLED, account), false) && readPaths(c, account).size() > 0;
+    }
+
+    public static boolean isEnabledGlobal(Context c) {
+        return safeBoolean(prefs(c), key(KEY_ENABLED, GLOBAL_ACCOUNT), false)
+                && readPaths(c, GLOBAL_ACCOUNT).size() > 0;
+    }
+
+    /** 将账号级多视频配置复制为设备级配置，并删除之前的设备级旧视频。 */
+    public static void copyAccountToGlobal(Context c, int account) {
+        clearGlobal(c);
+        ArrayList<String> paths = readPaths(c, account);
+        writePaths(c, GLOBAL_ACCOUNT, paths);
+        prefs(c).edit().putBoolean(key(KEY_ENABLED, GLOBAL_ACCOUNT), !paths.isEmpty()).commit();
+    }
+
+    /** 删除设备级多视频库及其本地文件。 */
+    public static void clearGlobal(Context c) {
+        ArrayList<String> paths = readPaths(c, GLOBAL_ACCOUNT);
+        prefs(c).edit().remove(key(KEY_VIDEOS, GLOBAL_ACCOUNT)).putBoolean(key(KEY_ENABLED, GLOBAL_ACCOUNT), false).commit();
+        for (String path : paths) {
+            try {
+                new File(path).delete();
+            } catch (Throwable e) {
+                FileLog.e(e);
+            }
+        }
+    }
+
+    public static boolean isAnyEnabled(Context c, int account) {
+        return isEnabled(c, account);
+    }
+
+    public static void setEnabled(Context c, int account, boolean enabled) {
+        int storageAccount = storageAccount(c, account);
+        prefs(c).edit().putBoolean(key(KEY_ENABLED, storageAccount), enabled).commit();
+        if (DynamicVideoWallpaperHelper.isGlobalSharingEnabled(c)) {
+            for (int i = 0; i < org.telegram.messenger.UserConfig.MAX_ACCOUNT_COUNT; i++) {
+                if (org.telegram.messenger.UserConfig.getInstance(i).isClientActivated()) {
+                    DynamicVideoWallpaperHelper.notifyWallpaperChanged(i, 0L);
+                }
+            }
+        } else {
+            DynamicVideoWallpaperHelper.notifyWallpaperChanged(account, 0L);
+        }
+    }
+
+    public static int getMode(Context c, int account) {
+        return safeInt(prefs(c), key(KEY_MODE, storageAccount(c, account)), MODE_ORDER) == MODE_RANDOM ? MODE_RANDOM : MODE_ORDER;
+    }
+
+    public static void setMode(Context c, int account, int mode) {
+        prefs(c).edit().putInt(key(KEY_MODE, storageAccount(c, account)), mode == MODE_RANDOM ? MODE_RANDOM : MODE_ORDER).apply();
+        DynamicVideoWallpaperHelper.notifyWallpaperChanged(account, 0L);
+    }
+
+    public static void deleteVideos(Context c, int account, Collection<String> paths) {
+        account = storageAccount(c, account);
+        Set<String> set = new HashSet<>(paths == null ? new ArrayList<>() : paths);
+        ArrayList<String> keep = new ArrayList<>();
+        for (String path : readPaths(c, account)) {
+            if (set.contains(path)) {
+                try {
+                    if (DynamicVideoWallpaperHelper.isGlobalSharingEnabled(c)
+                            || !DynamicVideoWallpaperHelper.isLocalPathReferenced(c, path)) {
+                        new File(path).delete();
+                    }
+                } catch (Throwable e) {
+                    FileLog.e(e);
+                }
+            } else {
+                keep.add(path);
+            }
+        }
+        writePaths(c, account, keep);
+        if (keep.isEmpty()) {
+            setEnabled(c, account, false);
+        } else {
+            DynamicVideoWallpaperHelper.notifyWallpaperChanged(account, 0L);
+        }
+    }
+
+    public static void clear(Context c, int account) {
+        deleteVideos(c, account, readPaths(c, account));
+    }
+
+    public static FetchResult importLocalVideos(Context c, int account, List<Uri> sources) {
+        ArrayList<String> errors = new ArrayList<>();
+        int imported = 0;
+        int landscape = 0;
+        boolean global = DynamicVideoWallpaperHelper.isGlobalSharingEnabled(c);
+        ArrayList<String> oldGlobalPaths = global ? readPaths(c, GLOBAL_ACCOUNT) : new ArrayList<>();
+        int index = getVideoCount(c, account);
+        if (sources != null) {
+            for (Uri source : sources) {
+                File file = null;
+                try {
+                    file = copyLocal(c, source, index++);
+                    if (readOrientation(file.getAbsolutePath()) <= 0) {
+                        landscape++;
+                        file.delete();
+                    } else {
+                        addPath(c, account, file.getAbsolutePath());
+                        imported++;
+                    }
+                } catch (Throwable e) {
+                    if (file != null) {
+                        file.delete();
+                    }
+                    FileLog.e(e);
+                    errors.add("有一个视频无法播放");
+                }
+            }
+        }
+        if (imported > 0) {
+            DynamicVideoWallpaperHelper.clearGlobalResetRequired(c);
+            if (global) {
+                ArrayList<String> currentPaths = readPaths(c, GLOBAL_ACCOUNT);
+                ArrayList<String> newPaths = new ArrayList<>();
+                for (String path : currentPaths) {
+                    if (!oldGlobalPaths.contains(path)) {
+                        newPaths.add(path);
+                    }
+                }
+                for (String path : oldGlobalPaths) {
+                    try {
+                        new File(path).delete();
+                    } catch (Throwable e) {
+                        FileLog.e(e);
+                    }
+                }
+                writePaths(c, GLOBAL_ACCOUNT, newPaths);
+                DynamicVideoWallpaperHelper.clearGlobalSingle(c);
+            }
+            setEnabled(c, account, true);
+        }
+        return new FetchResult(imported, landscape, errors);
+    }
+
+    private static File copyLocal(Context c, Uri source, int index) throws Exception {
+        if (source == null) {
+            throw new Exception("未读取视频");
+        }
+        File dir = new File(c.getFilesDir(), DIRECTORY);
+        if (!dir.exists() && !dir.mkdirs()) {
+            throw new Exception("无法创建视频目录");
+        }
+        File file = new File(dir, "local_" + System.currentTimeMillis() + "_" + index + ".mp4");
+        long total = 0;
+        try (InputStream in = c.getContentResolver().openInputStream(source);
+             FileOutputStream out = new FileOutputStream(file)) {
+            if (in == null) {
+                throw new Exception("无法读取视频");
+            }
+            byte[] buffer = new byte[32768];
+            int count;
+            while ((count = in.read(buffer)) != -1) {
+                total += count;
+                if (total > 200L * 1024L * 1024L) {
+                    throw new Exception("视频超过 200 MB");
+                }
+                out.write(buffer, 0, count);
+            }
+            if (total <= 0 || readDuration(file.getAbsolutePath()) <= 0) {
+                throw new Exception("不是可播放视频");
+            }
+            return file;
+        } catch (Throwable e) {
+            // 调用方在 copyLocal 抛异常前无法取得 file 引用；必须在这里自行清理半成品。
+            if (file.exists() && !file.delete()) {
+                FileLog.e("Unable to delete invalid dynamic wallpaper video: " + file.getAbsolutePath());
+            }
+            throw e;
+        }
+    }
+
+    private static int readOrientation(String path) {
+        MediaMetadataRetriever retriever = new MediaMetadataRetriever();
+        try {
+            retriever.setDataSource(path);
+            int width = Integer.parseInt(retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH));
+            int height = Integer.parseInt(retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT));
+            String rotation = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_ROTATION);
+            int angle = rotation == null ? 0 : Integer.parseInt(rotation);
+            if (angle == 90 || angle == 270) {
+                int temp = width;
+                width = height;
+                height = temp;
+            }
+            return height > width ? 1 : 0;
+        } catch (Throwable e) {
+            return 0;
+        } finally {
+            try {
+                retriever.release();
+            } catch (Throwable ignore) {
+            }
+        }
+    }
+
+    private static long readDuration(String path) {
+        MediaMetadataRetriever retriever = new MediaMetadataRetriever();
+        try {
+            retriever.setDataSource(path);
+            return Long.parseLong(retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION));
+        } catch (Throwable e) {
+            return 0;
+        } finally {
+            try {
+                retriever.release();
+            } catch (Throwable ignore) {
+            }
+        }
+    }
+
+    private static ArrayList<String> readPaths(Context c, int account) {
+        ArrayList<String> result = new ArrayList<>();
+        SharedPreferences preferences = prefs(c);
+        String prefKey = key(KEY_VIDEOS, account);
+        String raw = safeString(preferences, prefKey, "");
+        try {
+            JSONArray array = new JSONArray(raw);
+            if (array.length() > 100) throw new IllegalArgumentException("Too many videos in local playlist");
+            for (int i = 0; i < array.length(); i++) {
+                Object item = array.opt(i);
+                String path = item instanceof String ? (String) item : "";
+                if (path.length() > 0 && !result.contains(path)) {
+                    result.add(path);
+                }
+            }
+        } catch (Throwable error) {
+            if (!raw.isEmpty()) {
+                FileLog.e("Ignoring malformed multi-wallpaper playlist", error);
+                preferences.edit().remove(prefKey).apply();
+            }
+        }
+        return result;
+    }
+
+    private static void addPath(Context c, int account, String path) {
+        account = storageAccount(c, account);
+        ArrayList<String> paths = readPaths(c, account);
+        if (!paths.contains(path)) {
+            paths.add(path);
+            writePaths(c, account, paths);
+        }
+    }
+
+    private static void writePaths(Context c, int account, List<String> paths) {
+        JSONArray array = new JSONArray();
+        for (String path : paths) {
+            array.put(path);
+        }
+        prefs(c).edit().putString(key(KEY_VIDEOS, account), array.toString()).commit();
+    }
+}

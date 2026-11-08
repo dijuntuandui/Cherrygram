@@ -121,6 +121,10 @@ import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.atomic.AtomicReference;
 
+// [Aiqiyi] 动态视频壁纸
+import tw.nekomimi.nekogram.helpers.DynamicVideoWallpaperHelper;
+import tw.nekomimi.nekogram.helpers.MultiDynamicVideoWallpaperHelper;
+
 public class ThemeActivity extends BaseFragment implements NotificationCenter.NotificationCenterDelegate {
 
     public final static int THEME_TYPE_BASIC = 0;
@@ -150,6 +154,15 @@ public class ThemeActivity extends BaseFragment implements NotificationCenter.No
     private int textSizeHeaderRow;
     @Keep
     private int textSizeRow;
+
+    // [Aiqiyi] 动态视频壁纸相关 row
+    private int globalDynamicWallpaperRow;
+    private int dynamicVideoWallpaperRow;
+    private int deleteDynamicVideoWallpaperRow;
+    private int multiDynamicVideoWallpaperRow;
+    private int multiDynamicModeRow;
+    private int multiDynamicViewRow;
+
     private int settingsRow;
     private int directShareRow;
     @Keep
@@ -580,6 +593,12 @@ public class ThemeActivity extends BaseFragment implements NotificationCenter.No
 
         textSizeRow = -1;
         backgroundRow = -1;
+        globalDynamicWallpaperRow = -1;
+        dynamicVideoWallpaperRow = -1;
+        deleteDynamicVideoWallpaperRow = -1;
+        multiDynamicVideoWallpaperRow = -1;
+        multiDynamicModeRow = -1;
+        multiDynamicViewRow = -1;
         changeUserColor = -1;
         settingsRow = -1;
         directShareRow = -1;
@@ -656,6 +675,13 @@ public class ThemeActivity extends BaseFragment implements NotificationCenter.No
             textSizeHeaderRow = rowCount++;
             textSizeRow = rowCount++;
             backgroundRow = rowCount++;
+            // [Aiqiyi] 动态视频壁纸五项，位置与黄昏一致（更改聊天壁纸下方）
+            globalDynamicWallpaperRow = rowCount++;
+            dynamicVideoWallpaperRow = rowCount++;
+            deleteDynamicVideoWallpaperRow = rowCount++;
+            multiDynamicVideoWallpaperRow = rowCount++;
+            multiDynamicModeRow = rowCount++;
+            multiDynamicViewRow = rowCount++;
             changeUserColor = rowCount++;
             newThemeInfoRow = rowCount++;
             themeHeaderRow = rowCount++;
@@ -1119,6 +1145,29 @@ public class ThemeActivity extends BaseFragment implements NotificationCenter.No
                 }
             } else if (position == backgroundRow) {
                 presentFragment(new WallpapersListActivity(WallpapersListActivity.TYPE_ALL));
+            } else if (position == globalDynamicWallpaperRow) {
+                // [Aiqiyi] 全设备共用开关
+                boolean en = DynamicVideoWallpaperHelper.isGlobalSharingEnabled(context);
+                DynamicVideoWallpaperHelper.setGlobalSharingEnabled(context, currentAccount, !en);
+                listAdapter.notifyItemChanged(position);
+            } else if (position == dynamicVideoWallpaperRow) {
+                // [Aiqiyi] 设置动态壁纸（选择本地视频）
+                chooseDynamicVideoWallpaper();
+            } else if (position == deleteDynamicVideoWallpaperRow) {
+                // [Aiqiyi] 删除动态壁纸
+                clearDynamicVideoWallpaper();
+            } else if (position == multiDynamicVideoWallpaperRow) {
+                // [Aiqiyi] 多选导入
+                chooseMultiDynamicVideoWallpaper();
+            } else if (position == multiDynamicModeRow) {
+                // [Aiqiyi] 切换播放模式
+                int m = MultiDynamicVideoWallpaperHelper.getMode(context, currentAccount);
+                MultiDynamicVideoWallpaperHelper.setMode(context, currentAccount, m == MultiDynamicVideoWallpaperHelper.MODE_ORDER ? MultiDynamicVideoWallpaperHelper.MODE_RANDOM : MultiDynamicVideoWallpaperHelper.MODE_ORDER);
+                DynamicVideoWallpaperHelper.notifyWallpaperChanged(currentAccount, 0);
+                listAdapter.notifyItemChanged(position);
+            } else if (position == multiDynamicViewRow) {
+                // [Aiqiyi] 查看已导入列表
+                showDynamicVideoWallpaperDialog(getString(R.string.AQY_MultiDynamicList), String.valueOf(MultiDynamicVideoWallpaperHelper.getVideoCount(context, currentAccount)));
             } else if (position == changeUserColor) {
                 presentFragment(new PeerColorActivity(0).setOnApplied(this));
             } else if (position == sendByEnterRow) {
@@ -2047,6 +2096,173 @@ public class ThemeActivity extends BaseFragment implements NotificationCenter.No
         }
     }
 
+    // ==================== [Aiqiyi] 动态视频壁纸 ====================
+
+    private static final int REQUEST_CODE_DYNAMIC_WALLPAPER = 5199;
+    private static final int REQUEST_CODE_MULTI_DYNAMIC_WALLPAPER = 5200;
+
+    private void chooseDynamicVideoWallpaper() {
+        try {
+            android.content.Intent intent = new android.content.Intent(android.content.Intent.ACTION_GET_CONTENT);
+            intent.setType("video/*");
+            intent.addCategory(android.content.Intent.CATEGORY_OPENABLE);
+            startActivityForResult(intent, REQUEST_CODE_DYNAMIC_WALLPAPER);
+        } catch (Exception e) {
+            FileLog.e(e);
+            showDynamicVideoWallpaperDialog(getString(R.string.AQY_SetDynamicWallpaper), getString(R.string.AQY_PickFailed));
+        }
+    }
+
+    private void chooseMultiDynamicVideoWallpaper() {
+        try {
+            android.content.Intent intent = new android.content.Intent(android.content.Intent.ACTION_GET_CONTENT);
+            intent.setType("video/*");
+            intent.putExtra(android.content.Intent.EXTRA_ALLOW_MULTIPLE, true);
+            intent.addCategory(android.content.Intent.CATEGORY_OPENABLE);
+            startActivityForResult(intent, REQUEST_CODE_MULTI_DYNAMIC_WALLPAPER);
+        } catch (Exception e) {
+            FileLog.e(e);
+            showDynamicVideoWallpaperDialog(getString(R.string.AQY_MultiDynamicWallpaper), getString(R.string.AQY_PickFailed));
+        }
+    }
+
+    private void saveDynamicVideoWallpaper(android.net.Uri uri) {
+        if (uri == null) {
+            return;
+        }
+        final AlertDialog progress = new AlertDialog(getParentActivity(), AlertDialog.ALERT_TYPE_SPINNER);
+        progress.setCanCancel(false);
+        progress.show();
+        new Thread(() -> {
+            String path = null;
+            try {
+                path = DynamicVideoWallpaperHelper.importVideo(getApplicationContext(), uri);
+            } catch (Exception e) {
+                FileLog.e(e);
+            }
+            final String finalPath = path;
+            AndroidUtilities.runOnUIThread(() -> {
+                try {
+                    progress.dismiss();
+                } catch (Exception ignore) {
+                }
+                if (finalPath != null) {
+                    DynamicVideoWallpaperHelper.saveVideo(getApplicationContext(), currentAccount, 0, finalPath);
+                    DynamicVideoWallpaperHelper.notifyWallpaperChanged(currentAccount, 0);
+                    if (listAdapter != null) {
+                        listAdapter.notifyDataSetChanged();
+                    }
+                } else {
+                    showDynamicVideoWallpaperDialog(getString(R.string.AQY_SetDynamicWallpaper), getString(R.string.AQY_ImportFailed));
+                }
+            });
+        }, "aqy-import-video").start();
+    }
+
+    private void importMultiDynamicVideos(android.content.Intent data) {
+        if (data == null) {
+            return;
+        }
+        final ArrayList<android.net.Uri> uris = new ArrayList<>();
+        android.content.ClipData clip = data.getClipData();
+        if (clip != null) {
+            for (int i = 0; i < clip.getItemCount(); i++) {
+                android.net.Uri u = clip.getItemAt(i).getUri();
+                if (u != null) {
+                    uris.add(u);
+                }
+            }
+        } else if (data.getData() != null) {
+            uris.add(data.getData());
+        }
+        if (uris.isEmpty()) {
+            return;
+        }
+        final AlertDialog progress = new AlertDialog(getParentActivity(), AlertDialog.ALERT_TYPE_SPINNER);
+        progress.setCanCancel(false);
+        progress.show();
+        new Thread(() -> {
+            int count = 0;
+            for (android.net.Uri u : uris) {
+                try {
+                    DynamicVideoWallpaperHelper.importVideo(getApplicationContext(), u);
+                    count++;
+                } catch (Exception e) {
+                    FileLog.e(e);
+                }
+            }
+            final int okCount = count;
+            AndroidUtilities.runOnUIThread(() -> {
+                try {
+                    progress.dismiss();
+                } catch (Exception ignore) {
+                }
+                if (okCount > 0) {
+                    MultiDynamicVideoWallpaperHelper.setEnabled(getApplicationContext(), currentAccount, true);
+                    DynamicVideoWallpaperHelper.notifyWallpaperChanged(currentAccount, 0);
+                    if (listAdapter != null) {
+                        listAdapter.notifyDataSetChanged();
+                    }
+                }
+                showDynamicVideoWallpaperDialog(getString(R.string.AQY_MultiDynamicWallpaper), getString(R.string.AQY_ImportedCount) + " " + okCount);
+            });
+        }, "aqy-import-videos").start();
+    }
+
+    private void clearDynamicVideoWallpaper() {
+        final boolean hasSingle = DynamicVideoWallpaperHelper.getVideoPath(getApplicationContext(), currentAccount, 0) != null;
+        final boolean hasMulti = MultiDynamicVideoWallpaperHelper.isEnabled(getApplicationContext(), currentAccount);
+        if (!hasSingle && !hasMulti) {
+            showDynamicVideoWallpaperDialog(getString(R.string.AQY_DeleteDynamicWallpaper), getString(R.string.AQY_NoneToDelete));
+            return;
+        }
+        confirmClearDynamicVideoWallpaper();
+    }
+
+    private void confirmClearDynamicVideoWallpaper() {
+        AlertDialog dlg = new AlertDialog(getParentActivity(), 3);
+        dlg.setTitle(getString(R.string.AQY_DeleteDynamicWallpaper));
+        dlg.setMessage(getString(R.string.AQY_DeleteDynamicWallpaperConfirm));
+        dlg.setPositiveButton(getString(R.string.Delete), (d, w) -> {
+            DynamicVideoWallpaperHelper.clearVideo(getApplicationContext(), currentAccount, 0);
+            MultiDynamicVideoWallpaperHelper.clear(getApplicationContext(), currentAccount);
+            DynamicVideoWallpaperHelper.notifyWallpaperChanged(currentAccount, 0);
+            if (listAdapter != null) {
+                listAdapter.notifyDataSetChanged();
+            }
+        });
+        dlg.setNegativeButton(getString(R.string.Cancel), null);
+        dlg.show();
+    }
+
+    private void showDynamicVideoWallpaperDialog(String title, String message) {
+        AlertDialog dlg = new AlertDialog(getParentActivity(), 3);
+        dlg.setTitle(title);
+        dlg.setMessage(message);
+        dlg.setPositiveButton(getString(R.string.OK), null);
+        dlg.show();
+    }
+
+    @Override
+    public void onActivityResultFragment(int reqCode, int resultCode, android.content.Intent data) {
+        if (reqCode == REQUEST_CODE_DYNAMIC_WALLPAPER) {
+            if (resultCode == android.app.Activity.RESULT_OK && data != null && data.getData() != null) {
+                saveDynamicVideoWallpaper(data.getData());
+            }
+            return;
+        }
+        if (reqCode == REQUEST_CODE_MULTI_DYNAMIC_WALLPAPER) {
+            if (resultCode == android.app.Activity.RESULT_OK && data != null) {
+                importMultiDynamicVideos(data);
+            }
+            return;
+        }
+        super.onActivityResultFragment(reqCode, resultCode, data);
+    }
+
+    // ==================== [Aiqiyi] 动态视频壁纸 END ====================
+
+
     private class ListAdapter extends RecyclerListView.SelectionAdapter {
         private final static int TYPE_TEXT_SETTING = 1;
         private final static int TYPE_TEXT_INFO_PRIVACY = 2;
@@ -2666,6 +2882,38 @@ public class ThemeActivity extends BaseFragment implements NotificationCenter.No
                         cell.setSubtitle(null);
                         cell.setColors(Theme.key_windowBackgroundWhiteBlueText4, Theme.key_windowBackgroundWhiteBlueText4);
                         cell.setTextAndIcon(getString(R.string.ChangeChatBackground), R.drawable.msg_background, changeUserColor >= 0);
+                    } else if (position == globalDynamicWallpaperRow) {
+                        // [Aiqiyi] 全设备共用
+                        cell.setSubtitle(null);
+                        cell.setColors(Theme.key_dialogIcon, Theme.key_windowBackgroundWhiteBlackText);
+                        cell.setTextAndValueAndIcon(getString(R.string.AQY_DynamicWallpaperGlobal), DynamicVideoWallpaperHelper.isGlobalSharingEnabled(mContext) ? getString(R.string.AQY_On) : getString(R.string.AQY_Off), R.drawable.msg_language, true);
+                    } else if (position == dynamicVideoWallpaperRow) {
+                        // [Aiqiyi] 设置动态壁纸
+                        cell.setSubtitle(null);
+                        cell.setColors(Theme.key_windowBackgroundWhiteBlueText4, Theme.key_windowBackgroundWhiteBlueText4);
+                        cell.setTextAndIcon(getString(R.string.AQY_SetDynamicWallpaper), R.drawable.msg_gallery, true);
+                    } else if (position == deleteDynamicVideoWallpaperRow) {
+                        // [Aiqiyi] 删除动态壁纸
+                        cell.setSubtitle(null);
+                        cell.setColors(Theme.key_text_RedBold, Theme.key_text_RedRegular);
+                        cell.setTextAndIcon(getString(R.string.AQY_DeleteDynamicWallpaper), R.drawable.msg_delete, true);
+                    } else if (position == multiDynamicVideoWallpaperRow) {
+                        // [Aiqiyi] 多选导入
+                        cell.setSubtitle(null);
+                        cell.setColors(Theme.key_windowBackgroundWhiteBlueText4, Theme.key_windowBackgroundWhiteBlueText4);
+                        cell.setTextAndIcon(getString(R.string.AQY_MultiDynamicWallpaper), R.drawable.msg_gallery, true);
+                    } else if (position == multiDynamicModeRow) {
+                        // [Aiqiyi] 关闭多轮循环
+                        cell.setSubtitle(null);
+                        cell.setColors(Theme.key_dialogIcon, Theme.key_windowBackgroundWhiteBlackText);
+                        int mode = MultiDynamicVideoWallpaperHelper.getMode(mContext, currentAccount);
+                        cell.setTextAndValueAndIcon(getString(R.string.AQY_MultiDynamicMode), mode == MultiDynamicVideoWallpaperHelper.MODE_ORDER ? getString(R.string.AQY_ModeOrder) : getString(R.string.AQY_ModeRandom), R.drawable.msg_media, true);
+                    } else if (position == multiDynamicViewRow) {
+                        // [Aiqiyi] 查看内置
+                        cell.setSubtitle(null);
+                        cell.setColors(Theme.key_dialogIcon, Theme.key_windowBackgroundWhiteBlackText);
+                        int cnt = MultiDynamicVideoWallpaperHelper.getVideoCount(mContext, currentAccount);
+                        cell.setTextAndValueAndIcon(getString(R.string.AQY_MultiDynamicList), String.valueOf(cnt), R.drawable.msg_media, cnt > 0);
                     } else if (position == editThemeRow) {
                         cell.setSubtitle(null);
                         cell.setColors(Theme.key_windowBackgroundWhiteBlueText4, Theme.key_windowBackgroundWhiteBlueText4);
@@ -2762,7 +3010,10 @@ public class ThemeActivity extends BaseFragment implements NotificationCenter.No
             } else if (position == bubbleRadiusRow) {
                 return TYPE_BUBBLE_RADIUS;
             } else if (position == backgroundRow || position == editThemeRow || position == createNewThemeRow ||
-                        position == liteModeRow || position == stickersRow) {
+                        position == liteModeRow || position == stickersRow ||
+                        position == globalDynamicWallpaperRow || position == dynamicVideoWallpaperRow ||
+                        position == deleteDynamicVideoWallpaperRow || position == multiDynamicVideoWallpaperRow ||
+                        position == multiDynamicModeRow || position == multiDynamicViewRow) {
                 return TYPE_TEXT_PREFERENCE;
             } else if (position == swipeGestureRow) {
                 return TYPE_SWIPE_GESTURE;
