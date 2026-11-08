@@ -519,6 +519,9 @@ public class ChatActivity extends BaseFragment implements
     private BusinessLinksEmptyView businessLinksEmptyView;
     private ViewPositionWatcher viewPositionWatcher;
     public ChatActivityFragmentView contentView;
+
+    // [Aiqiyi] 动态视频壁纸播放器
+    private tw.nekomimi.nekogram.helpers.DynamicVideoWallpaperHelper.Player aqyWallpaperPlayer;
     private ChatBigEmptyView bigEmptyView;
     private ArrayList<View> actionModeViews = new ArrayList<>();
     public ChatAvatarContainer avatarContainer;
@@ -3600,6 +3603,7 @@ public class ChatActivity extends BaseFragment implements
     @Override
     public void onFragmentDestroy() {
         super.onFragmentDestroy();
+        releaseAqyWallpaper();
         if (messageMetricsView != null) {
             messageMetricsView.finish();
         }
@@ -45590,11 +45594,40 @@ public class ChatActivity extends BaseFragment implements
             return;
         }
         if (themeDelegate.backgroundDrawable != null && contentView.getBackgroundImage() != null) {
+            attachAqyWallpaper();
             return;
         }
         if (contentView.getBackgroundImage() == null || AndroidUtilities.isTablet()) {
             final Drawable drawable = Theme.getCachedWallpaper();
             contentView.setBackgroundImage(drawable, Theme.isWallpaperMotion());
+        }
+        attachAqyWallpaper();
+    }
+
+    /** [Aiqiyi] 将动态视频壁纸挂到聊天根容器，失败时不干扰正常背景。 */
+    private void attachAqyWallpaper() {
+        if (aqyWallpaperPlayer != null || contentView == null || currentChat == null) {
+            return;
+        }
+        try {
+            // contentAnchor 传 null，走 SizeNotifierFrameLayout 分支，确保视频插在 backgroundView 之后而不是被它盖住。
+            aqyWallpaperPlayer = tw.nekomimi.nekogram.helpers.DynamicVideoWallpaperHelper.attach(
+                    contentView, null, getContext(), currentAccount, getDialogId());
+        } catch (Throwable t) {
+            org.telegram.messenger.FileLog.e("AQY attach wallpaper failed", t);
+            aqyWallpaperPlayer = null;
+        }
+    }
+
+    /** [Aiqiyi] 释放动态视频壁纸播放器。 */
+    private void releaseAqyWallpaper() {
+        if (aqyWallpaperPlayer != null) {
+            try {
+                aqyWallpaperPlayer.release();
+            } catch (Throwable t) {
+                org.telegram.messenger.FileLog.e("AQY release wallpaper failed", t);
+            }
+            aqyWallpaperPlayer = null;
         }
     }
 
