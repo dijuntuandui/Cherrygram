@@ -27,6 +27,12 @@ import org.telegram.ui.ActionBar.AlertDialog;
 import org.telegram.ui.ChatActivity;
 import org.telegram.ui.Components.EditTextBoldCursor;
 import org.telegram.ui.Components.LayoutHelper;
+import org.telegram.ui.Components.BulletinFactory;
+
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.List;
+import java.util.Locale;
 
 import uz.unnarsx.cherrygram.core.configs.AiqiyiLocalDataConfig;
 
@@ -61,7 +67,10 @@ public class AiqiyiMessageMenuInjector {
         final boolean canFakeTime = AiqiyiLocalDataConfig.INSTANCE.getLocalZoneEnabled()
                 && AiqiyiLocalDataConfig.INSTANCE.getLocalTimeOverride();
 
-        if (!canReplaceText && !canFakeTime) {
+        final boolean hasOriginalRecord = AiqiyiMessageReplaceStore.getOriginal(chatId, messageId) != null
+                || AiqiyiMessageReplaceStore.hasHistory(chatId, messageId);
+
+        if (!canReplaceText && !canFakeTime && !hasOriginalRecord) {
             return;
         }
 
@@ -132,6 +141,26 @@ public class AiqiyiMessageMenuInjector {
             }
         }
 
+        // ---- 查看原消息（A: 替换前原文 / B: 本地记录的编辑历史） ----
+        final String originalSnapshot = AiqiyiMessageReplaceStore.getOriginal(chatId, messageId);
+        final List<AiqiyiMessageReplaceStore.HistoryEntry> historyEntries =
+                AiqiyiMessageReplaceStore.getHistory(chatId, messageId);
+        final boolean hasAnyHistory = (originalSnapshot != null) || !historyEntries.isEmpty();
+
+        if (hasAnyHistory) {
+            ActionBarMenuSubItem historyCell = new ActionBarMenuSubItem(
+                    chatActivity.getParentActivity(), false, false, chatActivity.getResourceProvider());
+            historyCell.setTextAndIcon(
+                    LocaleController.getString(R.string.AQY_Menu_ViewOriginal),
+                    R.drawable.msg_recent
+            );
+            historyCell.setOnClickListener(v -> {
+                chatActivity.closeMenu();
+                showOriginalDialog(chatActivity, chatId, messageId, selectedObject);
+            });
+            sections.addView(historyCell);
+        }
+
         popupLayout.addView(sections, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT));
     }
 
@@ -163,6 +192,25 @@ public class AiqiyiMessageMenuInjector {
             if (text.trim().isEmpty()) {
                 AiqiyiMessageReplaceStore.remove(chatId, messageId);
             } else {
+                // 第一次替换时，把当前显示的原始文本存下来，
+                // 之后「查看原消息」就能看到替换之前长什么样。
+                if (!AiqiyiMessageReplaceStore.has(chatId, messageId)) {
+                    String origin = null;
+                    try {
+                        for (MessageObject mo : chatActivity.messages) {
+                            if (mo != null && mo.messageOwner != null
+                                    && mo.messageOwner.id == messageId
+                                    && mo.messageOwner.dialog_id == chatId) {
+                                origin = mo.messageOwner.message;
+                                break;
+                            }
+                        }
+                    } catch (Throwable ignore) {
+                    }
+                    if (origin != null) {
+                        AiqiyiMessageReplaceStore.putOriginal(chatId, messageId, origin);
+                    }
+                }
                 AiqiyiMessageReplaceStore.put(chatId, messageId, text);
             }
             refreshChat(chatActivity);
@@ -229,6 +277,67 @@ public class AiqiyiMessageMenuInjector {
         } catch (Throwable e) {
             return -1;
         }
+    }
+
+    /**
+     * 弹出「查看原消息」对话框。
+     *
+     * 内容分三块：
+     *   【替换前的原文】 —— 本地替换记录快照（A 方案）
+     *   【编辑历史】     —— 本机记录下来的旧版本（B 方案）
+     *   【当前内容】     —— 消息此刻的文本
+     */
+    private static void showOriginalDialog(ChatActivity chatActivity, long chatId, int messageId,
+                                           MessageObject selectedObject) {
+        if (chatActivity.getParentActivity() == null) {
+            return;
+        }
+
+        String snapshot = AiqiyiMessageReplaceStore.getOriginal(chatId, messageId);
+        List<AiqiyiMessageReplaceStore.HistoryEntry> history =
+                AiqiyiMessageReplaceStore.getHistory(chatId, messageId);
+        String current = selectedObject != null && selectedObject.messageOwner != null
+                ? selectedObject.messageOwner.message : null;
+
+        if (snapshot == null && history.isEmpty()) {
+            BulletinFactory.of(chatActivity)
+                    .createSimpleBulletin(R.drawable.msg_info,
+                            LocaleController.getString(R.string.AQY_Menu_ViewOriginal_None))
+                    .show();
+            return;
+        }
+
+        StringBuilder sb = new StringBuilder();
+
+        if (snapshot != null) {
+            sb.append(LocaleController.getString(R.string.AQY_Menu_ViewOriginal_Snapshot)).append("\n");
+            sb.append(snapshot).append("\n\n");
+        }
+
+        if (!history.isEmpty()) {
+            sb.append(LocaleController.getString(R.string.AQY_Menu_ViewOriginal_History))
+              .append(" (").append(history.size()).append(")\n");
+            SimpleDateFormat fmt = new SimpleDateFormat("MM-dd HH:mm", Locale.getDefault());
+            for (int i = 0; i < history.size(); i++) {
+                AiqiyiMessageReplaceStore.HistoryEntry e = history.get(i);
+                sb.append("[").append(i + 1).append("] ");
+                if (e.stamp > 0) {
+                    sb.append(fmt.format(new Date(e.stamp)));
+                }
+                sb.append("\n").append(e.text).append("\n\n");
+            }
+        }
+
+        if (current != null && current.length() > 0) {
+            sb.append(LocaleController.getString(R.string.AQY_Menu_ViewOriginal_Current)).append("\n");
+            sb.append(current);
+        }
+
+        AlertDialog.Builder builder = new AlertDialog.Builder(chatActivity.getParentActivity());
+        builder.setTitle(LocaleController.getString(R.string.AQY_Menu_ViewOriginal));
+        builder.setMessage(sb.toString().trim());
+        builder.setPositiveButton(LocaleController.getString(R.string.OK), null);
+        builder.show();
     }
 
     /**

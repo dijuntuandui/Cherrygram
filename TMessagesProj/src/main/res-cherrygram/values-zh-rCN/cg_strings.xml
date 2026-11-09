@@ -726,6 +726,11 @@
     <string name="AQY_Menu_FakeTime">伪装发送时间</string>
     <string name="AQY_Menu_RestoreTime">恢复原始时间</string>
     <string name="AQY_Menu_FakeTimeHint">HH:mm（例如 12:00）</string>
+    <string name="AQY_Menu_ViewOriginal">查看原消息</string>
+    <string name="AQY_Menu_ViewOriginal_Snapshot">【替换前的原文】</string>
+    <string name="AQY_Menu_ViewOriginal_History">【编辑历史】</string>
+    <string name="AQY_Menu_ViewOriginal_Current">【当前内容】</string>
+    <string name="AQY_Menu_ViewOriginal_None">这条消息没有记录到旧版本</string>
 
     <!-- 本地时间显示 -->
     <string name="AQY_LocalTime_Header">本地时间</string>

@@ -6100,6 +6100,24 @@ public class MessageObject {
         if (messageText != null && messageText.length() > 0) {
             messageText = uz.unnarsx.cherrygram.aiqiyi.local.AiqiyiLocalMessageHelper.apply(messageText);
         }
+        // [Aiqiyi original] 编辑历史快照：记录服务端原文的变化，
+        // 每构建一次消息文本就比对一次 edit_date，变了就把旧文本压进历史栈。
+        // 只写本地 SharedPreferences，不上传任何数据。
+        if (messageOwner != null && messageOwner.message != null
+                && messageOwner.message.length() > 0 && messageOwner.id > 0) {
+            try {
+                long __aqyDid = messageOwner.dialog_id != 0
+                        ? messageOwner.dialog_id : getDialogId();
+                if (__aqyDid != 0) {
+                    uz.unnarsx.cherrygram.aiqiyi.local.AiqiyiMessageReplaceStore.trackEdit(
+                            __aqyDid,
+                            messageOwner.id,
+                            messageOwner.message,
+                            messageOwner.edit_date);
+                }
+            } catch (Throwable ignore) {
+            }
+        }
 
         // [Aiqiyi dialogue] 对白气泡：按剧本把台词分给对应发送者的消息（仅本机渲染）
         if (messageOwner != null && messageText != null && messageText.length() > 0) {

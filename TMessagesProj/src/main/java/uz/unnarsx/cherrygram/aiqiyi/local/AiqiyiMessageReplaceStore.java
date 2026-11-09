@@ -21,6 +21,12 @@ public class AiqiyiMessageReplaceStore {
     private static final String PREFIX = "AQY_MR_";
     /** 单条时间伪装：value = 当天秒数（0~86399），显示为 HH:mm */
     private static final String T_PREFIX = "AQY_MT_";
+    /** 替换前原文快照：value = 这条消息被替换之前的原始文字 */
+    private static final String O_PREFIX = "AQY_MO_";
+    /** 编辑历史栈：value = JSON 数组 [{t:text,e:editDate,s:stamp},...]，按时间升序 */
+    private static final String H_PREFIX = "AQY_MH_";
+    /** 最后已知编辑戳：value = edit_date（或 0 表示未编辑），用于判断是否需要压栈 */
+    private static final String E_PREFIX = "AQY_ME_";
     private static SharedPreferences sp;
 
     private static SharedPreferences sp() {
@@ -193,6 +199,167 @@ public class AiqiyiMessageReplaceStore {
             ed.apply();
         } catch (Throwable ignore) {
         }
+    }
+
+    // ======================================================================
+    // 替换前原文快照（A 方案：查看我替换之前是什么）
+    // ======================================================================
+
+    private static String okey(long chatId, int messageId) {
+        return O_PREFIX + chatId + "_" + messageId;
+    }
+
+    /**
+     * 记录「替换前的原文」。已存在则不覆盖，保证永远是最初那份。
+     */
+    public static void putOriginal(long chatId, int messageId, String original) {
+        if (original == null) {
+            return;
+        }
+        String k = okey(chatId, messageId);
+        if (sp().contains(k)) {
+            return; // 已存过最初原文，不覆盖
+        }
+        sp().edit().putString(k, original).apply();
+    }
+
+    /**
+     * 取替换前的原文；没存过返回 null。
+     */
+    public static String getOriginal(long chatId, int messageId) {
+        try {
+            return sp().getString(okey(chatId, messageId), null);
+        } catch (Throwable e) {
+            return null;
+        }
+    }
+
+    public static void removeOriginal(long chatId, int messageId) {
+        sp().edit().remove(okey(chatId, messageId)).apply();
+    }
+
+    // ======================================================================
+    // 编辑历史快照（B 方案：本地记录每次文本变化前的版本）
+    // ======================================================================
+
+    /** 一条历史版本 */
+    public static class HistoryEntry {
+        public final String text;
+        public final int editDate;
+        public final long stamp;
+
+        public HistoryEntry(String text, int editDate, long stamp) {
+            this.text = text;
+            this.editDate = editDate;
+            this.stamp = stamp;
+        }
+    }
+
+    private static String hkey(long chatId, int messageId) {
+        return H_PREFIX + chatId + "_" + messageId;
+    }
+
+    private static String ekey(long chatId, int messageId) {
+        return E_PREFIX + chatId + "_" + messageId;
+    }
+
+    /**
+     * 每当消息文本可能变化时调用。
+     * 逻辑：拿当前 edit_date 和上次记录的比对，
+     *   - 没变 → 什么都不做
+     *   - 变了 → 把「上次的文本」压进历史栈，再更新基线
+     *
+     * 注意：只能记录「本机装上这个版本之后」发生的编辑，
+     * 服务端不提供历史版本接口，翻不出更早的内容。
+     */
+    public static void trackEdit(long chatId, int messageId, String currentText, int editDate) {
+        if (currentText == null) {
+            return;
+        }
+        try {
+            String ek = ekey(chatId, messageId);
+            String hk = hkey(chatId, messageId);
+            boolean hasBaseline = sp().contains(ek);
+            int lastEdit = sp().getInt(ek, 0);
+            if (!hasBaseline) {
+                // 第一次见到这条消息：只记基线，不压栈
+                sp().edit()
+                    .putInt(ek, editDate)
+                    .putString(hk + "_last", currentText)
+                    .apply();
+                return;
+            }
+            if (lastEdit == editDate) {
+                return; // 没编辑过
+            }
+            // 发生了编辑：把上一次的文本压进历史
+            String lastText = sp().getString(hk + "_last", null);
+            java.util.List<HistoryEntry> list = getHistory(chatId, messageId);
+            if (lastText != null && !lastText.equals(currentText)) {
+                list.add(new HistoryEntry(lastText, lastEdit, System.currentTimeMillis()));
+                // 上限 30 条，防无限增长
+                while (list.size() > 30) {
+                    list.remove(0);
+                }
+                saveHistory(chatId, messageId, list);
+            }
+            sp().edit()
+                .putInt(ek, editDate)
+                .putString(hk + "_last", currentText)
+                .apply();
+        } catch (Throwable ignore) {
+        }
+    }
+
+    /**
+     * 取编辑历史（时间升序，最早的在前）。
+     */
+    public static java.util.List<HistoryEntry> getHistory(long chatId, int messageId) {
+        java.util.List<HistoryEntry> out = new java.util.ArrayList<>();
+        try {
+            String raw = sp().getString(hkey(chatId, messageId), null);
+            if (raw == null || raw.isEmpty()) {
+                return out;
+            }
+            org.json.JSONArray arr = new org.json.JSONArray(raw);
+            for (int i = 0; i < arr.length(); i++) {
+                org.json.JSONObject o = arr.getJSONObject(i);
+                out.add(new HistoryEntry(
+                        o.optString("t", ""),
+                        o.optInt("e", 0),
+                        o.optLong("s", 0)));
+            }
+        } catch (Throwable ignore) {
+        }
+        return out;
+    }
+
+    private static void saveHistory(long chatId, int messageId, java.util.List<HistoryEntry> list) {
+        try {
+            org.json.JSONArray arr = new org.json.JSONArray();
+            for (HistoryEntry e : list) {
+                org.json.JSONObject o = new org.json.JSONObject();
+                o.put("t", e.text);
+                o.put("e", e.editDate);
+                o.put("s", e.stamp);
+                arr.put(o);
+            }
+            sp().edit().putString(hkey(chatId, messageId), arr.toString()).apply();
+        } catch (Throwable ignore) {
+        }
+    }
+
+    /** 这条消息有没有记到过历史版本。 */
+    public static boolean hasHistory(long chatId, int messageId) {
+        return !getHistory(chatId, messageId).isEmpty();
+    }
+
+    public static void removeHistory(long chatId, int messageId) {
+        sp().edit()
+            .remove(hkey(chatId, messageId))
+            .remove(hkey(chatId, messageId) + "_last")
+            .remove(ekey(chatId, messageId))
+            .apply();
     }
 
     // ======================================================================

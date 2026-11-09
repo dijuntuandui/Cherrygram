@@ -801,6 +801,11 @@
     <string name="AQY_Menu_FakeTime">Fake sent time</string>
     <string name="AQY_Menu_RestoreTime">Restore original time</string>
     <string name="AQY_Menu_FakeTimeHint">HH:mm (e.g. 12:00)</string>
+    <string name="AQY_Menu_ViewOriginal">View original message</string>
+    <string name="AQY_Menu_ViewOriginal_Snapshot">[Before replacement]</string>
+    <string name="AQY_Menu_ViewOriginal_History">[Edit history]</string>
+    <string name="AQY_Menu_ViewOriginal_Current">[Current content]</string>
+    <string name="AQY_Menu_ViewOriginal_None">No older version recorded for this message</string>
 
     <!-- Local message time -->
     <string name="AQY_LocalTime_Header">Local Time</string>
