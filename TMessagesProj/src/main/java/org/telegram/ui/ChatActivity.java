@@ -45616,15 +45616,35 @@ public class ChatActivity extends BaseFragment implements
             return;
         }
         try {
-            /* [Aiqiyi] 全屏背景：把视频提升到导航容器（ActionBarLayout）层并插在 contentView 之前，
-               使聊天内容与顶部栏都浮在视频上，而不是视频只贴在消息列表里、顶部栏单独一块。
-               直接父级不是导航容器时，回退为原来在 contentView 内挂载。 */
-            final android.view.ViewParent parentOfContent = contentView.getParent();
-            final boolean canHostFullscreen = parentOfContent instanceof android.view.ViewGroup
-                    && !(parentOfContent instanceof org.telegram.ui.Components.SizeNotifierFrameLayout);
-            if (canHostFullscreen) {
+            /* [Aiqiyi] 全屏背景：把视频挂到能容纳整个聊天页（含顶部栏）的 ViewGroup 上并插在
+               contentView 之前，使聊天内容与顶部栏都浮在视频上。
+               contentView 的直接父级就是 SizeNotifierFrameLayout，只往上一层只是换了个位置，
+               真正的全屏容器在更上面，因此向上逐层找，跳过 SizeNotifierFrameLayout。 */
+            android.view.ViewGroup host = null;
+            android.view.ViewParent p = contentView.getParent();
+            int hops = 0;
+            while (p != null && hops < 6) {
+                if (!(p instanceof android.view.ViewGroup)) {
+                    p = p.getParent();
+                    hops++;
+                    continue;
+                }
+                final android.view.ViewGroup vg = (android.view.ViewGroup) p;
+                if (vg instanceof org.telegram.ui.ActionBar.ActionBarLayout) {
+                    host = vg;
+                    break;
+                }
+                if (!(vg instanceof org.telegram.ui.Components.SizeNotifierFrameLayout)) {
+                    host = vg;
+                    break;
+                }
+                p = vg.getParent();
+                hops++;
+            }
+            org.telegram.messenger.FileLog.d("AQY host=" + (host == null ? "null" : host.getClass().getSimpleName()) + " hops=" + hops);
+            if (host != null) {
                 aqyWallpaperPlayer = tw.nekomimi.nekogram.helpers.DynamicVideoWallpaperHelper.attach(
-                        (android.view.ViewGroup) parentOfContent, contentView, getContext(), currentAccount, getDialogId());
+                        host, contentView, getContext(), currentAccount, getDialogId());
             } else {
                 aqyWallpaperPlayer = tw.nekomimi.nekogram.helpers.DynamicVideoWallpaperHelper.attach(
                         contentView, null, getContext(), currentAccount, getDialogId());
