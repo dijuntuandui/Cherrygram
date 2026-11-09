@@ -1,12 +1,16 @@
 
-// [Aiqiyi] 国内镜像优先，绕开 gradlePluginPortal -> github.com/JetBrains/*/releases 的 504
+// [Aiqiyi] 官方源优先，阿里云镜像降级为兜底。
+// 早期配置是镜像优先以绕开 gradlePluginPortal -> github.com/JetBrains/*/releases 的 504，
+// 但 GitHub Actions runner 在海外，走国内镜像反而经常拿到 502（.pom 拉不到），
+// 且 Gradle 的规则是「一个仓库连接出错就整体标记不可用」，会连锁掉 50+ 依赖。
+// 改成官方源在前、镜像在后：海外直连最快，官方源真的挂了才落到镜像。
 pluginManagement {
     repositories {
-        maven { url 'https://maven.aliyun.com/repository/gradle-plugin' }
-        maven { url 'https://maven.aliyun.com/repository/public' }
         gradlePluginPortal()
         google()
         mavenCentral()
+        maven { url 'https://maven.aliyun.com/repository/gradle-plugin' }
+        maven { url 'https://maven.aliyun.com/repository/public' }
     }
 }
 
@@ -21,9 +25,10 @@ project(':jlatexmath').projectDir = new File(rootDir, 'TMessagesProj/lib/jlatexm
 
 dependencyResolutionManagement {
     repositories {
-        maven { url 'https://maven.aliyun.com/repository/public' }
         google()
         mavenCentral()
+        // [Aiqiyi] 镜像放最后兜底，避免海外 runner 命中 502 后整仓被禁用。
+        maven { url 'https://maven.aliyun.com/repository/public' }
     }
 }
 
