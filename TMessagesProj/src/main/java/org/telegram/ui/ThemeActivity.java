@@ -2273,22 +2273,6 @@ public class ThemeActivity extends BaseFragment implements NotificationCenter.No
         presentFragment(new uz.unnarsx.cherrygram.aiqiyi.wallpaper.AiqiyiDynamicWallpaperLibraryActivity(true));
     }
 
-    private void confirmClearDynamicVideoWallpaper() {
-        AlertDialog dlg = new AlertDialog(getParentActivity(), AlertDialog.ALERT_TYPE_MESSAGE);
-        dlg.setTitle(getString(R.string.AQY_DeleteDynamicWallpaper));
-        dlg.setMessage(getString(R.string.AQY_DeleteDynamicWallpaperConfirm));
-        dlg.setPositiveButton(getString(R.string.Delete), (d, w) -> {
-            DynamicVideoWallpaperHelper.clearVideo(ApplicationLoader.applicationContext, currentAccount, 0);
-            MultiDynamicVideoWallpaperHelper.clear(ApplicationLoader.applicationContext, currentAccount);
-            DynamicVideoWallpaperHelper.notifyWallpaperChanged(currentAccount, 0);
-            if (listAdapter != null) {
-                listAdapter.notifyDataSetChanged();
-            }
-        });
-        dlg.setNegativeButton(getString(R.string.Cancel), null);
-        dlg.show();
-    }
-
     private void showDynamicVideoWallpaperDialog(String title, String message) {
         AlertDialog dlg = new AlertDialog(getParentActivity(), AlertDialog.ALERT_TYPE_MESSAGE);
         dlg.setTitle(title);

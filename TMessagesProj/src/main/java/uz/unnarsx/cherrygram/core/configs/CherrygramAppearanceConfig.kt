@@ -91,8 +91,6 @@ object CherrygramAppearanceConfig {
         return added
     }
 
-    /** 爱琦艺插件 - 整点报时 */
-    var aiqiyiHourlyChime by sharedPreferences.boolean("AP_AiqiyiHourlyChime", false)
     /** 爱琦艺插件 - 消息书签 */
     var aiqiyiBookmarks by sharedPreferences.boolean("AP_AiqiyiBookmarks", true)
     /** 爱琦艺插件 - 屏蔽表情回应按钮 */

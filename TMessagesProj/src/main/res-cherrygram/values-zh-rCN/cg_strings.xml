@@ -512,8 +512,6 @@
     <string name="AQY_AttentionRemoved">已移出特别关注</string>
     <string name="AQY_AttentionAddAction">加入特别关注</string>
     <string name="AQY_AttentionRemoveAction">移出特别关注</string>
-    <string name="AQY_HourlyChime">整点报时</string>
-    <string name="AQY_HourlyChime_Desc">每到整点自动发出一条报时消息</string>
     <string name="AQY_Bookmarks">消息书签</string>
     <string name="AQY_Bookmarks_Desc">收藏任意消息，随时翻回去看</string>
     <string name="AQY_HideReaction">屏蔽表情回应</string>

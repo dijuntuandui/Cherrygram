@@ -93,7 +93,6 @@ public class GeneralPreferencesEntry extends BaseCGPreferencesEntry {
 
     // ===== 第一批（黄昏迁移）=====
     private final int aiqiyiSpecialAttentionRow = 37;
-    private final int aiqiyiHourlyChimeRow = 38;
     private final int aiqiyiBookmarksRow = 40;
     private final int aiqiyiBookmarksListRow = 44;
     private final int aiqiyiSyntaxHighlightRow = 41;
@@ -315,10 +314,6 @@ public class GeneralPreferencesEntry extends BaseCGPreferencesEntry {
         items.add(SettingsHelper.asSwitchCG(aiqiyiSpecialAttentionRow, getString(R.string.AQY_SpecialAttention), getString(R.string.AQY_SpecialAttention_Desc))
                 .setChecked(CherrygramAppearanceConfig.INSTANCE.getAiqiyiSpecialAttention())
                 .slug("aiqiyi_special_attention")
-        );
-        items.add(SettingsHelper.asSwitchCG(aiqiyiHourlyChimeRow, getString(R.string.AQY_HourlyChime), getString(R.string.AQY_HourlyChime_Desc))
-                .setChecked(CherrygramAppearanceConfig.INSTANCE.getAiqiyiHourlyChime())
-                .slug("aiqiyi_hourly_chime")
         );
         items.add(SettingsHelper.asSwitchCG(aiqiyiBookmarksRow, getString(R.string.AQY_Bookmarks), getString(R.string.AQY_Bookmarks_Desc))
                 .setChecked(CherrygramAppearanceConfig.INSTANCE.getAiqiyiBookmarks())
@@ -563,9 +558,6 @@ public class GeneralPreferencesEntry extends BaseCGPreferencesEntry {
         } else if (item.id == aiqiyiSpecialAttentionRow) {
             CherrygramAppearanceConfig.INSTANCE.setAiqiyiSpecialAttention(!CherrygramAppearanceConfig.INSTANCE.getAiqiyiSpecialAttention());
             SettingsHelper.updateCheckState(view, CherrygramAppearanceConfig.INSTANCE.getAiqiyiSpecialAttention());
-        } else if (item.id == aiqiyiHourlyChimeRow) {
-            CherrygramAppearanceConfig.INSTANCE.setAiqiyiHourlyChime(!CherrygramAppearanceConfig.INSTANCE.getAiqiyiHourlyChime());
-            SettingsHelper.updateCheckState(view, CherrygramAppearanceConfig.INSTANCE.getAiqiyiHourlyChime());
         } else if (item.id == aiqiyiBookmarksListRow) {
             presentFragment(new uz.unnarsx.cherrygram.aiqiyi.bookmark.AiqiyiBookmarksEntry());
         } else if (item.id == aiqiyiBookmarksRow) {

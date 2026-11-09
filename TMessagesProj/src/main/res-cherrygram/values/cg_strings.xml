@@ -649,8 +649,6 @@
     <string name="AQY_AttentionRemoved">Removed from special attention</string>
     <string name="AQY_AttentionAddAction">Add to special attention</string>
     <string name="AQY_AttentionRemoveAction">Remove from special attention</string>
-    <string name="AQY_HourlyChime">Hourly Chime</string>
-    <string name="AQY_HourlyChime_Desc">Automatically send a chime message every hour on the hour</string>
     <string name="AQY_Bookmarks">Message Bookmarks</string>
     <string name="AQY_Bookmarks_Desc">Save any message and jump back to it anytime</string>
     <string name="AQY_HideReaction">Hide Reaction Button</string>
