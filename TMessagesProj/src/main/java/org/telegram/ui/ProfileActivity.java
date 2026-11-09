@@ -12196,13 +12196,13 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                 Drawable leftIcon = currentEncryptedChat != null ? getLockIconDrawable() : null;
                 // [Aiqiyi] 本人资料页：名字左侧显示认证角标
                 if (leftIcon == null && user.id == getUserConfig().getClientUserId() && CherrygramAppearanceConfig.INSTANCE.getAiqiyiSelfCertBadge() && getParentActivity() != null) {
-                    // [Aiqiyi] 角标尺寸约束到与名字同高：原 PNG 是固定像素，
-                    // 直接塞进去会按 intrinsic 撑大，比 17.5dp 的名字还大一圈
-                    Drawable rawBadge = ContextCompat.getDrawable(getParentActivity(), R.drawable.aqy_cert_badge);
-                    if (rawBadge != null) {
-                        leftIcon = new uz.unnarsx.cherrygram.aiqiyi.verified.AiqiyiScaledDrawable(
-                                rawBadge, Math.round(AndroidUtilities.dp(17.5f)));
-                    }
+                    // [Aiqiyi] 一代角标统一改用八角星矢量（中心镂空），不再用旧 PNG：
+                    // 旧 PNG 是固定像素位图，缩放后边缘发糊，且图形与二代不一致。
+                    // 尺寸按名字字号 17.5dp 对齐，getIntrinsicWidth 直接返回该值，
+                    // SimpleTextView 会照这个撑布局，不会出现图标比名字大。
+                    final int badgeSize = Math.round(AndroidUtilities.dp(17.5f));
+                    leftIcon = new uz.unnarsx.cherrygram.aiqiyi.verified.AiqiyiVerifiedBadgeDrawable()
+                            .setIntrinsicSize(badgeSize);
                 }
                 boolean rightIconIsPremium = false, rightIconIsStatus = false;
                 nameTextView[a].setRightDrawableOutside(a == 0);

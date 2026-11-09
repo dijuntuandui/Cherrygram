@@ -205,13 +205,21 @@ public class TextDetailCell extends FrameLayout {
 
     @Override
     protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
-        // [Aiqiyi] 第三行可见时，高度按内容撑开
+        // [Aiqiyi] 第三行可见时，基础高度上再加一个第三行的高度
         final boolean extraLine = thirdLineVisible && thirdLineTextView != null
                 && thirdLineTextView.getVisibility() == VISIBLE;
+        final int baseHeight;
+        if (multiline) {
+            baseHeight = -1; // 走自由测量，沿用原逻辑
+        } else if (extraLine) {
+            baseHeight = dp(60) + getThirdLineHeight() + (needDivider ? 1 : 0);
+        } else {
+            baseHeight = dp(60) + (needDivider ? 1 : 0);
+        }
         super.onMeasure(
             MeasureSpec.makeMeasureSpec(MeasureSpec.getSize(widthMeasureSpec), MeasureSpec.EXACTLY),
-            (multiline || extraLine) ? heightMeasureSpec
-                    : MeasureSpec.makeMeasureSpec(dp(60) + (needDivider ? 1 : 0), MeasureSpec.EXACTLY)
+            baseHeight < 0 ? heightMeasureSpec
+                    : MeasureSpec.makeMeasureSpec(baseHeight, MeasureSpec.EXACTLY)
         );
     }
 
@@ -247,7 +255,7 @@ public class TextDetailCell extends FrameLayout {
         thirdLineTextView.setText(text);
         thirdLineTextView.setVisibility(VISIBLE);
         thirdLineVisible = true;
-        requestLayout();
+        applyThirdLineLayout();
     }
 
     /**
@@ -270,12 +278,10 @@ public class TextDetailCell extends FrameLayout {
             return;
         }
 
-        // [Aiqiyi] 图标尺寸按「文字实际视觉高度」算，不能超过字高
-        // getLineHeight() 含行距，直接用会偏大；改用字体度量：
-        // 取 ascent~descent 的实际高度，再略收一点贴合大写字母高度
-        final Paint.FontMetricsInt fm = thirdLineTextView.getPaint().getFontMetricsInt();
-        final int visualH = fm.descent - fm.ascent;
-        final int iconH = Math.max(1, Math.round(visualH * 0.92f));
+        // [Aiqiyi] 图标尺寸严格不超过 13sp 字号的视觉高度
+        // 这里不读 paint 度量：setText 之前 paint 未必已按新字号刷新，
+        // 直接用 dp(13) 换算，结果确定且和 getThirdLineHeight 口径一致
+        final int iconH = Math.max(1, Math.round(dp(13) * 0.95f));
         int iconW = iconH;
         final int iw = icon.getIntrinsicWidth();
         final int ih = icon.getIntrinsicHeight();
@@ -290,7 +296,7 @@ public class TextDetailCell extends FrameLayout {
         thirdLineTextView.setText(sp);
         thirdLineTextView.setVisibility(VISIBLE);
         thirdLineVisible = true;
-        requestLayout();
+        applyThirdLineLayout();
     }
 
     /**
@@ -305,12 +311,51 @@ public class TextDetailCell extends FrameLayout {
         thirdLineTextView.setVisibility(GONE);
         thirdLineVisible = false;
         if (wasVisible) {
-            requestLayout();
+            applyThirdLineLayout();
         }
     }
 
     public boolean hasThirdLine() {
         return thirdLineVisible;
+    }
+
+    /**
+     * [Aiqiyi] 第三行出现/消失时重排上下两行的位置
+     *
+     * 原布局：valueTextView 用 topMargin=32dp 从顶部定位（非 BOTTOM），
+     * 而 thirdLineTextView 用 Gravity.BOTTOM 贴底。
+     * 二者各自独立定位，第三行一出现就和 DC 行叠在一起。
+     *
+     * 处理：第三行可见时把 valueTextView 整体下移一个第三行的高度，
+     * 同时第三行保持贴底，视觉上就变成 ID / DC / 认证行 的垂直堆叠。
+     */
+    private void applyThirdLineLayout() {
+        if (valueTextView == null || thirdLineTextView == null) {
+            requestLayout();
+            return;
+        }
+        final MarginLayoutParams lp = (MarginLayoutParams) valueTextView.getLayoutParams();
+        if (lp == null) {
+            requestLayout();
+            return;
+        }
+        if (thirdLineVisible) {
+            // 第三行高度：字体度量 + 上下 padding，留一点呼吸空间
+            final int lineH = getThirdLineHeight();
+            // 原始 topMargin 是 33-1=32dp，第三行出现时整体下移一个行高
+            lp.topMargin = dp(33 - 1) + lineH;
+        } else {
+            lp.topMargin = dp(33 - 1);
+        }
+        valueTextView.setLayoutParams(lp);
+        requestLayout();
+        invalidate();
+    }
+
+    /** 估算第三行占用的垂直高度（13sp 字号，行高系数 1.45 + 上下留白） */
+    private int getThirdLineHeight() {
+        final int textH = Math.round(dp(13) * 1.45f);
+        return textH + dp(4);
     }
 
     public void setImage(Drawable drawable) {
