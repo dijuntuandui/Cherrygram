@@ -12196,7 +12196,13 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                 Drawable leftIcon = currentEncryptedChat != null ? getLockIconDrawable() : null;
                 // [Aiqiyi] 本人资料页：名字左侧显示认证角标
                 if (leftIcon == null && user.id == getUserConfig().getClientUserId() && CherrygramAppearanceConfig.INSTANCE.getAiqiyiSelfCertBadge() && getParentActivity() != null) {
-                    leftIcon = ContextCompat.getDrawable(getParentActivity(), R.drawable.aqy_cert_badge);
+                    // [Aiqiyi] 角标尺寸约束到与名字同高：原 PNG 是固定像素，
+                    // 直接塞进去会按 intrinsic 撑大，比 17.5dp 的名字还大一圈
+                    Drawable rawBadge = ContextCompat.getDrawable(getParentActivity(), R.drawable.aqy_cert_badge);
+                    if (rawBadge != null) {
+                        leftIcon = new uz.unnarsx.cherrygram.aiqiyi.verified.AiqiyiScaledDrawable(
+                                rawBadge, Math.round(AndroidUtilities.dp(17.5f)));
+                    }
                 }
                 boolean rightIconIsPremium = false, rightIconIsStatus = false;
                 nameTextView[a].setRightDrawableOutside(a == 0);

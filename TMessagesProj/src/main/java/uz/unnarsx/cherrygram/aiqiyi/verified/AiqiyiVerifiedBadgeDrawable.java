@@ -23,6 +23,11 @@ import android.graphics.drawable.Drawable;
  * 几何比例来自官方素材实测（原图 1637x1637）：
  *   - 中心四角星 bbox 占整图 25%~75%，即整体 50%
  *   - 凹口半径约为尖端的 0.49
+ *
+ * 尺寸策略（重要）：
+ * intrinsicWidth/Height 是可设置的，而不是固定 0。
+ * SimpleTextView 这类容器严格按 getIntrinsicWidth 设 bounds，
+ * 所以图标大小必须由这里控制，否则会出现「图标比名字还大」。
  */
 public class AiqiyiVerifiedBadgeDrawable extends Drawable {
 
@@ -38,11 +43,20 @@ public class AiqiyiVerifiedBadgeDrawable extends Drawable {
     private int badgeColor = DEFAULT_BLUE;
     /** 中心镂空区域占整体边长的比例，实测 0.5 */
     private float holeRatio = 0.50f;
+    /** 对外声明的大小；0 表示跟随 bounds 自适应 */
+    private int intrinsicSize = 0;
 
     public AiqiyiVerifiedBadgeDrawable() {
         paint.setStyle(Paint.Style.FILL);
         paint.setColor(badgeColor);
         path.setFillType(Path.FillType.EVEN_ODD);
+    }
+
+    /** 指定图标边长（px） */
+    public AiqiyiVerifiedBadgeDrawable setIntrinsicSize(int px) {
+        intrinsicSize = Math.max(0, px);
+        invalidateSelf();
+        return this;
     }
 
     public void setBadgeColor(int color) {
@@ -73,8 +87,8 @@ public class AiqiyiVerifiedBadgeDrawable extends Drawable {
         // 用短边做基准，保证非正方形 bounds 时也不变形
         final float size = Math.min(b.width(), b.height());
         final float half = size / 2f;
-        // 留 4% 内边距，避免抗锯齿被切边
-        final float radius = half * 0.96f;
+        // 留 3% 内边距，避免抗锯齿被切边
+        final float radius = half * 0.97f;
 
         buildEightPointStar(outerPath, cx, cy, radius);
         buildFourPointStar(holePath, cx, cy, radius * holeRatio);
@@ -90,7 +104,6 @@ public class AiqiyiVerifiedBadgeDrawable extends Drawable {
     /**
      * 八角星：8 个顶点交错分布
      * 四个主尖在正方向，四个次尖在对角方向。
-     * 相邻顶点之间用轻微内收的二次曲线，让轮廓带圆润感。
      */
     private void buildEightPointStar(Path out, float cx, float cy, float r) {
         out.reset();
@@ -126,11 +139,9 @@ public class AiqiyiVerifiedBadgeDrawable extends Drawable {
         final float tip = half;
         final float notch = half * 0.49f;
 
-        // 四个尖端：上、右、下、左
         final float[] tx = new float[]{cx, cx + tip, cx, cx - tip};
         final float[] ty = new float[]{cy - tip, cy, cy + tip, cy};
 
-        // 四个凹口：右上、右下、左下、左上
         final float d = notch * 0.7071f;
         final float[] nx = new float[]{cx + d, cx + d, cx - d, cx - d};
         final float[] ny = new float[]{cy - d, cy + d, cy + d, cy - d};
@@ -169,11 +180,11 @@ public class AiqiyiVerifiedBadgeDrawable extends Drawable {
 
     @Override
     public int getIntrinsicWidth() {
-        return 0;
+        return intrinsicSize;
     }
 
     @Override
     public int getIntrinsicHeight() {
-        return 0;
+        return intrinsicSize;
     }
 }

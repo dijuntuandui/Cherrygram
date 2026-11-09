@@ -270,15 +270,19 @@ public class TextDetailCell extends FrameLayout {
             return;
         }
 
-        // 图标高度取文字行高，宽度按图标固有比例（兜底 1:1）
-        final int lineH = (int) Math.ceil(thirdLineTextView.getLineHeight() * 0.78f);
-        int iconW = lineH;
+        // [Aiqiyi] 图标尺寸按「文字实际视觉高度」算，不能超过字高
+        // getLineHeight() 含行距，直接用会偏大；改用字体度量：
+        // 取 ascent~descent 的实际高度，再略收一点贴合大写字母高度
+        final Paint.FontMetricsInt fm = thirdLineTextView.getPaint().getFontMetricsInt();
+        final int visualH = fm.descent - fm.ascent;
+        final int iconH = Math.max(1, Math.round(visualH * 0.92f));
+        int iconW = iconH;
         final int iw = icon.getIntrinsicWidth();
         final int ih = icon.getIntrinsicHeight();
         if (iw > 0 && ih > 0) {
-            iconW = Math.max(1, Math.round(lineH * (float) iw / ih));
+            iconW = Math.max(1, Math.round(iconH * (float) iw / ih));
         }
-        icon.setBounds(0, 0, iconW, lineH);
+        icon.setBounds(0, 0, iconW, iconH);
 
         SpannableString sp = new SpannableString("\u00A0" + text);
         sp.setSpan(new ImageSpan(icon, ImageSpan.ALIGN_BOTTOM), 0, 1, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
