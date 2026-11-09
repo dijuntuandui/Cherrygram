@@ -21,13 +21,16 @@ gradlePlugin {
 }
 
 repositories {
-    // [Aiqiyi] 同上：gradlePluginPortal 会跳 github.com/JetBrains/*/releases，
-    // 当前 504。kotlin-compiler-embeddable 由 kotlin-dsl 插件拉取，必须走镜像。
-    maven("https://maven.aliyun.com/repository/gradle-plugin")
-    maven("https://maven.aliyun.com/repository/public")
+    // [Aiqiyi] 官方源优先，镜像兜底。
+    // 教训：Gradle 对 404 会继续试下一个仓，但对 5xx 直接硬失败中止解析。
+    // 阿里云 public 偶发 502（dvlib/guava-parent 等都踩过），
+    // 一旦排在最前，整个构建就押在一个不稳定的源上。
+    // github runner 在海外，google/mavenCentral 本来就快，镜像只作兜底。
     google()
     mavenCentral()
     gradlePluginPortal()
+    maven("https://maven.aliyun.com/repository/gradle-plugin")
+    maven("https://maven.aliyun.com/repository/public")
 }
 /*
 val checkEmojiKeyboard by tasks.registering(GenerateSchemeTask::class) {
