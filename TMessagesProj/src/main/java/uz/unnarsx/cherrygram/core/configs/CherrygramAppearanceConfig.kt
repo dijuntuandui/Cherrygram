@@ -177,6 +177,12 @@ object CherrygramAppearanceConfig {
     /** 爱琦艺插件 - 本人资料页名字左侧显示认证角标 */
     var aiqiyiSelfCertBadge by sharedPreferences.boolean("CP_AiqiyiSelfCertBadge", true)
 
+    /** 爱琦艺插件 - 二代认证：资料页 DC 行下方显示官方认证说明行 */
+    var aiqiyiVerifiedLine by sharedPreferences.boolean("CP_AiqiyiVerifiedLine", false)
+
+    /** 爱琦艺插件 - 二代认证说明行里的组织名 */
+    var aiqiyiVerifiedOrg by sharedPreferences.string("CP_AiqiyiVerifiedOrg", "Hold")
+
     const val ID_DC_NONE = 0
     const val ID_DC = 1
     var showIDDC_old by sharedPreferences.int("AP_ShowID_DC", ID_DC_NONE) // Not used anymore, use only for migration

@@ -15,7 +15,10 @@ import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.drawable.Drawable;
+import android.text.SpannableString;
+import android.text.Spanned;
 import android.text.TextUtils;
+import android.text.style.ImageSpan;
 import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.HapticFeedbackConstants;
@@ -45,6 +48,9 @@ public class TextDetailCell extends FrameLayout {
     private final TextView showMoreTextView = null;
     private final ImageView imageView;
     private boolean needDivider;
+    // [Aiqiyi] 二代认证第三行
+    private TextView thirdLineTextView;
+    private boolean thirdLineVisible;
     private boolean contentDescriptionValueFirst;
     private boolean multiline;
 
@@ -160,6 +166,19 @@ public class TextDetailCell extends FrameLayout {
             addView(rightValueTextView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, LocaleController.isRTL ? Gravity.RIGHT : Gravity.LEFT, horizPadding, 33 - 1, horizPadding, 10 - 6));
         }
 
+        // [Aiqiyi] 第三行：默认隐藏，仅二代认证角标场景使用
+        thirdLineTextView = new TextView(context);
+        thirdLineTextView.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 13);
+        thirdLineTextView.setGravity(LocaleController.isRTL ? Gravity.RIGHT : Gravity.LEFT);
+        thirdLineTextView.setImportantForAccessibility(IMPORTANT_FOR_ACCESSIBILITY_NO);
+        thirdLineTextView.setEllipsize(TextUtils.TruncateAt.END);
+        thirdLineTextView.setLines(1);
+        thirdLineTextView.setSingleLine(true);
+        thirdLineTextView.setPadding(0, 0, 0, dp(8));
+        thirdLineTextView.setVisibility(GONE);
+        addView(thirdLineTextView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT,
+                (LocaleController.isRTL ? Gravity.RIGHT : Gravity.LEFT) | Gravity.BOTTOM, horizPadding, 0, horizPadding, 6));
+
         updateColors();
 
         imageView = new ImageView(context);
@@ -186,9 +205,13 @@ public class TextDetailCell extends FrameLayout {
 
     @Override
     protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
+        // [Aiqiyi] 第三行可见时，高度按内容撑开
+        final boolean extraLine = thirdLineVisible && thirdLineTextView != null
+                && thirdLineTextView.getVisibility() == VISIBLE;
         super.onMeasure(
             MeasureSpec.makeMeasureSpec(MeasureSpec.getSize(widthMeasureSpec), MeasureSpec.EXACTLY),
-            multiline ? heightMeasureSpec : MeasureSpec.makeMeasureSpec(dp(60) + (needDivider ? 1 : 0), MeasureSpec.EXACTLY)
+            (multiline || extraLine) ? heightMeasureSpec
+                    : MeasureSpec.makeMeasureSpec(dp(60) + (needDivider ? 1 : 0), MeasureSpec.EXACTLY)
         );
     }
 
@@ -207,6 +230,83 @@ public class TextDetailCell extends FrameLayout {
         rightValueTextView.setText(value2);
         needDivider = divider;
         setWillNotDraw(!needDivider);
+    }
+
+    /**
+     * [Aiqiyi] 设置第三行内容（传 null 或空串等同隐藏）
+     * 与现有 setTextAndValue 兼容，可安全叠加调用
+     */
+    public void setThirdLine(CharSequence text) {
+        if (thirdLineTextView == null) {
+            return;
+        }
+        if (TextUtils.isEmpty(text)) {
+            clearThirdLine();
+            return;
+        }
+        thirdLineTextView.setText(text);
+        thirdLineTextView.setVisibility(VISIBLE);
+        thirdLineVisible = true;
+        requestLayout();
+    }
+
+    /**
+     * [Aiqiyi] 设置第三行，带前置图标
+     *
+     * 图标用 ImageSpan 内联到文字前，跟随文字基线布局，
+     * 这样 RTL 情况下也自然靠对（不需要手动翻转）。
+     * 图标尺寸按文字行高计算，保证视觉对齐。
+     */
+    public void setThirdLine(CharSequence text, Drawable icon) {
+        if (thirdLineTextView == null) {
+            return;
+        }
+        if (TextUtils.isEmpty(text)) {
+            clearThirdLine();
+            return;
+        }
+        if (icon == null) {
+            setThirdLine(text);
+            return;
+        }
+
+        // 图标高度取文字行高，宽度按图标固有比例（兜底 1:1）
+        final int lineH = (int) Math.ceil(thirdLineTextView.getLineHeight() * 0.78f);
+        int iconW = lineH;
+        final int iw = icon.getIntrinsicWidth();
+        final int ih = icon.getIntrinsicHeight();
+        if (iw > 0 && ih > 0) {
+            iconW = Math.max(1, Math.round(lineH * (float) iw / ih));
+        }
+        icon.setBounds(0, 0, iconW, lineH);
+
+        SpannableString sp = new SpannableString("\u00A0" + text);
+        sp.setSpan(new ImageSpan(icon, ImageSpan.ALIGN_BOTTOM), 0, 1, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+
+        thirdLineTextView.setText(sp);
+        thirdLineTextView.setVisibility(VISIBLE);
+        thirdLineVisible = true;
+        requestLayout();
+    }
+
+    /**
+     * [Aiqiyi] 清除第三行并恢复标准 2 行高度
+     */
+    public void clearThirdLine() {
+        if (thirdLineTextView == null) {
+            return;
+        }
+        boolean wasVisible = thirdLineVisible;
+        thirdLineTextView.setText(null);
+        thirdLineTextView.setVisibility(GONE);
+        thirdLineVisible = false;
+        if (wasVisible) {
+            requestLayout();
+        }
+    }
+
+    public boolean hasThirdLine() {
+        return thirdLineVisible;
     }
 
     public void setImage(Drawable drawable) {
@@ -298,6 +398,11 @@ public class TextDetailCell extends FrameLayout {
         valueTextView.setLinkTextColor(processColor(Theme.getColor(Theme.key_chat_messageLinkIn, resourcesProvider)));
         valueTextView.setTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteGrayText2, resourcesProvider));
         rightValueTextView.setTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteGrayText2, resourcesProvider));
+        // [Aiqiyi] 第三行用更淡的灰，视觉上作为附属说明
+        if (thirdLineTextView != null) {
+            thirdLineTextView.setTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteGrayText2, resourcesProvider));
+            thirdLineTextView.setAlpha(0.85f);
+        }
         valueTextView.invalidate();
     }
 

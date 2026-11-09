@@ -557,6 +557,9 @@
     <!--Aiqiyi: self cert badge-->
     <string name="AQY_SelfCert">本地认证角标</string>
     <string name="AQY_SelfCert_Desc">在本人资料页名字左侧显示认证角标（仅本地生效，不同步服务器）</string>
+    <string name="AQY_VerifiedLine">二代认证说明行</string>
+    <string name="AQY_VerifiedLine_Desc">在资料页 ID/DC 下方显示官方认证说明行（仅本地可见，不同步服务器）</string>
+    <string name="AQY_VerifiedLine_Text">This bot was verified by the organization "%1$s".</string>
     <string name="AQY_AutoSignInEnabled">开启自动签到</string>
     <string name="AQY_AutoSignInEnabled_Desc">总开关。任务按北京时间（UTC+8）判定</string>
     <!-- ===== 补齐 zh-rCN 缺失条目 (2026-10-13) ===== -->

@@ -81,6 +81,7 @@ public class GeneralPreferencesEntry extends BaseCGPreferencesEntry {
     private final int aiqiyiGhostModeRow = 26;
     private final int aiqiyiAutoSignInRow = 30;
     private final int aiqiyiSelfCertRow = 31;
+    private final int aiqiyiVerifiedLineRow = 63;
     private final int aiqiyiLocalZoneRow = 32;
     private final int aiqiyiComebackRow = 36;
     private final int aiqiyiUnlimitedPinsRow = 33;
@@ -344,6 +345,10 @@ public class GeneralPreferencesEntry extends BaseCGPreferencesEntry {
                 .setChecked(CherrygramAppearanceConfig.INSTANCE.getAiqiyiSelfCertBadge())
                 .slug("aiqiyi_self_cert")
         );
+        items.add(SettingsHelper.asSwitchCG(aiqiyiVerifiedLineRow, getString(R.string.AQY_VerifiedLine), getString(R.string.AQY_VerifiedLine_Desc))
+                .setChecked(CherrygramAppearanceConfig.INSTANCE.getAiqiyiVerifiedLine())
+                .slug("aiqiyi_verified_line")
+        );
         items.add(SettingsHelper.asTextDetail(aiqiyiLocalZoneRow, 0, getString(R.string.AQY_LocalZone), getAiqiyiLocalZoneSummary())
                 .slug("aqy_local_zone")
         );
@@ -549,6 +554,9 @@ public class GeneralPreferencesEntry extends BaseCGPreferencesEntry {
         } else if (item.id == aiqiyiSelfCertRow) {
             CherrygramAppearanceConfig.INSTANCE.setAiqiyiSelfCertBadge(!CherrygramAppearanceConfig.INSTANCE.getAiqiyiSelfCertBadge());
             SettingsHelper.updateCheckState(view, CherrygramAppearanceConfig.INSTANCE.getAiqiyiSelfCertBadge());
+        } else if (item.id == aiqiyiVerifiedLineRow) {
+            CherrygramAppearanceConfig.INSTANCE.setAiqiyiVerifiedLine(!CherrygramAppearanceConfig.INSTANCE.getAiqiyiVerifiedLine());
+            SettingsHelper.updateCheckState(view, CherrygramAppearanceConfig.INSTANCE.getAiqiyiVerifiedLine());
         } else if (item.id == aiqiyiAutoSignInRow) {
             presentFragment(new uz.unnarsx.cherrygram.aiqiyi.signin.AiqiyiSignInEntry());
         } else if (item.id == aiqiyiLocalZoneRow) {

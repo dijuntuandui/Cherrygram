@@ -14278,6 +14278,20 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                                 : null;
                         CharSequence aqyIdValue = aqyLocalId != null ? aqyLocalId : formattedID;
                         detailCell.setTextAndValue("ID: " + aqyIdValue, userDcLine, false);
+                        // [Aiqiyi] 二代认证：DC 行下方追加官方认证说明行
+                        if (CherrygramAppearanceConfig.INSTANCE.getAiqiyiVerifiedLine()) {
+                            String org = CherrygramAppearanceConfig.INSTANCE.getAiqiyiVerifiedOrg();
+                            if (org == null || org.isEmpty()) {
+                                org = "Hold";
+                            }
+                            CharSequence verifiedText = LocaleController.formatString(R.string.AQY_VerifiedLine_Text, org);
+                            // 每次新建 Drawable：ImageSpan 会持有实例，复用会让 bounds 互相干扰
+                            uz.unnarsx.cherrygram.aiqiyi.verified.AiqiyiVerifiedBadgeDrawable badge =
+                                    new uz.unnarsx.cherrygram.aiqiyi.verified.AiqiyiVerifiedBadgeDrawable();
+                            detailCell.setThirdLine(verifiedText, badge);
+                        } else {
+                            detailCell.clearThirdLine();
+                        }
                     } else if (position == birthdayRow) {
                         TLRPC.UserFull userFull = getMessagesController().getUserFull(userId);
                         if (userFull != null && userFull.birthday != null) {
