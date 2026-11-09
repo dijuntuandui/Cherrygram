@@ -250,8 +250,10 @@ public final class MultiDynamicVideoWallpaperHelper {
         int imported = 0;
         int landscape = 0;
         boolean global = DynamicVideoWallpaperHelper.isGlobalSharingEnabled(c);
-        ArrayList<String> oldGlobalPaths = global ? readPaths(c, GLOBAL_ACCOUNT) : new ArrayList<>();
-        int index = getVideoCount(c, account);
+        /* [Aiqiyi] 序号必须按真实存储账号来取。全局共享开启时 addPath 写入的是
+           GLOBAL_ACCOUNT 的列表，而 account 那份是空的，用 getVideoCount(c, account)
+           会恒得 0，导致每次导入都生成 local_<时间戳>_0.mp4，连续两次同一毫秒就直接同名覆盖。 */
+        int index = getVideoCount(c, storageAccount(c, account));
         if (sources != null) {
             for (Uri source : sources) {
                 File file = null;
@@ -275,22 +277,10 @@ public final class MultiDynamicVideoWallpaperHelper {
         }
         if (imported > 0) {
             DynamicVideoWallpaperHelper.clearGlobalResetRequired(c);
+            /* [Aiqiyi] 原来这里会把「导入前存在的全局条目」全部从列表移除并删除物理文件，
+               效果是每导入一次就只剩本次新增的那一条（2 条变 1 条）。
+               导入应该是纯追加：addPath 已经处理了去重，这里不再动旧条目。 */
             if (global) {
-                ArrayList<String> currentPaths = readPaths(c, GLOBAL_ACCOUNT);
-                ArrayList<String> newPaths = new ArrayList<>();
-                for (String path : currentPaths) {
-                    if (!oldGlobalPaths.contains(path)) {
-                        newPaths.add(path);
-                    }
-                }
-                for (String path : oldGlobalPaths) {
-                    try {
-                        new File(path).delete();
-                    } catch (Throwable e) {
-                        FileLog.e(e);
-                    }
-                }
-                writePaths(c, GLOBAL_ACCOUNT, newPaths);
                 DynamicVideoWallpaperHelper.clearGlobalSingle(c);
             }
             setEnabled(c, account, true);
@@ -306,7 +296,12 @@ public final class MultiDynamicVideoWallpaperHelper {
         if (!dir.exists() && !dir.mkdirs()) {
             throw new Exception("无法创建视频目录");
         }
+        /* [Aiqiyi] 时间戳只有毫秒精度，连续导入可能撞名。撞上就往后顺延，绝不覆盖已有文件。 */
         File file = new File(dir, "local_" + System.currentTimeMillis() + "_" + index + ".mp4");
+        int bump = 0;
+        while (file.exists() && bump < 1000) {
+            file = new File(dir, "local_" + System.currentTimeMillis() + "_" + index + "_" + (++bump) + ".mp4");
+        }
         long total = 0;
         try (InputStream in = c.getContentResolver().openInputStream(source);
              FileOutputStream out = new FileOutputStream(file)) {
