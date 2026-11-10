@@ -15,10 +15,7 @@ import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.drawable.Drawable;
-import android.text.SpannableString;
-import android.text.Spanned;
 import android.text.TextUtils;
-import android.text.style.ImageSpan;
 import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.HapticFeedbackConstants;
@@ -48,9 +45,6 @@ public class TextDetailCell extends FrameLayout {
     private final TextView showMoreTextView = null;
     private final ImageView imageView;
     private boolean needDivider;
-    // [Aiqiyi] 二代认证第三行
-    private TextView thirdLineTextView;
-    private boolean thirdLineVisible;
     private boolean contentDescriptionValueFirst;
     private boolean multiline;
 
@@ -166,19 +160,6 @@ public class TextDetailCell extends FrameLayout {
             addView(rightValueTextView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, LocaleController.isRTL ? Gravity.RIGHT : Gravity.LEFT, horizPadding, 33 - 1, horizPadding, 10 - 6));
         }
 
-        // [Aiqiyi] 第三行：默认隐藏，仅二代认证角标场景使用
-        thirdLineTextView = new TextView(context);
-        thirdLineTextView.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 13);
-        thirdLineTextView.setGravity(LocaleController.isRTL ? Gravity.RIGHT : Gravity.LEFT);
-        thirdLineTextView.setImportantForAccessibility(IMPORTANT_FOR_ACCESSIBILITY_NO);
-        thirdLineTextView.setEllipsize(TextUtils.TruncateAt.END);
-        thirdLineTextView.setLines(1);
-        thirdLineTextView.setSingleLine(true);
-        thirdLineTextView.setPadding(0, 0, 0, dp(8));
-        thirdLineTextView.setVisibility(GONE);
-        addView(thirdLineTextView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT,
-                (LocaleController.isRTL ? Gravity.RIGHT : Gravity.LEFT) | Gravity.BOTTOM, horizPadding, 0, horizPadding, 6));
-
         updateColors();
 
         imageView = new ImageView(context);
@@ -205,21 +186,9 @@ public class TextDetailCell extends FrameLayout {
 
     @Override
     protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
-        // [Aiqiyi] 第三行可见时，基础高度上再加一个第三行的高度
-        final boolean extraLine = thirdLineVisible && thirdLineTextView != null
-                && thirdLineTextView.getVisibility() == VISIBLE;
-        final int baseHeight;
-        if (multiline) {
-            baseHeight = -1; // 走自由测量，沿用原逻辑
-        } else if (extraLine) {
-            baseHeight = dp(60) + getThirdLineHeight() + (needDivider ? 1 : 0);
-        } else {
-            baseHeight = dp(60) + (needDivider ? 1 : 0);
-        }
         super.onMeasure(
             MeasureSpec.makeMeasureSpec(MeasureSpec.getSize(widthMeasureSpec), MeasureSpec.EXACTLY),
-            baseHeight < 0 ? heightMeasureSpec
-                    : MeasureSpec.makeMeasureSpec(baseHeight, MeasureSpec.EXACTLY)
+            multiline ? heightMeasureSpec : MeasureSpec.makeMeasureSpec(dp(60) + (needDivider ? 1 : 0), MeasureSpec.EXACTLY)
         );
     }
 
@@ -238,124 +207,6 @@ public class TextDetailCell extends FrameLayout {
         rightValueTextView.setText(value2);
         needDivider = divider;
         setWillNotDraw(!needDivider);
-    }
-
-    /**
-     * [Aiqiyi] 设置第三行内容（传 null 或空串等同隐藏）
-     * 与现有 setTextAndValue 兼容，可安全叠加调用
-     */
-    public void setThirdLine(CharSequence text) {
-        if (thirdLineTextView == null) {
-            return;
-        }
-        if (TextUtils.isEmpty(text)) {
-            clearThirdLine();
-            return;
-        }
-        thirdLineTextView.setText(text);
-        thirdLineTextView.setVisibility(VISIBLE);
-        thirdLineVisible = true;
-        applyThirdLineLayout();
-    }
-
-    /**
-     * [Aiqiyi] 设置第三行，带前置图标
-     *
-     * 图标用 ImageSpan 内联到文字前，跟随文字基线布局，
-     * 这样 RTL 情况下也自然靠对（不需要手动翻转）。
-     * 图标尺寸按文字行高计算，保证视觉对齐。
-     */
-    public void setThirdLine(CharSequence text, Drawable icon) {
-        if (thirdLineTextView == null) {
-            return;
-        }
-        if (TextUtils.isEmpty(text)) {
-            clearThirdLine();
-            return;
-        }
-        if (icon == null) {
-            setThirdLine(text);
-            return;
-        }
-
-        // [Aiqiyi] 图标尺寸严格不超过 13sp 字号的视觉高度
-        // 这里不读 paint 度量：setText 之前 paint 未必已按新字号刷新，
-        // 直接用 dp(13) 换算，结果确定且和 getThirdLineHeight 口径一致
-        final int iconH = Math.max(1, Math.round(dp(13) * 0.95f));
-        int iconW = iconH;
-        final int iw = icon.getIntrinsicWidth();
-        final int ih = icon.getIntrinsicHeight();
-        if (iw > 0 && ih > 0) {
-            iconW = Math.max(1, Math.round(iconH * (float) iw / ih));
-        }
-        icon.setBounds(0, 0, iconW, iconH);
-
-        SpannableString sp = new SpannableString("\u00A0" + text);
-        sp.setSpan(new ImageSpan(icon, ImageSpan.ALIGN_BOTTOM), 0, 1, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
-
-        thirdLineTextView.setText(sp);
-        thirdLineTextView.setVisibility(VISIBLE);
-        thirdLineVisible = true;
-        applyThirdLineLayout();
-    }
-
-    /**
-     * [Aiqiyi] 清除第三行并恢复标准 2 行高度
-     */
-    public void clearThirdLine() {
-        if (thirdLineTextView == null) {
-            return;
-        }
-        boolean wasVisible = thirdLineVisible;
-        thirdLineTextView.setText(null);
-        thirdLineTextView.setVisibility(GONE);
-        thirdLineVisible = false;
-        if (wasVisible) {
-            applyThirdLineLayout();
-        }
-    }
-
-    public boolean hasThirdLine() {
-        return thirdLineVisible;
-    }
-
-    /**
-     * [Aiqiyi] 第三行出现/消失时重排上下两行的位置
-     *
-     * 原布局：valueTextView 用 topMargin=32dp 从顶部定位（非 BOTTOM），
-     * 而 thirdLineTextView 用 Gravity.BOTTOM 贴底。
-     * 二者各自独立定位，第三行一出现就和 DC 行叠在一起。
-     *
-     * 处理：第三行可见时把 valueTextView 整体下移一个第三行的高度，
-     * 同时第三行保持贴底，视觉上就变成 ID / DC / 认证行 的垂直堆叠。
-     */
-    private void applyThirdLineLayout() {
-        if (valueTextView == null || thirdLineTextView == null) {
-            requestLayout();
-            return;
-        }
-        final MarginLayoutParams lp = (MarginLayoutParams) valueTextView.getLayoutParams();
-        if (lp == null) {
-            requestLayout();
-            return;
-        }
-        if (thirdLineVisible) {
-            // 第三行高度：字体度量 + 上下 padding，留一点呼吸空间
-            final int lineH = getThirdLineHeight();
-            // 原始 topMargin 是 33-1=32dp，第三行出现时整体下移一个行高
-            lp.topMargin = dp(33 - 1) + lineH;
-        } else {
-            lp.topMargin = dp(33 - 1);
-        }
-        valueTextView.setLayoutParams(lp);
-        requestLayout();
-        invalidate();
-    }
-
-    /** 估算第三行占用的垂直高度（13sp 字号，行高系数 1.45 + 上下留白） */
-    private int getThirdLineHeight() {
-        final int textH = Math.round(dp(13) * 1.45f);
-        return textH + dp(4);
     }
 
     public void setImage(Drawable drawable) {
@@ -447,11 +298,6 @@ public class TextDetailCell extends FrameLayout {
         valueTextView.setLinkTextColor(processColor(Theme.getColor(Theme.key_chat_messageLinkIn, resourcesProvider)));
         valueTextView.setTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteGrayText2, resourcesProvider));
         rightValueTextView.setTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteGrayText2, resourcesProvider));
-        // [Aiqiyi] 第三行用更淡的灰，视觉上作为附属说明
-        if (thirdLineTextView != null) {
-            thirdLineTextView.setTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteGrayText2, resourcesProvider));
-            thirdLineTextView.setAlpha(0.85f);
-        }
         valueTextView.invalidate();
     }
 

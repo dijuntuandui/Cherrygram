@@ -10954,6 +10954,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
         birthdayRow = -1;
         setUsernameRow = -1;
         idDcRow = -1;
+        aqyVerifiedNoteRow = -1;
         bioRow = -1;
         channelRow = -1;
         channelDividerRow = -1;
@@ -11407,7 +11408,6 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
             if (CherrygramAppearanceConfig.INSTANCE.getShowIDDC()) {
                 idDcRow = rowCount++;
             }
-
             if (actionsView == null) {
                 if (infoHeaderRow != -1) {
                     notificationsDividerRow = rowCount++;
@@ -11416,6 +11416,13 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
             }
             if (rowCount > 0) {
                 infoSectionRow = rowCount++;
+            }
+
+            // [Aiqiyi] 认证说明行：位于资料卡片外侧、infoSectionRow 之后
+            // 仅本人资料页 + 开关开启时占位，别人的主页不显示
+            if (userId != 0 && userId == getUserConfig().getClientUserId()
+                    && CherrygramAppearanceConfig.INSTANCE.getAiqiyiVerifiedLine()) {
+                aqyVerifiedNoteRow = rowCount++;
             }
 
             if (currentChat != null && currentChat.linked_community_id != 0) {
@@ -13918,7 +13925,8 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                 VIEW_TYPE_TEXT_DETAIL_MULTILINE_2 = 30,
                 VIEW_TYPE_EMPTY2 = 31,
                 VIEW_TYPE_TEXT2 = 32,
-                VIEW_TYPE_LINKED_COMMUNITY = 33
+                VIEW_TYPE_LINKED_COMMUNITY = 33,
+                VIEW_TYPE_AQY_VERIFIED_NOTE = 34
                         ;
 
         private Context mContext;
@@ -14015,6 +14023,10 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                 }
                 case VIEW_TYPE_COLORFUL_TEXT: {
                     view = new AffiliateProgramFragment.ColorfulTextCell(mContext, resourcesProvider);
+                    break;
+                }
+                case VIEW_TYPE_AQY_VERIFIED_NOTE: {
+                    view = new uz.unnarsx.cherrygram.aiqiyi.verified.AiqiyiVerifiedNoteCell(mContext, resourcesProvider);
                     break;
                 }
                 case VIEW_TYPE_USER: {
@@ -14284,20 +14296,6 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                                 : null;
                         CharSequence aqyIdValue = aqyLocalId != null ? aqyLocalId : formattedID;
                         detailCell.setTextAndValue("ID: " + aqyIdValue, userDcLine, false);
-                        // [Aiqiyi] 二代认证：DC 行下方追加官方认证说明行
-                        if (CherrygramAppearanceConfig.INSTANCE.getAiqiyiVerifiedLine()) {
-                            String org = CherrygramAppearanceConfig.INSTANCE.getAiqiyiVerifiedOrg();
-                            if (org == null || org.isEmpty()) {
-                                org = "Hold";
-                            }
-                            CharSequence verifiedText = LocaleController.formatString(R.string.AQY_VerifiedLine_Text, org);
-                            // 每次新建 Drawable：ImageSpan 会持有实例，复用会让 bounds 互相干扰
-                            uz.unnarsx.cherrygram.aiqiyi.verified.AiqiyiVerifiedBadgeDrawable badge =
-                                    new uz.unnarsx.cherrygram.aiqiyi.verified.AiqiyiVerifiedBadgeDrawable();
-                            detailCell.setThirdLine(verifiedText, badge);
-                        } else {
-                            detailCell.clearThirdLine();
-                        }
                     } else if (position == birthdayRow) {
                         TLRPC.UserFull userFull = getMessagesController().getUserFull(userId);
                         if (userFull != null && userFull.birthday != null) {
@@ -14975,6 +14973,20 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                     }
                     break;
                 }
+                case VIEW_TYPE_AQY_VERIFIED_NOTE: {
+                    uz.unnarsx.cherrygram.aiqiyi.verified.AiqiyiVerifiedNoteCell noteCell =
+                            (uz.unnarsx.cherrygram.aiqiyi.verified.AiqiyiVerifiedNoteCell) holder.itemView;
+                    String org = CherrygramAppearanceConfig.INSTANCE.getAiqiyiVerifiedOrg();
+                    if (org == null || org.isEmpty()) {
+                        org = "Hold";
+                    }
+                    CharSequence noteText = LocaleController.formatString(R.string.AQY_VerifiedLine_Text, org);
+                    // 每次新建 Drawable：ImageSpan 持有实例，复用会让 bounds 互相干扰
+                    uz.unnarsx.cherrygram.aiqiyi.verified.AiqiyiVerifiedBadgeDrawable noteBadge =
+                            new uz.unnarsx.cherrygram.aiqiyi.verified.AiqiyiVerifiedBadgeDrawable();
+                    noteCell.setText(noteText, noteBadge);
+                    break;
+                }
                 case VIEW_TYPE_COLORFUL_TEXT: {
                     AffiliateProgramFragment.ColorfulTextCell cell = (AffiliateProgramFragment.ColorfulTextCell) holder.itemView;
                     cell.set(getThemedColor(Theme.key_color_green), R.drawable.filled_affiliate, getString(R.string.ProfileBotAffiliateProgram), null);
@@ -15245,6 +15257,8 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
             if (position == infoHeaderRow || position == membersHeaderRow || position == settingsSectionRow2 ||
                     position == numberSectionRow || position == helpHeaderRow || position == debugHeaderRow || position == botPermissionsHeader) {
                 return VIEW_TYPE_HEADER;
+            } else if (position == aqyVerifiedNoteRow) {
+                return VIEW_TYPE_AQY_VERIFIED_NOTE;
             } else if (position == idDcRow || position == phoneRow || position == locationRow || position == numberRow || position == birthdayRow) {
                 return VIEW_TYPE_TEXT_DETAIL;
             } else if (position == usernameRow || position == setUsernameRow) {
@@ -17949,6 +17963,8 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
     public HintView2 creationDateHint;
 
     private int idDcRow;
+    // [Aiqiyi] 认证说明行（卡片外独立 row）
+    private int aqyVerifiedNoteRow = -1;
     private StringBuilder userDcLine;
 
     public AnimatedEmojiDrawable.SwapAnimatedEmojiDrawable cherrygramStatusDrawable;

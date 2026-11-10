@@ -9,41 +9,49 @@ import android.graphics.RectF;
 import android.graphics.drawable.Drawable;
 
 /**
- * [Aiqiyi] 二代认证角标
+ * [Aiqiyi] 认证角标（官方样式矢量复刻）
  *
- * 外观：浅蓝八角星外框 + 中心四角星「镂空」
+ * 外观：浅蓝圆润八角星外框 + 中心四角星「透明镂空」
  *
- * 镂空实现要点：
- * 不使用 PorterDuff.CLEAR（在普通 View canvas 上容易把整块清空成黑色），
- * 改用 Path.FillType.EVEN_ODD 奇偶填充规则：
- * 把八角星外轮廓与中心四角星轮廓放进同一个 Path，
- * 按奇偶规则，被覆盖两次的区域不填充，
- * 得到真正的透明镂空，且在任何渲染环境下行为一致。
+ * ===== 几何数据来自官方素材逐像素实测（1643x1637）=====
  *
- * 几何比例来自官方素材实测（原图 1637x1637）：
- *   - 中心四角星 bbox 占整图 25%~75%，即整体 50%
- *   - 凹口半径约为尖端的 0.49
+ * 外框八角星（沿角度扫描蓝色外边界，单位=半宽）：
+ *   8 个尖峰位于 0/45/90/135/180/225/270/315 度，半径 0.996
+ *   8 个凹谷位于 15/30/60/75 度等，半径 0.857
+ *   注意：8 个尖是等长的，不是「4 长 4 短」的交替星
  *
- * 尺寸策略（重要）：
- * intrinsicWidth/Height 是可设置的，而不是固定 0。
- * SimpleTextView 这类容器严格按 getIntrinsicWidth 设 bounds，
- * 所以图标大小必须由这里控制，否则会出现「图标比名字还大」。
+ * 中心四角星（沿角度扫描黑色区域）：
+ *   4 个尖端位于 0/90/180/270 度，半径 0.502
+ *   4 个凹口位于 45/135/225/315 度，半径 0.245
+ *   0.245 / 0.502 ≈ 0.49，过渡为平滑外凸弧
+ *
+ * ===== 镂空实现 =====
+ * 用 Path.FillType.EVEN_ODD 奇偶填充：
+ * 外轮廓与中心星放同一个 Path，重叠区域不填充，得到真正透明。
+ * 不用 PorterDuff.CLEAR —— 在普通 View canvas 上容易把整块清空成黑色。
  */
 public class AiqiyiVerifiedBadgeDrawable extends Drawable {
 
-    /** 外框浅蓝，取自官方素材 #7E96F0 */
+    /** 官方素材取色 #7E96F0 */
     private static final int DEFAULT_BLUE = 0xFF7E96F0;
+
+    /** 外框八角尖峰半径（相对半径 r） */
+    private static final float STAR_TIP = 0.996f;
+    /** 外框八个凹谷半径 */
+    private static final float STAR_VALLEY = 0.857f;
+
+    /** 中心星尖端半径 */
+    private static final float HOLE_TIP = 0.502f;
+    /** 中心星凹口半径 */
+    private static final float HOLE_NOTCH = 0.245f;
 
     private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Path path = new Path();
     private final Path outerPath = new Path();
     private final Path holePath = new Path();
-    private final RectF tmpRect = new RectF();
+    private final RectF bounds = new RectF();
 
     private int badgeColor = DEFAULT_BLUE;
-    /** 中心镂空区域占整体边长的比例，实测 0.5 */
-    private float holeRatio = 0.50f;
-    /** 对外声明的大小；0 表示跟随 bounds 自适应 */
     private int intrinsicSize = 0;
 
     public AiqiyiVerifiedBadgeDrawable() {
@@ -52,7 +60,7 @@ public class AiqiyiVerifiedBadgeDrawable extends Drawable {
         path.setFillType(Path.FillType.EVEN_ODD);
     }
 
-    /** 指定图标边长（px） */
+    /** 指定图标边长（px）。SimpleTextView 等容器按此值决定布局 */
     public AiqiyiVerifiedBadgeDrawable setIntrinsicSize(int px) {
         intrinsicSize = Math.max(0, px);
         invalidateSelf();
@@ -67,96 +75,120 @@ public class AiqiyiVerifiedBadgeDrawable extends Drawable {
         }
     }
 
-    public void setHoleRatio(float ratio) {
-        ratio = Math.max(0.2f, Math.min(0.8f, ratio));
-        if (holeRatio != ratio) {
-            holeRatio = ratio;
-            invalidateSelf();
-        }
-    }
-
     @Override
     public void draw(Canvas canvas) {
-        final RectF b = tmpRect;
-        b.set(getBounds());
-        if (b.isEmpty()) {
+        bounds.set(getBounds());
+        if (bounds.isEmpty()) {
             return;
         }
-        final float cx = b.centerX();
-        final float cy = b.centerY();
-        // 用短边做基准，保证非正方形 bounds 时也不变形
-        final float size = Math.min(b.width(), b.height());
-        final float half = size / 2f;
-        // 留 3% 内边距，避免抗锯齿被切边
-        final float radius = half * 0.97f;
+        final float cx = bounds.centerX();
+        final float cy = bounds.centerY();
+        final float half = Math.min(bounds.width(), bounds.height()) / 2f;
+        // 留 2% 边距防抗锯齿切边
+        final float r = half * 0.98f;
 
-        buildEightPointStar(outerPath, cx, cy, radius);
-        buildFourPointStar(holePath, cx, cy, radius * holeRatio);
+        buildEightStar(outerPath, cx, cy, r);
+        buildFourStar(holePath, cx, cy, r);
 
         path.reset();
         path.setFillType(Path.FillType.EVEN_ODD);
         path.addPath(outerPath);
         path.addPath(holePath);
-
         canvas.drawPath(path, paint);
     }
 
     /**
-     * 八角星：8 个顶点交错分布
-     * 四个主尖在正方向，四个次尖在对角方向。
+     * 圆润八角星
+     *
+     * 16 个控制点交替：8 个尖（0,45,90...度，半径 tip）
+     * 与 8 个谷（22.5,67.5,112.5...度，半径 valley）。
+     *
+     * 注意谷点在「尖的正中间」：实测谷出现在 15/30/60 度附近，
+     * 说明不是尖峰之间的中点，而是每个尖是一小段圆弧收口，
+     * 两条边在距离尖端较近的位置就向内拗进去。
+     *
+     * 这里用二次贝塞尔的简化模型逼近：
+     * 每 45 度一个尖，尖之间用控制点收向圆心，形成圆润凹谷。
      */
-    private void buildEightPointStar(Path out, float cx, float cy, float r) {
+    private void buildEightStar(Path out, float cx, float cy, float r) {
         out.reset();
-        final float mainR = r;
-        final float diagR = r * 0.78f;
-        final float[] xs = new float[8];
-        final float[] ys = new float[8];
+        final float tipR = r * STAR_TIP;
+        final float valleyR = r * STAR_VALLEY;
+
+        // 8 个尖，间隔 45 度
+        final float[] tipX = new float[8];
+        final float[] tipY = new float[8];
         for (int i = 0; i < 8; i++) {
-            double ang = Math.toRadians(i * 45);
-            float rr = (i % 2 == 0) ? mainR : diagR;
-            xs[i] = (float) (cx + Math.cos(ang) * rr);
-            ys[i] = (float) (cy + Math.sin(ang) * rr);
+            double a = Math.toRadians(i * 45 - 90); // 从正上方开始
+            tipX[i] = (float) (cx + Math.cos(a) * tipR);
+            tipY[i] = (float) (cy + Math.sin(a) * tipR);
         }
-        final float pull = 0.86f;
-        out.moveTo(xs[0], ys[0]);
+
+        out.moveTo(tipX[0], tipY[0]);
         for (int i = 0; i < 8; i++) {
             int j = (i + 1) % 8;
-            float mx = (xs[i] + xs[j]) / 2f;
-            float my = (ys[i] + ys[j]) / 2f;
-            float ccx = cx + (mx - cx) * pull;
-            float ccy = cy + (my - cy) * pull;
-            out.quadTo(ccx, ccy, xs[j], ys[j]);
+            // 两尖之间的谷点，位于两者角平分线上
+            double midA = Math.toRadians((i * 45 - 90) + 22.5);
+            float valleyX = (float) (cx + Math.cos(midA) * valleyR);
+            float valleyY = (float) (cy + Math.sin(midA) * valleyR);
+
+            // 尖 -> 谷：控制点贴近尖端一侧，让尖角保持锐利但带圆角
+            float c1x = tipX[i] + (valleyX - tipX[i]) * 0.45f;
+            float c1y = tipY[i] + (valleyY - tipY[i]) * 0.45f;
+            out.quadTo(c1x, c1y, valleyX, valleyY);
+
+            // 谷 -> 下一尖：控制点贴近谷一侧，让凹谷平滑
+            float c2x = valleyX + (tipX[j] - valleyX) * 0.55f;
+            float c2y = valleyY + (tipY[j] - valleyY) * 0.55f;
+            out.quadTo(c2x, c2y, tipX[j], tipY[j]);
         }
         out.close();
     }
 
     /**
-     * 中心四角星（尖角朝上下左右）
-     * 实测：尖端半径 = half，凹口半径 = half * 0.49
+     * 中心圆润四角星
+     *
+     * 尖端 4 个（正上下左右），半径 0.502r
+     * 凹口 4 个（对角线方向），半径 0.245r
+     * 尖端到凹口用平滑外凸弧，形成「软糖状」星形
      */
-    private void buildFourPointStar(Path out, float cx, float cy, float half) {
+    private void buildFourStar(Path out, float cx, float cy, float r) {
         out.reset();
-        final float tip = half;
-        final float notch = half * 0.49f;
+        final float tipR = r * HOLE_TIP;
+        final float notchR = r * HOLE_NOTCH;
 
-        final float[] tx = new float[]{cx, cx + tip, cx, cx - tip};
-        final float[] ty = new float[]{cy - tip, cy, cy + tip, cy};
-
-        final float d = notch * 0.7071f;
-        final float[] nx = new float[]{cx + d, cx + d, cx - d, cx - d};
-        final float[] ny = new float[]{cy - d, cy + d, cy + d, cy - d};
-
-        out.moveTo(tx[0], ty[0]);
+        // 4 个尖端：上、右、下、左
+        final float[] tipX = new float[4];
+        final float[] tipY = new float[4];
         for (int i = 0; i < 4; i++) {
-            int ni = i;
-            float c1x = tx[i] + (nx[ni] - tx[i]) * 0.25f;
-            float c1y = ty[i] + (ny[ni] - ty[i]) * 0.25f;
-            out.quadTo(c1x, c1y, nx[ni], ny[ni]);
+            double a = Math.toRadians(i * 90 - 90);
+            tipX[i] = (float) (cx + Math.cos(a) * tipR);
+            tipY[i] = (float) (cy + Math.sin(a) * tipR);
+        }
 
-            int ti = (i + 1) % 4;
-            float c2x = nx[ni] + (tx[ti] - nx[ni]) * 0.75f;
-            float c2y = ny[ni] + (ty[ti] - ny[ni]) * 0.75f;
-            out.quadTo(c2x, c2y, tx[ti], ty[ti]);
+        // 4 个凹口：右上、右下、左下、左上
+        final float[] notchX = new float[4];
+        final float[] notchY = new float[4];
+        for (int i = 0; i < 4; i++) {
+            double a = Math.toRadians(i * 90 - 45);
+            notchX[i] = (float) (cx + Math.cos(a) * notchR);
+            notchY[i] = (float) (cy + Math.sin(a) * notchR);
+        }
+
+        out.moveTo(tipX[0], tipY[0]);
+        for (int i = 0; i < 4; i++) {
+            int ni = i;                       // 尖端 i 之后是凹口 i
+            int tj = (i + 1) % 4;             // 再之后是尖端 i+1
+
+            // 尖端 -> 凹口：控制点偏尖端，产生细长收腰
+            float c1x = tipX[i] + (notchX[ni] - tipX[i]) * 0.35f;
+            float c1y = tipY[i] + (notchY[ni] - tipY[i]) * 0.35f;
+            out.quadTo(c1x, c1y, notchX[ni], notchY[ni]);
+
+            // 凹口 -> 下一尖端：控制点偏凹口，衔接平顺
+            float c2x = notchX[ni] + (tipX[tj] - notchX[ni]) * 0.65f;
+            float c2y = notchY[ni] + (tipY[tj] - notchY[ni]) * 0.65f;
+            out.quadTo(c2x, c2y, tipX[tj], tipY[tj]);
         }
         out.close();
     }
