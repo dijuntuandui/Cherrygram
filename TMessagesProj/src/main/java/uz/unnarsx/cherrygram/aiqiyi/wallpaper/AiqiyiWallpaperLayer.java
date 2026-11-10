@@ -50,36 +50,20 @@ public class AiqiyiWallpaperLayer extends android.widget.FrameLayout {
         // 视频就绪后由 onDraw 直接跳过静态壁纸，由 TextureView 显示画面。
         videoView = new android.view.TextureView(context);
         videoView.setOpaque(false);
-        addView(videoView, new android.widget.FrameLayout.LayoutParams(
-                android.view.ViewGroup.LayoutParams.MATCH_PARENT,
-                android.view.ViewGroup.LayoutParams.MATCH_PARENT));
-    }
-
-    /**
-     * [Aiqiyi] 设置全局动态壁纸视频。传 null 表示关掉动态壁纸，回到静态壁纸。
-     * 视频层是本类唯一的子 View，铺满整层；静态壁纸由 onDraw 画，
-     * 两者不会同时出现：视频就绪后 onDraw 直接返回不再画静态壁纸。
-     */
-    public void setVideoPath(String path) {
-        if (android.text.TextUtils.equals(path, videoPath)) {
-            return;
-        }
-        videoPath = path;
-        releaseVideo();
-        if (path == null) {
-            videoReady = false;
-            videoView.setVisibility(GONE);
-            invalidate();
-            return;
-        }
         videoView.setSurfaceTextureListener(new android.view.TextureView.SurfaceTextureListener() {
             @Override
             public void onSurfaceTextureAvailable(android.graphics.SurfaceTexture st, int w, int h) {
+                if (w <= 0 || h <= 0) {
+                    return;
+                }
                 startVideo(st);
             }
 
             @Override
             public void onSurfaceTextureSizeChanged(android.graphics.SurfaceTexture st, int w, int h) {
+                if (w > 0 && h > 0 && videoPlayer == null && videoPath != null) {
+                    startVideo(st);
+                }
             }
 
             @Override
@@ -92,8 +76,34 @@ public class AiqiyiWallpaperLayer extends android.widget.FrameLayout {
             public void onSurfaceTextureUpdated(android.graphics.SurfaceTexture st) {
             }
         });
-        if (videoView.getSurfaceTexture() != null) {
-            startVideo(videoView.getSurfaceTexture());
+        addView(videoView, new android.widget.FrameLayout.LayoutParams(
+                android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+                android.view.ViewGroup.LayoutParams.MATCH_PARENT));
+    }
+
+    /**
+     * [Aiqiyi] 设置全局动态壁纸视频。传 null 表示关掉动态壁纸，回到静态壁纸。
+     * 视频层是本类唯一的子 View，铺满整层；静态壁纸由 onDraw 画，
+     * 两者不会同时出现：视频就绪后 onDraw 直接返回不再画静态壁纸。
+     */
+    public void setVideoPath(String path) {
+        final boolean samePath = android.text.TextUtils.equals(path, videoPath);
+        if (samePath && (path == null || videoPlayer != null)) {
+            return;
+        }
+        videoPath = path;
+        releaseVideo();
+        if (path == null) {
+            videoReady = false;
+            videoView.setVisibility(GONE);
+            invalidate();
+            return;
+        }
+        android.graphics.SurfaceTexture st = videoView.getSurfaceTexture();
+        if (st != null && videoView.getWidth() > 0 && videoView.getHeight() > 0) {
+            startVideo(st);
+        } else {
+            videoView.requestLayout();
         }
     }
 
@@ -214,6 +224,21 @@ public class AiqiyiWallpaperLayer extends android.widget.FrameLayout {
     }
 
     @Override
+    protected void onSizeChanged(int w, int h, int oldw, int oldh) {
+        super.onSizeChanged(w, h, oldw, oldh);
+        if (videoPath == null || videoPlayer != null) {
+            return;
+        }
+        if (w <= 0 || h <= 0) {
+            return;
+        }
+        android.graphics.SurfaceTexture st = videoView.getSurfaceTexture();
+        if (st != null) {
+            startVideo(st);
+        }
+    }
+
+    @Override
     protected void onDetachedFromWindow() {
         releaseVideo();
         super.onDetachedFromWindow();
@@ -221,9 +246,27 @@ public class AiqiyiWallpaperLayer extends android.widget.FrameLayout {
 
     @Override
     public void setVisibility(int visibility) {
+        final int old = getVisibility();
         super.setVisibility(visibility);
         if (visibility == VISIBLE) {
             updateWallpaper();
+            if (old != VISIBLE) {
+                requestLayout();
+                post(this::tryStartVideoIfReady);
+            }
+        }
+    }
+
+    private void tryStartVideoIfReady() {
+        if (videoPath == null || videoPlayer != null) {
+            return;
+        }
+        if (videoView.getWidth() <= 0 || videoView.getHeight() <= 0) {
+            return;
+        }
+        android.graphics.SurfaceTexture st = videoView.getSurfaceTexture();
+        if (st != null) {
+            startVideo(st);
         }
     }
 }
