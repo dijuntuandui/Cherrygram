@@ -4572,7 +4572,8 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
         };
         listView.setSections();
         listView.applyPaddingToSections = false;
-        listView.setBackgroundColor(getThemedColor(Theme.key_windowBackgroundGray));
+        // [Aiqiyi] 资料页要求纯黑，绕过全屏壁纸的透明化
+        listView.setBackgroundColor(Theme.getColorIgnoringFullscreenWallpaper(Theme.key_windowBackgroundGray));
         listView.setVerticalScrollBarEnabled(false);
         final IBlur3Capture listViewCapture = new ViewGroupPartRenderer(listView, (ViewGroup) fragmentView, (canvas, child, drawingTime) -> {
             if (child == sharedMediaLayout) {
@@ -16227,7 +16228,8 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                         ((UserCell) child).update(0);
                     }
                 }
-                listView.setBackgroundColor(getThemedColor(Theme.key_windowBackgroundGray));
+                // [Aiqiyi] 资料页要求纯黑，绕过全屏壁纸的透明化
+                listView.setBackgroundColor(Theme.getColorIgnoringFullscreenWallpaper(Theme.key_windowBackgroundGray));
             }
             if (!isPulledDown) {
                 if (onlineTextView[1] != null) {

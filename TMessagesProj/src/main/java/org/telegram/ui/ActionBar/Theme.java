@@ -9178,6 +9178,23 @@ public class Theme {
         aiqiyiFullscreenWallpaperEnabled = -1;
     }
 
+    /**
+     * [Aiqiyi] 取色时跳过「全屏壁纸」的透明化拦截。
+     *
+     * 个人资料页要求保持纯色、不显示壁纸，但它的 listView 底色用的正是
+     * key_windowBackgroundGray —— 会被全屏壁纸拦成透明，导致卡片缝隙
+     * 里透出底图。这里给它一条绕过通道。
+     */
+    public static int getColorIgnoringFullscreenWallpaper(int key) {
+        final int saved = aiqiyiFullscreenWallpaperEnabled;
+        aiqiyiFullscreenWallpaperEnabled = 0;
+        try {
+            return getColor(key);
+        } finally {
+            aiqiyiFullscreenWallpaperEnabled = saved;
+        }
+    }
+
     private static boolean isAiqiyiGlassEnabled() {
         final int cached = aiqiyiGlassEnabled;
         if (cached != -1) {
