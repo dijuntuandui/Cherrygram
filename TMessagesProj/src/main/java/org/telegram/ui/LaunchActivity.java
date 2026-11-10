@@ -1174,24 +1174,23 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
         if (aiqiyiWallpaperLayer == null) {
             return;
         }
-        String path = null;
+        // [Aiqiyi] 这里只看「开关是否开 + 账号是否有效」。
+        // 不能再拿 DynamicVideoWallpaperHelper.getVideoPath() 的结果当开关：
+        // 它在多轮循环模式下恒返回 null，会把整条动态壁纸链路直接掐断。
+        // 真正的视频存在性由 attach() / attachMulti() 自己判断。
         int account = -1;
         if (enabled) {
             try {
-                account = UserConfig.selectedAccount;
-                if (account >= 0 && account < UserConfig.MAX_ACCOUNT_COUNT
-                        && UserConfig.getInstance(account).isClientActivated()) {
-                    path = tw.nekomimi.nekogram.helpers.DynamicVideoWallpaperHelper
-                            .getVideoPath(this, account, 0L);
+                final int current = UserConfig.selectedAccount;
+                if (current >= 0 && current < UserConfig.MAX_ACCOUNT_COUNT
+                        && UserConfig.getInstance(current).isClientActivated()) {
+                    account = current;
                 }
             } catch (Throwable t) {
                 org.telegram.messenger.FileLog.e(t);
-                path = null;
             }
         }
-        // [Aiqiyi] 把 account 一并交给壁纸层：它内部走 DynamicVideoWallpaperHelper.attach()，
-        // attach 会用同样的 account 再取一次路径，传 -1 取不到就返回 null。
-        aiqiyiWallpaperLayer.setVideo(path, account);
+        aiqiyiWallpaperLayer.setVideo(null, account);
     }
 
     private void checkSystemBarColors(boolean useCurrentFragment) {
