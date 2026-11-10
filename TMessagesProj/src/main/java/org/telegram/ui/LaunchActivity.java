@@ -1157,6 +1157,38 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
         if (enabled) {
             aiqiyiWallpaperLayer.updateWallpaper();
         }
+        // [Aiqiyi] 同步动态壁纸：根布局的壁纸层同时承载视频，
+        // 因此只要这里喂一次路径，所有页面的底图都会跟着变成动态壁纸。
+        syncAiqiyiDynamicWallpaper(enabled);
+    }
+
+    /** Aiqiyi 入 口：从设置页读取当前配置并重新绑定根壁纸层。 */
+    public void refreshAiqiyiDynamicWallpaperFromSettings() {
+        final boolean enabled =
+                uz.unnarsx.cherrygram.core.configs.CherrygramAppearanceConfig.INSTANCE.getAiqiyiFullscreenWallpaper();
+        syncAiqiyiDynamicWallpaper(enabled);
+    }
+
+    /** [Aiqiyi] 把当前账号的动态壁纸视频交给根壁纸层；无视频时回落静态壁纸。 */
+    private void syncAiqiyiDynamicWallpaper(boolean enabled) {
+        if (aiqiyiWallpaperLayer == null) {
+            return;
+        }
+        String path = null;
+        if (enabled) {
+            try {
+                int account = UserConfig.selectedAccount;
+                if (account >= 0 && account < UserConfig.MAX_ACCOUNT_COUNT
+                        && UserConfig.getInstance(account).isClientActivated()) {
+                    path = tw.nekomimi.nekogram.helpers.DynamicVideoWallpaperHelper
+                            .getVideoPath(this, account, 0L);
+                }
+            } catch (Throwable t) {
+                org.telegram.messenger.FileLog.e(t);
+                path = null;
+            }
+        }
+        aiqiyiWallpaperLayer.setVideoPath(path);
     }
 
     private void checkSystemBarColors(boolean useCurrentFragment) {

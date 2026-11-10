@@ -121,8 +121,12 @@ public final class DynamicVideoWallpaperHelper {
         SharedPreferences preferences = context.getSharedPreferences(PREFERENCES, Context.MODE_PRIVATE);
         if (!enabled) {
             String oldGlobalPath = safeString(preferences, GLOBAL_VIDEO, null);
+            /* [Aiqiyi] 关闭全局共用时必须清掉 GLOBAL_RESET_REQUIRED。
+               原实现无条件置 true，但 getVideoPath() 见 true 会直接 return null，
+               连本会话自己的视频也一起失效，形成「关过一次就永远没有动态壁纸」的死锁。
+               既然下面已经把 GLOBAL_VIDEO 删干净，就不存在需要「重置」的残留。 */
             preferences.edit().putBoolean(GLOBAL_ENABLED, false)
-                    .putBoolean(GLOBAL_RESET_REQUIRED, true)
+                    .putBoolean(GLOBAL_RESET_REQUIRED, false)
                     .remove(GLOBAL_VIDEO).commit();
             MultiDynamicVideoWallpaperHelper.clearGlobal(context);
             deleteIfUnreferenced(context, oldGlobalPath);
@@ -393,10 +397,10 @@ public final class DynamicVideoWallpaperHelper {
 
     public static String getVideoPath(Context context, int account, long dialogId) {
         SharedPreferences preferences = context.getSharedPreferences(PREFERENCES, Context.MODE_PRIVATE);
-        if (requiresGlobalWallpaperReset(context)) {
-            return null;
-        }
-        if (isGlobalSharingEnabled(context)) {
+        // [Aiqiyi] 旧实现见 GLOBAL_RESET_REQUIRED 就无条件 return null，把本会话自己的视频也一起
+        // 判死，导致关过一次「全设备共用」后动态壁纸永久失效。这里改为只影响全局路径分支。
+        final boolean globalResetPending = requiresGlobalWallpaperReset(context);
+        if (isGlobalSharingEnabled(context) && !globalResetPending) {
             String globalPath = safeString(preferences, GLOBAL_VIDEO, null);
             if (globalPath != null && new File(globalPath).isFile() && new File(globalPath).length() > 0) {
                 return globalPath;

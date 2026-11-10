@@ -127,6 +127,22 @@ import tw.nekomimi.nekogram.helpers.MultiDynamicVideoWallpaperHelper;
 
 public class ThemeActivity extends BaseFragment implements NotificationCenter.NotificationCenterDelegate {
 
+    /**
+     * [Aiqiyi] 刷新根布局壁纸层上的动态壁纸。
+     * 视频改成挂在 LaunchActivity 的根壁纸层后，所有页面共用同一份底图，
+     * 因此导入/更换/清除视频后需要主动让根层重新读取路径。
+     */
+    private static void refreshAiqiyiRootWallpaper() {
+        try {
+            org.telegram.ui.LaunchActivity activity = org.telegram.ui.LaunchActivity.instance;
+            if (activity != null) {
+                activity.refreshAiqiyiDynamicWallpaperFromSettings();
+            }
+        } catch (Throwable t) {
+            org.telegram.messenger.FileLog.e(t);
+        }
+    }
+
     public final static int THEME_TYPE_BASIC = 0;
     public final static int THEME_TYPE_NIGHT = 1;
     public final static int THEME_TYPE_OTHER = 2;
@@ -2187,6 +2203,9 @@ public class ThemeActivity extends BaseFragment implements NotificationCenter.No
                     }
                     try {
                         DynamicVideoWallpaperHelper.notifyWallpaperChanged(currentAccount, 0);
+                        // [Aiqiyi] 根壁纸层承载动态壁纸后，导入/更换视频要立刻刷新，
+                        // 否则要等下次 onResume 才会看到新视频。
+                        refreshAiqiyiRootWallpaper();
                         FileLog.e("AQYDIAG step8 notify done");
                     } catch (Throwable t) {
                         FileLog.e("AQYDIAG step8 notify THREW", t);
@@ -2239,6 +2258,7 @@ public class ThemeActivity extends BaseFragment implements NotificationCenter.No
                 }
                 if (res != null && res.imported > 0) {
                     DynamicVideoWallpaperHelper.notifyWallpaperChanged(currentAccount, 0);
+                    refreshAiqiyiRootWallpaper();
                 }
                 if (listAdapter != null) {
                     listAdapter.notifyDataSetChanged();
