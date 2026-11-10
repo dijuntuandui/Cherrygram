@@ -9154,6 +9154,30 @@ public class Theme {
         aiqiyiGlassEnabled = -1;
     }
 
+    // [Aiqiyi] 全屏壁纸开关缓存。-1 未读，0 关，1 开。
+    private static int aiqiyiFullscreenWallpaperEnabled = -1;
+
+    private static boolean isAiqiyiFullscreenWallpaperEnabled() {
+        final int cached = aiqiyiFullscreenWallpaperEnabled;
+        if (cached != -1) {
+            return cached == 1;
+        }
+        int value = 0;
+        try {
+            if (uz.unnarsx.cherrygram.core.configs.CherrygramAppearanceConfig.INSTANCE.getAiqiyiFullscreenWallpaper()) {
+                value = 1;
+            }
+        } catch (Throwable ignore) {
+        }
+        aiqiyiFullscreenWallpaperEnabled = value;
+        return value == 1;
+    }
+
+    /** 开关变化后调用，让缓存失效重新读取 */
+    public static void invalidateAiqiyiFullscreenWallpaperCache() {
+        aiqiyiFullscreenWallpaperEnabled = -1;
+    }
+
     private static boolean isAiqiyiGlassEnabled() {
         final int cached = aiqiyiGlassEnabled;
         if (cached != -1) {
@@ -9171,6 +9195,12 @@ public class Theme {
     }
 
     public static int getColor(int key, boolean[] isDefault, boolean ignoreAnimation) {
+        // [Aiqiyi] 全屏壁纸：页面灰底改透明，让根布局底部的壁纸透上来。
+        // 只拦 windowBackgroundGray（页面底色），不拦 White（卡片色），
+        // 否则所有卡片会一起透底。
+        if (key == key_windowBackgroundGray && isAiqiyiFullscreenWallpaperEnabled()) {
+            return 0x00000000;
+        }
         // [Aiqiyi GLASS-BUBBLE] 开关开启时，气泡相关 key 直接短路成透明色。
         if (isAiqiyiGlassEnabled()) {
             final int glass = getAiqiyiGlassBubbleColor(key);

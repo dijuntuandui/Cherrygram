@@ -12,77 +12,89 @@ import org.telegram.ui.ActionBar.Theme;
  *
  * 铺在 LaunchActivity 根布局最底部（index 0），作为整个 App 的底图。
  * 上层各页面的 fragmentView 在「全屏壁纸」开启时被设成透明，
- * 于是壁纸从下往上透出来，形成全屏效果。
+ * 壁纸从下往上透出来，形成全屏效果。
  *
- * 支持：
- *   静态壁纸 —— Theme 缓存里的 BitmapDrawable / 渐变 / 纯色
- *   动态壁纸 —— MotionBackgroundDrawable，需持续 invalidate 驱动动画
+ * ===== 为什么不用 onAttachedToWindow 里取一次壁纸 =====
+ * Theme.loadWallpaper(true) 是异步的：先 post 到 themeQueue 上解码，
+ * 解码完成才把 themedWallpaper 赋值。LaunchActivity 里调用它的下一行
+ * 就去取壁纸，此时必然还是 null，取一次 = 永远空白。
  *
- * 个人资料页不加壁纸：ProfileActivity 是 hasOwnBackground = true，
- * 不会进入 ActionBarLayout 的透明化分支，它自己会铺底色盖住壁纸。
+ * 所以改成：
+ *   1. 每次 onDraw 都重新比对当前壁纸引用，有变化立刻换
+ *   2. 还没拿到壁纸时，用 postInvalidateOnAnimation 持续重试（限次数防死循环）
+ *   3. 拿到动态壁纸后每帧重绘驱动动画
  */
 public class AiqiyiWallpaperLayer extends View {
 
-    private Drawable wallpaper;
+    /** 未拿到壁纸时的重试上限，约 60 帧 ≈ 1 秒；之后改由外部事件触发刷新 */
+    private static final int MAX_PENDING_RETRY = 60;
+
+    private Drawable appliedWallpaper;
     private boolean motion;
     private int lastWidth = -1;
     private int lastHeight = -1;
+    private int pendingRetry = 0;
 
     public AiqiyiWallpaperLayer(Context context) {
         super(context);
         setWillNotDraw(false);
     }
 
-    /** 刷新壁纸引用。换壁纸 / 切主题后需要重新调用 */
+    /** 外部主动刷新（开关切换、切页、onResume 时调用） */
     public void updateWallpaper() {
-        Drawable d = Theme.getCachedWallpaperNonBlocking();
-        if (d != this.wallpaper) {
-            this.wallpaper = d;
-        }
-        this.motion = Theme.isWallpaperMotion();
-        lastWidth = -1; // 强制重新设置 bounds
+        appliedWallpaper = null;      // 强制 onDraw 重新比对
+        pendingRetry = MAX_PENDING_RETRY;
+        lastWidth = -1;
         invalidate();
     }
 
     public boolean hasWallpaper() {
-        return wallpaper != null;
+        return Theme.getCachedWallpaperNonBlocking() != null;
     }
 
     @Override
     protected void onDraw(Canvas canvas) {
-        final Drawable d = wallpaper;
+        final Drawable d = Theme.getCachedWallpaperNonBlocking();
+
         if (d == null) {
+            // 壁纸还在异步加载，继续等一下
+            if (pendingRetry > 0) {
+                pendingRetry--;
+                postInvalidateOnAnimation();
+            }
             return;
         }
+
+        pendingRetry = MAX_PENDING_RETRY;
+        motion = Theme.isWallpaperMotion();
+
         final int w = getWidth();
         final int h = getHeight();
         if (w <= 0 || h <= 0) {
             return;
         }
-        if (w != lastWidth || h != lastHeight) {
+
+        // 壁纸换了 / 尺寸变了，重设 bounds
+        if (d != appliedWallpaper || w != lastWidth || h != lastHeight) {
+            appliedWallpaper = d;
             lastWidth = w;
             lastHeight = h;
-            // 壁纸按视差通常比屏幕高，这里铺满整个可视区域
             d.setBounds(0, 0, w, h);
         }
+
         d.draw(canvas);
 
         if (motion) {
-            // 动态壁纸需要持续重绘驱动动画
-            invalidate();
+            // 动态壁纸需要持续重绘才能跑动画
+            postInvalidateOnAnimation();
         }
     }
 
     @Override
     protected void onAttachedToWindow() {
         super.onAttachedToWindow();
-        updateWallpaper();
         setLayerType(LAYER_TYPE_HARDWARE, null);
-    }
-
-    @Override
-    protected void onDetachedFromWindow() {
-        super.onDetachedFromWindow();
+        updateWallpaper();
     }
 
     @Override

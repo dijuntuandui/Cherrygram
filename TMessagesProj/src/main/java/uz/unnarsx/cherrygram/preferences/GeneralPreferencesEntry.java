@@ -565,6 +565,11 @@ public class GeneralPreferencesEntry extends BaseCGPreferencesEntry {
         } else if (item.id == aiqiyiFullscreenWallpaperRow) {
             CherrygramAppearanceConfig.INSTANCE.setAiqiyiFullscreenWallpaper(!CherrygramAppearanceConfig.INSTANCE.getAiqiyiFullscreenWallpaper());
             SettingsHelper.updateCheckState(view, CherrygramAppearanceConfig.INSTANCE.getAiqiyiFullscreenWallpaper());
+            // [Aiqiyi] 主题色拦截带缓存，开关变了要失效缓存并重建界面才看得出效果
+            org.telegram.ui.ActionBar.Theme.invalidateAiqiyiFullscreenWallpaperCache();
+            if (getParentActivity() != null) {
+                getParentActivity().recreate();
+            }
         } else if (item.id == aiqiyiAutoSignInRow) {
             presentFragment(new uz.unnarsx.cherrygram.aiqiyi.signin.AiqiyiSignInEntry());
         } else if (item.id == aiqiyiLocalZoneRow) {
