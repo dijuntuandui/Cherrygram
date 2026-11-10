@@ -13315,6 +13315,12 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
     }
 
     public int getThemedColor(int key) {
+        // [Aiqiyi] 个人资料页要求与官版保持一致（纯色、不透出壁纸），
+        // 所以整页取色都跳过「全屏壁纸」的透明化处理。
+        // 走这里能覆盖全页 23 处取色点，比逐个改背景省事也更不易漏。
+        if (uz.unnarsx.cherrygram.core.configs.CherrygramAppearanceConfig.INSTANCE.getAiqiyiFullscreenWallpaper()) {
+            return Theme.getColorIgnoringFullscreenWallpaper(key, resourcesProvider);
+        }
         return Theme.getColor(key, resourcesProvider);
     }
 
@@ -16267,8 +16273,12 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
             arrayList.addAll(sharedMediaLayout.getThemeDescriptions());
         }
 
-        arrayList.add(new ThemeDescription(listView, 0, null, null, null, null, Theme.key_windowBackgroundWhite));
-        arrayList.add(new ThemeDescription(searchListView, 0, null, null, null, null, Theme.key_windowBackgroundWhite));
+        // [Aiqiyi] 资料页保持官版纯色：不对 listView 绑定 windowBackgroundWhite，
+        // 背景由下方 setBackgroundColor 显式控制（已走 bypass 通道）。
+        // arrayList.add(new ThemeDescription(listView, 0, null, null, null, null, Theme.key_windowBackgroundWhite));
+        // [Aiqiyi] 资料页保持官版纯色：不对 searchListView 绑定 windowBackgroundWhite，
+        // 背景由下方 setBackgroundColor 显式控制（已走 bypass 通道）。
+        // arrayList.add(new ThemeDescription(searchListView, 0, null, null, null, null, Theme.key_windowBackgroundWhite));
         arrayList.add(new ThemeDescription(listView, 0, null, null, null, null, Theme.key_windowBackgroundGray));
 //        arrayList.add(new ThemeDescription(actionBar, ThemeDescription.FLAG_AB_SUBMENUBACKGROUND, null, null, null, null, Theme.key_actionBarDefaultSubmenuBackground));
 //        arrayList.add(new ThemeDescription(actionBar, ThemeDescription.FLAG_AB_SUBMENUITEM, null, null, null, null, Theme.key_actionBarDefaultSubmenuItem));

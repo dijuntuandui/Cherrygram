@@ -9184,7 +9184,8 @@ public class Theme {
      * 调用点必须在 color |= 0xff000000 之后，否则 alpha 会被那行拉回不透明。
      */
     private static int applyAiqiyiCardAlpha(int key, int color) {
-        if (key == key_windowBackgroundWhite && isAiqiyiFullscreenWallpaperEnabled()) {
+        if (key == key_windowBackgroundWhite && isAiqiyiFullscreenWallpaperEnabled()
+                && !isAiqiyiIgnoreFullscreenWallpaper()) {
             return (color & 0x00FFFFFF) | (0xB8 << 24);
         }
         return color;
@@ -9203,13 +9204,32 @@ public class Theme {
      * 里透出底图。这里给它一条绕过通道。
      */
     public static int getColorIgnoringFullscreenWallpaper(int key) {
-        final int saved = aiqiyiFullscreenWallpaperEnabled;
-        aiqiyiFullscreenWallpaperEnabled = 0;
+        return getColorIgnoringFullscreenWallpaper(key, null);
+    }
+
+    /**
+     * [Aiqiyi] 同上的带 provider 版本。
+     *
+     * 实现注意：这里用 ThreadLocal 做“当前线程豁免”标记，
+     * 而不是像初版那样临时把全局开关改成 0 再还原 ——
+     * 全局字段是静态的，主线程画资料页时若后台线程同时在取色，
+     * 会读到被临时改掉的值，出现卡片偶发不透明。ThreadLocal
+     * 只作用于当前线程，不污染别人。
+     */
+    private static final ThreadLocal<Boolean> aiqiyiIgnoreFullscreenWallpaper = new ThreadLocal<>();
+
+    public static int getColorIgnoringFullscreenWallpaper(int key, ResourcesProvider provider) {
+        final Boolean prev = aiqiyiIgnoreFullscreenWallpaper.get();
+        aiqiyiIgnoreFullscreenWallpaper.set(Boolean.TRUE);
         try {
-            return getColor(key);
+            return provider != null ? getColor(key, provider) : getColor(key);
         } finally {
-            aiqiyiFullscreenWallpaperEnabled = saved;
+            aiqiyiIgnoreFullscreenWallpaper.set(prev);
         }
+    }
+
+    private static boolean isAiqiyiIgnoreFullscreenWallpaper() {
+        return Boolean.TRUE.equals(aiqiyiIgnoreFullscreenWallpaper.get());
     }
 
     private static boolean isAiqiyiGlassEnabled() {
@@ -9232,7 +9252,8 @@ public class Theme {
         // [Aiqiyi] 全屏壁纸：页面灰底改透明，让根布局底部的壁纸透上来。
         // 只拦 windowBackgroundGray（页面底色），不拦 White（卡片色），
         // 否则所有卡片会一起透底。
-        if (key == key_windowBackgroundGray && isAiqiyiFullscreenWallpaperEnabled()) {
+        if (key == key_windowBackgroundGray && isAiqiyiFullscreenWallpaperEnabled()
+                && !isAiqiyiIgnoreFullscreenWallpaper()) {
             return 0x00000000;
         }
         // [Aiqiyi GLASS-BUBBLE] 开关开启时，气泡相关 key 直接短路成透明色。
