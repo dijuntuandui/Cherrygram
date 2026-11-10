@@ -9186,7 +9186,7 @@ public class Theme {
     private static int applyAiqiyiCardAlpha(int key, int color) {
         if (key == key_windowBackgroundWhite && isAiqiyiFullscreenWallpaperEnabled()
                 && !isAiqiyiIgnoreFullscreenWallpaper()) {
-            return (color & 0x00FFFFFF) | (0xB8 << 24);
+            return (color & 0x00FFFFFF) | (0x94 << 24);
         }
         return color;
     }
@@ -9293,7 +9293,8 @@ public class Theme {
                 } else if (key == key_chat_serviceBackgroundSelected) {
                     return serviceSelectedMessageColor;
                 }
-                return getDefaultColor(key);
+                // [Aiqiyi] 全屏壁纸：默认主题路径也要过卡片降 alpha，否则直接 return 会绕过
+                return applyAiqiyiCardAlpha(key, getDefaultColor(key));
             }
         }
         int index = currentColors.indexOfKey(key);
@@ -9303,7 +9304,8 @@ public class Theme {
             if (fallbackKey != -1) {
                 int fallbackIndex = currentColors.indexOfKey(fallbackKey);
                 if (fallbackIndex >= 0) {
-                    return currentColors.valueAt(fallbackIndex);
+                    // [Aiqiyi] 全屏壁纸：fallback 路径也要过卡片降 alpha
+                    return applyAiqiyiCardAlpha(key, currentColors.valueAt(fallbackIndex));
                 }
             }
 
