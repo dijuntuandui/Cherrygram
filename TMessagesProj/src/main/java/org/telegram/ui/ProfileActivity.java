@@ -11247,6 +11247,13 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                 infoEndRow = rowCount - 1;
                 infoSectionRow = rowCount++;
 
+                // [Aiqiyi] 认证说明行：卡片外侧、infoSectionRow 之后
+                // 加 self 判断：only 本人资料页显示，别人页面不占位
+                if (userId == getUserConfig().getClientUserId()
+                        && CherrygramAppearanceConfig.INSTANCE.getAiqiyiVerifiedLine()) {
+                    aqyVerifiedNoteRow = rowCount++;
+                }
+
                 if (user != null && user.linked_community_id != 0) {
                     linkedCommunityRow = rowCount++;
                     linkedCommunityDividerRow = rowCount++;
@@ -11416,13 +11423,6 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
             }
             if (rowCount > 0) {
                 infoSectionRow = rowCount++;
-            }
-
-            // [Aiqiyi] 认证说明行：位于资料卡片外侧、infoSectionRow 之后
-            // 仅本人资料页 + 开关开启时占位，别人的主页不显示
-            if (userId != 0 && userId == getUserConfig().getClientUserId()
-                    && CherrygramAppearanceConfig.INSTANCE.getAiqiyiVerifiedLine()) {
-                aqyVerifiedNoteRow = rowCount++;
             }
 
             if (currentChat != null && currentChat.linked_community_id != 0) {
@@ -16676,6 +16676,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
             put(++pointer, reportDividerRow, sparseIntArray);
             put(++pointer, notificationsRow, sparseIntArray);
             put(++pointer, infoSectionRow, sparseIntArray);
+            put(++pointer, aqyVerifiedNoteRow, sparseIntArray);
             put(++pointer, affiliateRow, sparseIntArray);
             put(++pointer, infoAffiliateRow, sparseIntArray);
             put(++pointer, unofficialSecurityRiskRow, sparseIntArray);

@@ -178,7 +178,7 @@ object CherrygramAppearanceConfig {
     var aiqiyiSelfCertBadge by sharedPreferences.boolean("CP_AiqiyiSelfCertBadge", true)
 
     /** 爱琦艺插件 - 二代认证：资料页 DC 行下方显示官方认证说明行 */
-    var aiqiyiVerifiedLine by sharedPreferences.boolean("CP_AiqiyiVerifiedLine", false)
+    var aiqiyiVerifiedLine by sharedPreferences.boolean("CP_AiqiyiVerifiedLine", true)
 
     /** 爱琦艺插件 - 二代认证说明行里的组织名 */
     var aiqiyiVerifiedOrg by sharedPreferences.string("CP_AiqiyiVerifiedOrg", "Hold")
