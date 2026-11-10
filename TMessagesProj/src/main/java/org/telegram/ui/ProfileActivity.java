@@ -10480,7 +10480,13 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                 layoutParams.width = (int) ((AndroidUtilities.displaySize.x - dp(32)) / 1.38f);
                 nameTextView[1].setLayoutParams(layoutParams);
             }
-            fragmentView.setBackgroundColor(0);
+            // [Aiqiyi] 全屏壁纸开启时，资料页需要不透明底色遮住壁纸
+            // 关闭时保持透明（0）以维持原有的头像放大转场动画
+            if (uz.unnarsx.cherrygram.core.configs.CherrygramAppearanceConfig.INSTANCE.getAiqiyiFullscreenWallpaper()) {
+                fragmentView.setBackgroundColor(Theme.getColor(Theme.key_windowBackgroundWhite, resourcesProvider));
+            } else {
+                fragmentView.setBackgroundColor(0);
+            }
             setAvatarAnimationProgress(0);
             ArrayList<Animator> animators = new ArrayList<>();
             animators.add(ObjectAnimator.ofFloat(this, "avatarAnimationProgress", 0.0f, 1.0f));

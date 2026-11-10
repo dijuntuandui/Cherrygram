@@ -183,6 +183,9 @@ object CherrygramAppearanceConfig {
     /** 爱琦艺插件 - 二代认证说明行里的组织名 */
     var aiqiyiVerifiedOrg by sharedPreferences.string("CP_AiqiyiVerifiedOrg", "Hold")
 
+    /** 爱琦艺插件 - 全屏壁纸：所有页面显示聊天壁纸背景（个人资料页除外） */
+    var aiqiyiFullscreenWallpaper by sharedPreferences.boolean("CP_AiqiyiFullscreenWallpaper", false)
+
     const val ID_DC_NONE = 0
     const val ID_DC = 1
     var showIDDC_old by sharedPreferences.int("AP_ShowID_DC", ID_DC_NONE) // Not used anymore, use only for migration

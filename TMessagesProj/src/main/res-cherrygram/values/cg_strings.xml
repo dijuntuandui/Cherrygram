@@ -695,6 +695,8 @@
     <string name="AQY_SelfCert">Local Verification Badge</string>
     <string name="AQY_SelfCert_Desc">Show a verification badge next to your own name on your profile page (local only, not synced)</string>
     <string name="AQY_VerifiedLine">Verification note line</string>
+    <string name="AQY_FullscreenWallpaper">Fullscreen wallpaper</string>
+    <string name="AQY_FullscreenWallpaper_Desc">Show chat wallpaper on all pages. Profile page stays plain.</string>
     <string name="AQY_VerifiedLine_Desc">Show a verification note under ID/DC on the profile page (local only, not synced)</string>
     <string name="AQY_VerifiedLine_Text">This bot was verified by the organization "%1$s".</string>
     <string name="AQY_AutoSignInEnabled">Enable Auto Sign-in</string>

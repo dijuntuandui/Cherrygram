@@ -320,6 +320,8 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
     private ImageView themeSwitchImageView;
     private ImageView themeSwitchSunView;
     public ActionBarLayout actionBarLayout;
+    // [Aiqiyi] 全屏壁纸层（铺在根布局最底部）
+    private uz.unnarsx.cherrygram.aiqiyi.wallpaper.AiqiyiWallpaperLayer aiqiyiWallpaperLayer;
     private ActionBarLayout layersActionBarLayout;
     public ActionBarLayout rightActionBarLayout;
     private RelativeLayout launchLayout;
@@ -534,6 +536,10 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
         drawerLayoutContainer.setClipChildren(false);
         drawerLayoutContainer.setClipToPadding(false);
 
+        // [Aiqiyi] 壁纸层先加入，占据 index 0，作为整个 App 的底图
+        aiqiyiWallpaperLayer = new uz.unnarsx.cherrygram.aiqiyi.wallpaper.AiqiyiWallpaperLayer(this);
+        aiqiyiWallpaperLayer.setVisibility(View.GONE);
+        frameLayout.addView(aiqiyiWallpaperLayer, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT));
         frameLayout.addView(drawerLayoutContainer, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT));
 
         themeSwitchSunView = new ImageView(this) {
@@ -573,9 +579,12 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
             if (getLastFragment() != null && getLastFragment().getLastStoryViewer() != null) {
                 getLastFragment().getLastStoryViewer().updatePlayingMode();
             }
+            // [Aiqiyi] 切页面时同步全屏壁纸状态
+            updateAiqiyiWallpaperLayer();
         });
         actionBarLayout.setDelegate(this);
         Theme.loadWallpaper(true);
+        updateAiqiyiWallpaperLayer();
 
         checkCurrentAccount();
         updateCurrentConnectionState(currentAccount);
@@ -1130,6 +1139,24 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
 
     private void checkSystemBarColors() {
         checkSystemBarColors(false, true, !isNavigationBarColorFrozen);
+    }
+
+    /**
+     * [Aiqiyi] 同步全屏壁纸层状态
+     *
+     * 开关关 -> 隐藏壁纸层，页面恢复各自的 windowBackgroundWhite 底色
+     * 开关开 -> 显示壁纸层并刷新壁纸引用
+     */
+    private void updateAiqiyiWallpaperLayer() {
+        if (aiqiyiWallpaperLayer == null) {
+            return;
+        }
+        final boolean enabled =
+                uz.unnarsx.cherrygram.core.configs.CherrygramAppearanceConfig.INSTANCE.getAiqiyiFullscreenWallpaper();
+        aiqiyiWallpaperLayer.setVisibility(enabled ? View.VISIBLE : View.GONE);
+        if (enabled) {
+            aiqiyiWallpaperLayer.updateWallpaper();
+        }
     }
 
     private void checkSystemBarColors(boolean useCurrentFragment) {
@@ -7155,6 +7182,8 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
             Theme.checkAutoNightThemeConditions(true);
         }
         checkWasMutedByAdmin(true);
+        // [Aiqiyi] 回到前台时刷新全屏壁纸（设置里改了开关能立刻生效）
+        updateAiqiyiWallpaperLayer();
         //FileLog.d("UI resume time = " + (SystemClock.elapsedRealtime() - ApplicationLoader.startTime));
         NotificationCenter.getGlobalInstance().postNotificationName(NotificationCenter.startAllHeavyOperations, 4096);
         MediaController.getInstance().setFeedbackView(feedbackView = actionBarLayout.getView(), true);

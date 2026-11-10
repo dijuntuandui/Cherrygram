@@ -558,6 +558,8 @@
     <string name="AQY_SelfCert">本地认证角标</string>
     <string name="AQY_SelfCert_Desc">在本人资料页名字左侧显示认证角标（仅本地生效，不同步服务器）</string>
     <string name="AQY_VerifiedLine">二代认证说明行</string>
+    <string name="AQY_FullscreenWallpaper">全屏壁纸</string>
+    <string name="AQY_FullscreenWallpaper_Desc">在所有页面显示聊天壁纸作为背景，支持静态与动态壁纸。个人资料页保持纯色不显示壁纸。</string>
     <string name="AQY_VerifiedLine_Desc">在资料页 ID/DC 下方显示官方认证说明行（仅本地可见，不同步服务器）</string>
     <string name="AQY_VerifiedLine_Text">This bot was verified by the organization "%1$s".</string>
     <string name="AQY_AutoSignInEnabled">开启自动签到</string>

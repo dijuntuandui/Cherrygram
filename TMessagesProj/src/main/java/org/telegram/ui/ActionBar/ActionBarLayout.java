@@ -1439,7 +1439,12 @@ public class ActionBarLayout extends FrameLayout implements INavigationLayout, F
         lastFragment.setTitleOverlayTextIfActionBarAttached(titleOverlayText, titleOverlayTextId, overlayAction);
         lastFragment.attachSheets(containerViewBack);
         if (!lastFragment.hasOwnBackground && fragmentView.getBackground() == null) {
-            fragmentView.setBackgroundColor(Theme.getColor(Theme.key_windowBackgroundWhite));
+                // [Aiqiyi] 全屏壁纸开启时铺透明，让根布局底部的壁纸透上来
+                if (uz.unnarsx.cherrygram.core.configs.CherrygramAppearanceConfig.INSTANCE.getAiqiyiFullscreenWallpaper()) {
+                    fragmentView.setBackgroundColor(0);
+                } else {
+                    fragmentView.setBackgroundColor(Theme.getColor(Theme.key_windowBackgroundWhite));
+                }
         }
         lastFragment.onResume();
         if (themeAnimatorSet != null) {
@@ -2318,7 +2323,12 @@ public class ActionBarLayout extends FrameLayout implements INavigationLayout, F
 
         currentActionBar = fragment.actionBar;
         if (!fragment.hasOwnBackground && fragmentView.getBackground() == null) {
-            fragmentView.setBackgroundColor(Theme.getColor(Theme.key_windowBackgroundWhite));
+                // [Aiqiyi] 全屏壁纸开启时铺透明，让根布局底部的壁纸透上来
+                if (uz.unnarsx.cherrygram.core.configs.CherrygramAppearanceConfig.INSTANCE.getAiqiyiFullscreenWallpaper()) {
+                    fragmentView.setBackgroundColor(0);
+                } else {
+                    fragmentView.setBackgroundColor(Theme.getColor(Theme.key_windowBackgroundWhite));
+                }
         }
 
         LayoutContainer temp = containerView;
@@ -2663,7 +2673,12 @@ public class ActionBarLayout extends FrameLayout implements INavigationLayout, F
             }
         }
         if (!fragment.hasOwnBackground && fragmentView.getBackground() == null) {
-            fragmentView.setBackgroundColor(Theme.getColor(Theme.key_windowBackgroundWhite));
+                // [Aiqiyi] 全屏壁纸开启时铺透明，让根布局底部的壁纸透上来
+                if (uz.unnarsx.cherrygram.core.configs.CherrygramAppearanceConfig.INSTANCE.getAiqiyiFullscreenWallpaper()) {
+                    fragmentView.setBackgroundColor(0);
+                } else {
+                    fragmentView.setBackgroundColor(Theme.getColor(Theme.key_windowBackgroundWhite));
+                }
         }
         containerView.addView(fragmentView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT));
         containerView.setShouldHandleBottomInsets(fragment.getEdgeToEdgeSupportMode());
@@ -2701,7 +2716,12 @@ public class ActionBarLayout extends FrameLayout implements INavigationLayout, F
             }
         }
         if (!fragment.hasOwnBackground && fragmentView.getBackground() == null) {
-            fragmentView.setBackgroundColor(Theme.getColor(Theme.key_windowBackgroundWhite));
+                // [Aiqiyi] 全屏壁纸开启时铺透明，让根布局底部的壁纸透上来
+                if (uz.unnarsx.cherrygram.core.configs.CherrygramAppearanceConfig.INSTANCE.getAiqiyiFullscreenWallpaper()) {
+                    fragmentView.setBackgroundColor(0);
+                } else {
+                    fragmentView.setBackgroundColor(Theme.getColor(Theme.key_windowBackgroundWhite));
+                }
         }
         containerView.addView(fragmentView, Utilities.clamp(position, containerView.getChildCount(), 0), LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT));
         containerView.setShouldHandleBottomInsets(fragment.getEdgeToEdgeSupportMode());
@@ -2935,7 +2955,12 @@ public class ActionBarLayout extends FrameLayout implements INavigationLayout, F
             }
             currentActionBar = previousFragment.actionBar;
             if (!previousFragment.hasOwnBackground && fragmentView.getBackground() == null) {
-                fragmentView.setBackgroundColor(Theme.getColor(Theme.key_windowBackgroundWhite));
+                    // [Aiqiyi] 全屏壁纸开启时铺透明，让根布局底部的壁纸透上来
+                    if (uz.unnarsx.cherrygram.core.configs.CherrygramAppearanceConfig.INSTANCE.getAiqiyiFullscreenWallpaper()) {
+                        fragmentView.setBackgroundColor(0);
+                    } else {
+                        fragmentView.setBackgroundColor(Theme.getColor(Theme.key_windowBackgroundWhite));
+                    }
             }
 
             if (needAnimation) {
@@ -3109,7 +3134,12 @@ public class ActionBarLayout extends FrameLayout implements INavigationLayout, F
         previousFragment.onBecomeFullyVisible();
         currentActionBar = previousFragment.actionBar;
         if (!previousFragment.hasOwnBackground && fragmentView.getBackground() == null) {
-            fragmentView.setBackgroundColor(Theme.getColor(Theme.key_windowBackgroundWhite));
+                // [Aiqiyi] 全屏壁纸开启时铺透明，让根布局底部的壁纸透上来
+                if (uz.unnarsx.cherrygram.core.configs.CherrygramAppearanceConfig.INSTANCE.getAiqiyiFullscreenWallpaper()) {
+                    fragmentView.setBackgroundColor(0);
+                } else {
+                    fragmentView.setBackgroundColor(Theme.getColor(Theme.key_windowBackgroundWhite));
+                }
         }
     }
 
