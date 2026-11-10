@@ -9173,6 +9173,23 @@ public class Theme {
         return value == 1;
     }
 
+
+    /**
+     * [Aiqiyi] 全屏壁纸 —— 卡片色半透明收尾。
+     *
+     * 只在「全屏壁纸」开启时生效，且只针对 windowBackgroundWhite。
+     * 保留原 RGB，只把 alpha 压到 184/255（约 72%）：
+     * 深色主题得到半透明深灰，浅色主题得到半透明白。
+     *
+     * 调用点必须在 color |= 0xff000000 之后，否则 alpha 会被那行拉回不透明。
+     */
+    private static int applyAiqiyiCardAlpha(int key, int color) {
+        if (key == key_windowBackgroundWhite && isAiqiyiFullscreenWallpaperEnabled()) {
+            return (color & 0x00FFFFFF) | (0xB8 << 24);
+        }
+        return color;
+    }
+
     /** 开关变化后调用，让缓存失效重新读取 */
     public static void invalidateAiqiyiFullscreenWallpaperCache() {
         aiqiyiFullscreenWallpaperEnabled = -1;
@@ -9277,14 +9294,16 @@ public class Theme {
             } else if (key == key_chat_serviceBackgroundSelected) {
                 return serviceSelectedMessageColor;
             }
-            return getDefaultColor(key);
+            // [Aiqiyi] 全屏壁纸：兜底路径也过一遍卡片降 alpha
+            return applyAiqiyiCardAlpha(key, getDefaultColor(key));
         } else {
             color = currentColors.valueAt(index);
         }
         if (key_windowBackgroundWhite == key || key_windowBackgroundGray == key || key_actionBarDefault == key || key_actionBarDefaultArchived == key) {
             color |= 0xff000000;
         }
-        return color;
+        // [Aiqiyi] 全屏壁纸：卡片色在这里降 alpha（必须放在 |= 0xff000000 之后）
+        return applyAiqiyiCardAlpha(key, color);
     }
 
     private static boolean isMyMessagesBubbles(int key) {
