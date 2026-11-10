@@ -1175,9 +1175,10 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
             return;
         }
         String path = null;
+        int account = -1;
         if (enabled) {
             try {
-                int account = UserConfig.selectedAccount;
+                account = UserConfig.selectedAccount;
                 if (account >= 0 && account < UserConfig.MAX_ACCOUNT_COUNT
                         && UserConfig.getInstance(account).isClientActivated()) {
                     path = tw.nekomimi.nekogram.helpers.DynamicVideoWallpaperHelper
@@ -1188,7 +1189,9 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
                 path = null;
             }
         }
-        aiqiyiWallpaperLayer.setVideoPath(path);
+        // [Aiqiyi] 把 account 一并交给壁纸层：它内部走 DynamicVideoWallpaperHelper.attach()，
+        // attach 会用同样的 account 再取一次路径，传 -1 取不到就返回 null。
+        aiqiyiWallpaperLayer.setVideo(path, account);
     }
 
     private void checkSystemBarColors(boolean useCurrentFragment) {

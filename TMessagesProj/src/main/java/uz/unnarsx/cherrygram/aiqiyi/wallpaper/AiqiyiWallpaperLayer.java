@@ -29,11 +29,17 @@ public class AiqiyiWallpaperLayer extends android.widget.FrameLayout {
     /** 未拿到壁纸时的重试上限，约 60 帧 ≈ 1 秒；之后改由外部事件触发刷新 */
     private static final int MAX_PENDING_RETRY = 60;
 
-    /** [Aiqiyi] 动态壁纸状态 */
-    private android.view.TextureView videoView;
-    private android.media.MediaPlayer videoPlayer;
-    private android.view.Surface videoSurface;
+    /**
+     * [Aiqiyi] 动态壁纸：复用黄昏的 DynamicVideoWallpaperHelper.Player。
+     * 它已经处理了三件本类原实现没做的事：
+     *   1. onVideoSizeChanged 里 setDefaultBufferSize(视频宽高)
+     *      —— 否则 Surface 层先 cover 缩放，再被 Matrix 缩放一次，只剩视频局部
+     *   2. onLayoutChange 里 applyFitCenter + setTransform(new Matrix())
+     *   3. alpha 0 -> 0.96 淡入，未就绪时不会露黑帧
+     */
+    private tw.nekomimi.nekogram.helpers.DynamicVideoWallpaperHelper.Player videoPlayer;
     private String videoPath;
+    private int videoAccount = Integer.MIN_VALUE;
     private boolean videoReady;
 
     private Drawable appliedWallpaper;
@@ -45,40 +51,8 @@ public class AiqiyiWallpaperLayer extends android.widget.FrameLayout {
     public AiqiyiWallpaperLayer(Context context) {
         super(context);
         setWillNotDraw(false);
-
-        // [Aiqiyi] 动态壁纸子层：铺满整个壁纸层，位于静态壁纸之下绘制顺序之外，
-        // 视频就绪后由 onDraw 直接跳过静态壁纸，由 TextureView 显示画面。
-        videoView = new android.view.TextureView(context);
-        videoView.setOpaque(false);
-        videoView.setSurfaceTextureListener(new android.view.TextureView.SurfaceTextureListener() {
-            @Override
-            public void onSurfaceTextureAvailable(android.graphics.SurfaceTexture st, int w, int h) {
-                if (w <= 0 || h <= 0) {
-                    return;
-                }
-                startVideo(st);
-            }
-
-            @Override
-            public void onSurfaceTextureSizeChanged(android.graphics.SurfaceTexture st, int w, int h) {
-                if (w > 0 && h > 0 && videoPlayer == null && videoPath != null) {
-                    startVideo(st);
-                }
-            }
-
-            @Override
-            public boolean onSurfaceTextureDestroyed(android.graphics.SurfaceTexture st) {
-                releaseVideo();
-                return true;
-            }
-
-            @Override
-            public void onSurfaceTextureUpdated(android.graphics.SurfaceTexture st) {
-            }
-        });
-        addView(videoView, new android.widget.FrameLayout.LayoutParams(
-                android.view.ViewGroup.LayoutParams.MATCH_PARENT,
-                android.view.ViewGroup.LayoutParams.MATCH_PARENT));
+        // 视频子层由 DynamicVideoWallpaperHelper.attach() 在 setVideoPath 时加入，
+        // 这里不自建 TextureView。
     }
 
     /**
@@ -87,64 +61,52 @@ public class AiqiyiWallpaperLayer extends android.widget.FrameLayout {
      * 两者不会同时出现：视频就绪后 onDraw 直接返回不再画静态壁纸。
      */
     public void setVideoPath(String path) {
-        final boolean samePath = android.text.TextUtils.equals(path, videoPath);
-        if (samePath && (path == null || videoPlayer != null)) {
+        setVideo(path, -1);
+    }
+
+    /**
+     * [Aiqiyi] 设置动态壁纸。
+     *
+     * @param path    视频路径，null 表示关闭
+     * @param account 取路径时用的账号；attach() 内部会用同样的 account 再取一次，
+     *                所以这里必须传与 getVideoPath 一致的值，否则 attach 会返回 null。
+     */
+    public void setVideo(String path, int account) {
+        final boolean samePath = android.text.TextUtils.equals(path, videoPath)
+                && account == videoAccount;
+        // 只有「路径相同且播放器还活着」才跳过，
+        // 避免路径已写入但视频没起来后每次调用都被短路
+        if (samePath && (path == null || (videoPlayer != null && !videoPlayer.isReleased()))) {
             return;
         }
         videoPath = path;
+        videoAccount = account;
         releaseVideo();
-        if (path == null) {
-            videoReady = false;
-            videoView.setVisibility(GONE);
+        if (android.text.TextUtils.isEmpty(path) || account < 0) {
             invalidate();
             return;
         }
-        android.graphics.SurfaceTexture st = videoView.getSurfaceTexture();
-        if (st != null && videoView.getWidth() > 0 && videoView.getHeight() > 0) {
-            startVideo(st);
-        } else {
-            videoView.requestLayout();
-        }
-    }
-
-    private void startVideo(android.graphics.SurfaceTexture st) {
-        final String path = videoPath;
-        if (path == null) {
-            return;
-        }
         try {
-            videoSurface = new android.view.Surface(st);
-            videoPlayer = new android.media.MediaPlayer();
-            videoPlayer.setDataSource(path);
-            videoPlayer.setSurface(videoSurface);
-            videoPlayer.setVideoScalingMode(
-                    android.media.MediaPlayer.VIDEO_SCALING_MODE_SCALE_TO_FIT_WITH_CROPPING);
-            videoPlayer.setLooping(true);
-            videoPlayer.setVolume(0f, 0f);
-            videoPlayer.setOnPreparedListener(mp -> {
+            // attach 是 public 的；它自己 new 一个 FrameLayout 加进本层并返回 Player
+            videoPlayer = tw.nekomimi.nekogram.helpers.DynamicVideoWallpaperHelper
+                    .attach(this, getContext(), account, 0L);
+            if (videoPlayer != null) {
                 videoReady = true;
-                videoView.setVisibility(VISIBLE);
-                invalidate();
-                try {
-                    mp.start();
-                } catch (Throwable ignored) {
-                }
-            });
-            videoPlayer.prepareAsync();
+            } else {
+                org.telegram.messenger.FileLog.e(
+                        "AiqiyiWallpaperLayer: attach returned null, path=" + path
+                                + " account=" + account);
+            }
         } catch (Throwable e) {
             org.telegram.messenger.FileLog.e(e);
             releaseVideo();
         }
+        invalidate();
+        requestLayout();
     }
 
     private void releaseVideo() {
         videoReady = false;
-        try {
-            if (videoPlayer != null) {
-                videoPlayer.stop();
-            }
-        } catch (Throwable ignored) {
-        }
         try {
             if (videoPlayer != null) {
                 videoPlayer.release();
@@ -152,13 +114,6 @@ public class AiqiyiWallpaperLayer extends android.widget.FrameLayout {
         } catch (Throwable ignored) {
         }
         videoPlayer = null;
-        try {
-            if (videoSurface != null) {
-                videoSurface.release();
-            }
-        } catch (Throwable ignored) {
-        }
-        videoSurface = null;
     }
 
     /** 外部主动刷新（开关切换、切页、onResume 时调用） */
@@ -170,14 +125,13 @@ public class AiqiyiWallpaperLayer extends android.widget.FrameLayout {
     }
 
     public boolean hasWallpaper() {
-        return Theme.getCachedWallpaperNonBlocking() != null;
+        return videoPlayer != null || Theme.getCachedWallpaperNonBlocking() != null;
     }
 
     @Override
     protected void onDraw(Canvas canvas) {
-        // [Aiqiyi] 动态壁纸已就绪时由 TextureView 子层显示画面，
-        // 这里必须直接返回，否则后画的静态壁纸会盖住视频。
-        if (videoReady) {
+        // 有视频时不再画静态壁纸，否则会盖在 TextureView 子层上面
+        if (videoPath != null) {
             return;
         }
         final Drawable d = Theme.getCachedWallpaperNonBlocking();
@@ -219,23 +173,10 @@ public class AiqiyiWallpaperLayer extends android.widget.FrameLayout {
     @Override
     protected void onAttachedToWindow() {
         super.onAttachedToWindow();
-        setLayerType(LAYER_TYPE_HARDWARE, null);
+        // 不能用 LAYER_TYPE_HARDWARE：TextureView 需要 SurfaceFlinger 单独合成，
+        // 一旦被塞进 RenderNode 就会渲染成空白，vivo/iQOO 上尤其明显。
+        setLayerType(LAYER_TYPE_NONE, null);
         updateWallpaper();
-    }
-
-    @Override
-    protected void onSizeChanged(int w, int h, int oldw, int oldh) {
-        super.onSizeChanged(w, h, oldw, oldh);
-        if (videoPath == null || videoPlayer != null) {
-            return;
-        }
-        if (w <= 0 || h <= 0) {
-            return;
-        }
-        android.graphics.SurfaceTexture st = videoView.getSurfaceTexture();
-        if (st != null) {
-            startVideo(st);
-        }
     }
 
     @Override
@@ -250,23 +191,11 @@ public class AiqiyiWallpaperLayer extends android.widget.FrameLayout {
         super.setVisibility(visibility);
         if (visibility == VISIBLE) {
             updateWallpaper();
-            if (old != VISIBLE) {
+            if (old != VISIBLE && videoPath != null) {
+                // 从 GONE 转 VISIBLE：子 View 之前没有测量信息，重新走一遍布局
                 requestLayout();
-                post(this::tryStartVideoIfReady);
             }
         }
     }
 
-    private void tryStartVideoIfReady() {
-        if (videoPath == null || videoPlayer != null) {
-            return;
-        }
-        if (videoView.getWidth() <= 0 || videoView.getHeight() <= 0) {
-            return;
-        }
-        android.graphics.SurfaceTexture st = videoView.getSurfaceTexture();
-        if (st != null) {
-            startVideo(st);
-        }
-    }
 }
