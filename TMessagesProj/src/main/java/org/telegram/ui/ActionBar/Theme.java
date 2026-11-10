@@ -9184,9 +9184,15 @@ public class Theme {
      * 调用点必须在 color |= 0xff000000 之后，否则 alpha 会被那行拉回不透明。
      */
     private static int applyAiqiyiCardAlpha(int key, int color) {
-        if (key == key_windowBackgroundWhite && isAiqiyiFullscreenWallpaperEnabled()
-                && !isAiqiyiIgnoreFullscreenWallpaper()) {
-            return (color & 0x00FFFFFF) | (0x94 << 24);
+        if (isAiqiyiFullscreenWallpaperEnabled() && !isAiqiyiIgnoreFullscreenWallpaper()) {
+            if (key == key_windowBackgroundWhite) {
+                // [Aiqiyi] 卡片层：半透，能看到壁纸
+                return (color & 0x00FFFFFF) | (0x94 << 24);
+            }
+            if (key == key_windowBackgroundGray) {
+                // [Aiqiyi] 页面底色层：比卡片更透，否则整页被这层实黑盖住
+                return (color & 0x00FFFFFF) | (0x5A << 24);
+            }
         }
         return color;
     }

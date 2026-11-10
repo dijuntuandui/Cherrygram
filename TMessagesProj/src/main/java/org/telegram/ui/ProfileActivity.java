@@ -13314,26 +13314,11 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
         return resourcesProvider;
     }
 
-    /**
-     * [Aiqiyi] 判断当前是不是「本人的资料页」。
-     * 只有这里才和官方版保持一致（纯色、不透壁纸）；频道/群组/别人的资料页要透壁纸。
-     */
-    private boolean isAiqiyiSelfProfilePage() {
-        if (currentChat != null) {
-            return false;
-        }
-        if (userId == 0) {
-            return false;
-        }
-        return userId == getUserConfig().getClientUserId();
-    }
-
     public int getThemedColor(int key) {
         // [Aiqiyi] 个人资料页要求与官版保持一致（纯色、不透出壁纸），
         // 所以整页取色都跳过「全屏壁纸」的透明化处理。
         // 走这里能覆盖全页 23 处取色点，比逐个改背景省事也更不易漏。
-        if (uz.unnarsx.cherrygram.core.configs.CherrygramAppearanceConfig.INSTANCE.getAiqiyiFullscreenWallpaper()
-                && isAiqiyiSelfProfilePage()) {
+        if (uz.unnarsx.cherrygram.core.configs.CherrygramAppearanceConfig.INSTANCE.getAiqiyiFullscreenWallpaper()) {
             return Theme.getColorIgnoringFullscreenWallpaper(key, resourcesProvider);
         }
         return Theme.getColor(key, resourcesProvider);
