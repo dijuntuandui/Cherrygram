@@ -100,6 +100,11 @@ public class AiqiyiWallpaperLayer extends android.widget.FrameLayout {
                 org.telegram.messenger.FileLog.e(
                         "AiqiyiWallpaperLayer: attach returned null, account=" + account);
             }
+            android.util.Log.i("AQYDBG", "attach account=" + account
+                    + " player=" + (videoPlayer == null ? "null" : "ok")
+                    + " childCount=" + getChildCount()
+                    + " vis=" + getVisibility()
+                    + " size=" + getWidth() + "x" + getHeight());
         } catch (Throwable e) {
             org.telegram.messenger.FileLog.e(e);
             releaseVideo();
@@ -134,6 +139,13 @@ public class AiqiyiWallpaperLayer extends android.widget.FrameLayout {
     /** 动态壁纸是否已经接管画面 */
     private boolean videoplayerActive() {
         return videoPlayer != null && !videoPlayer.isReleased();
+    }
+
+    @Override
+    protected void onSizeChanged(int w, int h, int oldw, int oldh) {
+        super.onSizeChanged(w, h, oldw, oldh);
+        android.util.Log.i("AQYDBG", "layer onSizeChanged " + oldw + "x" + oldh
+                + " -> " + w + "x" + h + " childCount=" + getChildCount());
     }
 
     @Override
@@ -184,6 +196,7 @@ public class AiqiyiWallpaperLayer extends android.widget.FrameLayout {
         // 不能用 LAYER_TYPE_HARDWARE：TextureView 需要 SurfaceFlinger 单独合成，
         // 一旦被塞进 RenderNode 就会渲染成空白，vivo/iQOO 上尤其明显。
         setLayerType(LAYER_TYPE_NONE, null);
+        android.util.Log.i("AQYDBG", "layer onAttachedToWindow");
         updateWallpaper();
     }
 
@@ -197,6 +210,7 @@ public class AiqiyiWallpaperLayer extends android.widget.FrameLayout {
     public void setVisibility(int visibility) {
         final int old = getVisibility();
         super.setVisibility(visibility);
+        android.util.Log.i("AQYDBG", "layer setVisibility " + old + " -> " + visibility);
         if (visibility == VISIBLE) {
             updateWallpaper();
             if (old != VISIBLE && videoAccount >= 0) {

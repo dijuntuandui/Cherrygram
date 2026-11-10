@@ -1174,10 +1174,6 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
         if (aiqiyiWallpaperLayer == null) {
             return;
         }
-        // [Aiqiyi] 这里只看「开关是否开 + 账号是否有效」。
-        // 不能再拿 DynamicVideoWallpaperHelper.getVideoPath() 的结果当开关：
-        // 它在多轮循环模式下恒返回 null，会把整条动态壁纸链路直接掐断。
-        // 真正的视频存在性由 attach() / attachMulti() 自己判断。
         int account = -1;
         if (enabled) {
             try {
@@ -1187,10 +1183,40 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
                     account = current;
                 }
             } catch (Throwable t) {
-                org.telegram.messenger.FileLog.e(t);
+                android.util.Log.e("AQYDBG", "account resolve failed", t);
             }
         }
+        // [AQYDBG] 用 android.util.Log 直出 logcat，不受 BuildVars.LOGS_ENABLED 限制
+        try {
+            final android.content.Context ctx = this;
+            final boolean sharing = tw.nekomimi.nekogram.helpers.DynamicVideoWallpaperHelper
+                    .isGlobalSharingEnabled(ctx);
+            final boolean needReset = tw.nekomimi.nekogram.helpers.DynamicVideoWallpaperHelper
+                    .requiresGlobalWallpaperReset(ctx);
+            final boolean multiEnabled = account >= 0
+                    && tw.nekomimi.nekogram.helpers.MultiDynamicVideoWallpaperHelper
+                    .isAnyEnabled(ctx, account);
+            final String singlePath = account >= 0
+                    ? tw.nekomimi.nekogram.helpers.DynamicVideoWallpaperHelper
+                    .getVideoPath(ctx, account, 0L) : null;
+            final int multiCount = account >= 0
+                    ? tw.nekomimi.nekogram.helpers.MultiDynamicVideoWallpaperHelper
+                    .getVideoPaths(ctx, account).size() : -1;
+            android.util.Log.i("AQYDBG", "sync enabled=" + enabled
+                    + " account=" + account
+                    + " sharing=" + sharing
+                    + " needReset=" + needReset
+                    + " multiEnabled=" + multiEnabled
+                    + " singlePath=" + singlePath
+                    + " multiCount=" + multiCount
+                    + " layerVis=" + aiqiyiWallpaperLayer.getVisibility());
+        } catch (Throwable t) {
+            android.util.Log.e("AQYDBG", "diag failed", t);
+        }
         aiqiyiWallpaperLayer.setVideo(null, account);
+        android.util.Log.i("AQYDBG", "after setVideo childCount="
+                + aiqiyiWallpaperLayer.getChildCount()
+                + " hasWallpaper=" + aiqiyiWallpaperLayer.hasWallpaper());
     }
 
     private void checkSystemBarColors(boolean useCurrentFragment) {
