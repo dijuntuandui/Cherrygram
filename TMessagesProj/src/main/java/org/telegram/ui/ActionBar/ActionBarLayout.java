@@ -1882,6 +1882,44 @@ public class ActionBarLayout extends FrameLayout implements INavigationLayout, F
         containerViewBack.setScaleY(1.0f);
         containerViewBack.setTranslationX(0);
         containerViewBack.setTranslationY(0);
+
+        /*
+         * [Aiqiyi] 修「切页面有几帧两个页面半重叠」。
+         *
+         * 背景：全屏壁纸把页面容器的背景铺成了透明（6 处 getAiqiyiFullscreenWallpaper 分支），
+         * 原本那层不透明的 windowBackgroundWhite 兼有「遮住下层页面」的作用，
+         * 一透明，双层就互相穿透。
+         *
+         * 正常情况下看不到，因为 presentFragmentInternalRemoveOld() 里会用
+         *     containerViewBack.setVisibility(View.INVISIBLE)
+         * 把退场容器收掉。
+         *
+         * 但这个收尾只在动画正常走完时执行。一旦动画被打断——快速连点、
+         * 手势划一半松开、checkTransitionAnimation 超时 1500ms 强制 onAnimationEndCheck(true)——
+         * 旧容器就留在可见状态，于是两页叠着透出来。
+         *
+         * 这里在动画收尾统一兜底：只要退场容器里已经空了或者不再持有页面，
+         * 就把它设为 INVISIBLE，避免残影。容器里还有东西时不动，
+         * 交给正常流程收，不抢 removeFragmentFromStack 的活。
+         */
+        if (containerViewBack != null && containerViewBack.getVisibility() == View.VISIBLE) {
+            boolean backHoldsLivePage = false;
+            for (int i = 0; i < containerViewBack.getChildCount(); i++) {
+                View backChild = containerViewBack.getChildAt(i);
+                for (int k = 0; k < fragmentsStack.size(); k++) {
+                    BaseFragment f = fragmentsStack.get(k);
+                    if (f != null && f.fragmentView == backChild) {
+                        backHoldsLivePage = true;
+                        break;
+                    }
+                }
+                if (backHoldsLivePage) break;
+            }
+            if (!backHoldsLivePage) {
+                containerViewBack.setVisibility(View.INVISIBLE);
+            }
+        }
+
         if (USE_ACTIONBAR_CROSSFADE) {
             invalidateActionBars();
         }
