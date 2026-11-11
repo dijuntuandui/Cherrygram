@@ -5,7 +5,7 @@ import android.graphics.drawable.Drawable;
 import android.text.SpannableString;
 import android.text.Spanned;
 import android.text.TextUtils;
-import android.text.style.ImageSpan;
+import org.telegram.ui.Components.ColoredImageSpan;
 import android.util.TypedValue;
 import android.view.Gravity;
 import android.widget.LinearLayout;
@@ -29,6 +29,15 @@ import org.telegram.ui.ActionBar.Theme;
 public class AiqiyiVerifiedNoteCell extends LinearLayout {
 
     private static final float TEXT_SIZE_DP = 12.5f;
+    /**
+     * [Aiqiyi] 前置星标的视觉尺寸（dp）。
+     *
+     * 不能直接用字号：12.5sp 的 cap height 只有约 9dp，
+     * 行高约 16~17dp，字号本身比文字视觉高度大一圈，
+     * 直接拿 12.5dp 当图标高度会显得又大又飘。
+     * 取字号 0.88 倍左右，和文字的行内视觉高度吻合。
+     */
+    private static final float ICON_SIZE_DP = 11f;
 
     private final TextView textView;
     private final Theme.ResourcesProvider resourcesProvider;
@@ -56,7 +65,7 @@ public class AiqiyiVerifiedNoteCell extends LinearLayout {
     /**
      * 设置文案。icon 为前置星标，可为 null。
      * 每次调用传入的 Drawable 应当是新建实例：
-     * ImageSpan 会持有它，复用会让多个 cell 的 bounds 互相干扰。
+     * span 会持有它，复用会让多个 cell 的 bounds 互相干扰。
      */
     public void setText(CharSequence text, Drawable icon) {
         if (TextUtils.isEmpty(text)) {
@@ -67,19 +76,27 @@ public class AiqiyiVerifiedNoteCell extends LinearLayout {
             textView.setText(text);
             return;
         }
-        // 图标高度贴合小字视觉高度，宽度按固有比例
-        final int iconH = Math.max(1, Math.round(AndroidUtilities.dp(TEXT_SIZE_DP)));
-        int iconW = iconH;
-        final int iw = icon.getIntrinsicWidth();
-        final int ih = icon.getIntrinsicHeight();
-        if (iw > 0 && ih > 0) {
-            iconW = Math.max(1, Math.round(iconH * (float) iw / ih));
-        }
-        icon.setBounds(0, 0, iconW, iconH);
 
+        /*
+         * [Aiqiyi] 用 ColoredImageSpan + ALIGN_CENTER 代替 ImageSpan.ALIGN_BOTTOM。
+         *
+         * ImageSpan.ALIGN_BOTTOM 把图标贴到行框底边（bottom），
+         * 而 bottom 含 descender 空白，这行文字又全在 baseline 之上，
+         * 结果图标相对文字明显偏高。
+         *
+         * ColoredImageSpan 的 ALIGN_CENTER（该类第 163-164 行）：
+         *     transY = top + (bottom - top) / 2 - drawableHeight / 2;
+         * 按行框真正中点算，不受 descender 影响，与官方内联图标一致。
+         */
+        final int iconSize = Math.max(1, Math.round(AndroidUtilities.dp(ICON_SIZE_DP)));
+        ColoredImageSpan span = new ColoredImageSpan(icon, ColoredImageSpan.ALIGN_CENTER);
+        // 星标自带颜色，禁止 span 按 paint 颜色二次重染（public 字段，不是方法）
+        span.recolorDrawable = false;
+        span.setSize(iconSize);
+
+        // 前面留一个不断行空格，保证图标跟着第一行文字走
         SpannableString sp = new SpannableString("\u00A0" + text);
-        sp.setSpan(new ImageSpan(icon, ImageSpan.ALIGN_BOTTOM),
-                0, 1, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        sp.setSpan(span, 0, 1, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
         textView.setText(sp);
     }
 
