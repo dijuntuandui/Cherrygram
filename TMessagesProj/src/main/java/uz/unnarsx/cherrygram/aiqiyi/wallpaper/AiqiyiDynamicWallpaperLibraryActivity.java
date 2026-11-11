@@ -185,10 +185,12 @@ public class AiqiyiDynamicWallpaperLibraryActivity extends BaseFragment {
                 }
             }
         }
-        String single = DynamicVideoWallpaperHelper.getVideoPath(ctx, currentAccount, 0);
-        if (single != null && new File(single).exists() && !containsPath(single)) {
-            items.add(new Item(single, true));
-        }
+        /* [Aiqiyi] 不再把「单条动态壁纸」列进库管理页。
+           设置页的单条入口已经摘除（dynamicVideoWallpaperRow 恒为 -1），
+           这里再显示一条孤零零的条目只会让用户误以为还有单条设置入口。
+           动态壁纸统一走「添加多条」这条链路。
+           注意：下面 doDeleteSelected 里 needSingle 分支保留不动，
+           它对 false 短路，不影响多选删除。 */
 
         Set<String> validPaths = new HashSet<>();
         for (Item item : items) {

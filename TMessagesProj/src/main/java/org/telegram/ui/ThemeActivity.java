@@ -691,10 +691,15 @@ public class ThemeActivity extends BaseFragment implements NotificationCenter.No
             textSizeHeaderRow = rowCount++;
             textSizeRow = rowCount++;
             backgroundRow = rowCount++;
-            // [Aiqiyi] 动态视频壁纸五项，位置与黄昏一致（更改聊天壁纸下方）
+            // [Aiqiyi] 动态视频壁纸只保留「添加多条」一条主链路。
+            // 单条设置 / 单条删除两个入口已摘除：它们与多选库共用同一套 preference，
+            // 设置单条时会走 saveVideo 的全局分支，把 KEYS_VIDEOS 一并清掉，
+            // 表现就是「设置单条 -> 动态壁纸库整个消失」。
+            // 两个变量保留字段但恒为 -1，position == -1 永不命中，
+            // 绑定/点击/类型判断三处自动失效，无需重排行号。
             globalDynamicWallpaperRow = rowCount++;
-            dynamicVideoWallpaperRow = rowCount++;
-            deleteDynamicVideoWallpaperRow = rowCount++;
+            dynamicVideoWallpaperRow = -1;
+            deleteDynamicVideoWallpaperRow = -1;
             multiDynamicVideoWallpaperRow = rowCount++;
             multiDynamicModeRow = rowCount++;
             multiDynamicViewRow = rowCount++;
@@ -1166,12 +1171,6 @@ public class ThemeActivity extends BaseFragment implements NotificationCenter.No
                 boolean en = DynamicVideoWallpaperHelper.isGlobalSharingEnabled(context);
                 DynamicVideoWallpaperHelper.setGlobalSharingEnabled(context, currentAccount, !en);
                 listAdapter.notifyItemChanged(position);
-            } else if (position == dynamicVideoWallpaperRow) {
-                // [Aiqiyi] 设置动态壁纸（选择本地视频）
-                chooseDynamicVideoWallpaper();
-            } else if (position == deleteDynamicVideoWallpaperRow) {
-                // [Aiqiyi] 删除动态壁纸
-                clearDynamicVideoWallpaper();
             } else if (position == multiDynamicVideoWallpaperRow) {
                 // [Aiqiyi] 多选导入
                 chooseMultiDynamicVideoWallpaper();
@@ -2945,16 +2944,6 @@ public class ThemeActivity extends BaseFragment implements NotificationCenter.No
                         cell.setSubtitle(null);
                         cell.setColors(Theme.key_dialogIcon, Theme.key_windowBackgroundWhiteBlackText);
                         cell.setTextAndValueAndIcon(getString(R.string.AQY_DynamicWallpaperGlobal), DynamicVideoWallpaperHelper.isGlobalSharingEnabled(mContext) ? getString(R.string.AQY_On) : getString(R.string.AQY_Off), R.drawable.msg_language, true);
-                    } else if (position == dynamicVideoWallpaperRow) {
-                        // [Aiqiyi] 设置动态壁纸
-                        cell.setSubtitle(null);
-                        cell.setColors(Theme.key_windowBackgroundWhiteBlueText4, Theme.key_windowBackgroundWhiteBlueText4);
-                        cell.setTextAndIcon(getString(R.string.AQY_SetDynamicWallpaper), R.drawable.msg_gallery, true);
-                    } else if (position == deleteDynamicVideoWallpaperRow) {
-                        // [Aiqiyi] 删除动态壁纸
-                        cell.setSubtitle(null);
-                        cell.setColors(Theme.key_text_RedBold, Theme.key_text_RedRegular);
-                        cell.setTextAndIcon(getString(R.string.AQY_DeleteDynamicWallpaper), R.drawable.msg_delete, true);
                     } else if (position == multiDynamicVideoWallpaperRow) {
                         // [Aiqiyi] 多选导入
                         cell.setSubtitle(null);
@@ -3069,8 +3058,7 @@ public class ThemeActivity extends BaseFragment implements NotificationCenter.No
                 return TYPE_BUBBLE_RADIUS;
             } else if (position == backgroundRow || position == editThemeRow || position == createNewThemeRow ||
                         position == liteModeRow || position == stickersRow ||
-                        position == globalDynamicWallpaperRow || position == dynamicVideoWallpaperRow ||
-                        position == deleteDynamicVideoWallpaperRow || position == multiDynamicVideoWallpaperRow ||
+                        position == globalDynamicWallpaperRow || position == multiDynamicVideoWallpaperRow ||
                         position == multiDynamicModeRow || position == multiDynamicViewRow) {
                 return TYPE_TEXT_PREFERENCE;
             } else if (position == swipeGestureRow) {
