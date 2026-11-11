@@ -620,7 +620,7 @@ public class AboutLinkCell extends FrameLayout {
                     container.setBackground(rippleBackground);
                 }
                 showMoreTextBackgroundView.setAlpha(1f - expandT);
-                bottomShadow.setAlpha((float) Math.pow(1f - expandT, 2f));
+                syncBottomShadowVisibility();
 
                 updateHeight();
                 container.invalidate();
@@ -651,6 +651,33 @@ public class AboutLinkCell extends FrameLayout {
     private int fromHeight() {
         return Math.min(COLLAPSED_HEIGHT + (valueTextView.getVisibility() == View.VISIBLE ? dp(20) : 0), textHeight());
     }
+    /**
+     * [Aiqiyi] 按「简介是否可能被折叠」来决定底部渐隐阴影是否显示。
+     *
+     * bottomShadow 的用途是提示「下面还有被折叠的内容」。
+     * 原实现只在折叠/展开动画里改它的 alpha（见 collapseAnimator 的
+     * updateListener），静止态没有初始化，默认 alpha=1 常驻显示。
+     *
+     * 白主题下它被染成白色，与卡片同色看不出来；
+     * 深灰主题下 windowBackgroundWhite 变深，就成了一条横贯的灰带。
+     *
+     * 这里统一按真实折叠状态收口：
+     *   - 内容根本没超长（!canCollapse）  -> 完全隐藏
+     *   - 已经展开（expanded=true）       -> 完全隐藏
+     *   - 折叠中/折叠态                   -> 按 expandT 渐隐
+     */
+    private void syncBottomShadowVisibility() {
+        if (bottomShadow == null) {
+            return;
+        }
+        boolean canCollapse = textHeight() > fromHeight();
+        if (!canCollapse || expanded) {
+            bottomShadow.setAlpha(0f);
+            return;
+        }
+        bottomShadow.setAlpha((float) Math.pow(1f - expandT, 2f));
+    }
+
     private int updateHeight() {
         int textHeight = textHeight();
         float fromHeight = fromHeight();
@@ -682,6 +709,7 @@ public class AboutLinkCell extends FrameLayout {
     @Override
     protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
         checkTextLayout(MeasureSpec.getSize(widthMeasureSpec) - dp(18 + 18), false);
+        syncBottomShadowVisibility();
         int height = updateHeight();
         super.onMeasure(
             widthMeasureSpec,
