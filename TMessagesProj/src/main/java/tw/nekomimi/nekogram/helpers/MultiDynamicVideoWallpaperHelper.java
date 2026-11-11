@@ -169,17 +169,40 @@ public final class MultiDynamicVideoWallpaperHelper {
 
     /** 将账号级多视频配置复制为设备级配置，并删除之前的设备级旧视频。 */
     public static void copyAccountToGlobal(Context c, int account) {
-        clearGlobal(c);
+        // [Aiqiyi] 先读出源路径，再清状态。旧实现先 clearGlobal() 删文件，
+        // 而账号级和全局级很可能引用同一批文件（copy 语义），
+        // 结果是「开启全设备共用 -> 源视频被自己删掉」。
         ArrayList<String> paths = readPaths(c, account);
+        clearGlobalState(c);
         writePaths(c, GLOBAL_ACCOUNT, paths);
         prefs(c).edit().putBoolean(key(KEY_ENABLED, GLOBAL_ACCOUNT), !paths.isEmpty()).commit();
     }
 
     /** 删除设备级多视频库及其本地文件。 */
+    /**
+     * [Aiqiyi] 只清全局播放状态，不动磁盘文件。
+     *
+     * 设置单条动态壁纸时会走这里：单视频与多轮播放是互斥的两种播放模式，
+     * 但「互斥」只应体现在播放选择上，不该把用户已经导入的视频库删掉。
+     * 旧实现调用 clearGlobal()，连文件一起 physical delete，导致
+     * 「设置单条 -> 动态壁纸库整个消失」。
+     */
+    public static void clearGlobalState(Context c) {
+        prefs(c).edit()
+                .remove(key(KEY_VIDEOS, GLOBAL_ACCOUNT))
+                .putBoolean(key(KEY_ENABLED, GLOBAL_ACCOUNT), false)
+                .commit();
+    }
+
     public static void clearGlobal(Context c) {
         ArrayList<String> paths = readPaths(c, GLOBAL_ACCOUNT);
         prefs(c).edit().remove(key(KEY_VIDEOS, GLOBAL_ACCOUNT)).putBoolean(key(KEY_ENABLED, GLOBAL_ACCOUNT), false).commit();
         for (String path : paths) {
+            // [Aiqiyi] 删除前必须查引用：同一条路径可能还被单视频槽位或
+            // 其他账号的 playlist 引用着，旧实现无条件 delete 会误删。
+            if (DynamicVideoWallpaperHelper.isLocalPathReferenced(c, path)) {
+                continue;
+            }
             try {
                 new File(path).delete();
             } catch (Throwable e) {

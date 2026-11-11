@@ -128,7 +128,11 @@ public final class DynamicVideoWallpaperHelper {
             preferences.edit().putBoolean(GLOBAL_ENABLED, false)
                     .putBoolean(GLOBAL_RESET_REQUIRED, false)
                     .remove(GLOBAL_VIDEO).commit();
-            MultiDynamicVideoWallpaperHelper.clearGlobal(context);
+            // [Aiqiyi] 只清全局播放状态，保留用户已经导入的视频库。
+            // 旧实现调 clearGlobal() 会把整个设备级库连同文件删光，
+            // 表现是「关掉全设备共用 -> 库没了」。
+            // 旧单条文件由下一行 deleteIfUnreferenced 按引用情况单独处理。
+            MultiDynamicVideoWallpaperHelper.clearGlobalState(context);
             deleteIfUnreferenced(context, oldGlobalPath);
             notifyAllAccountsWallpaperChanged();
             return;
@@ -136,7 +140,8 @@ public final class DynamicVideoWallpaperHelper {
         preferences.edit().putBoolean(GLOBAL_RESET_REQUIRED, false).commit();
         String currentPath = safeString(preferences, key(account, 0L), null);
         if (currentPath != null && new File(currentPath).isFile() && new File(currentPath).length() > 0) {
-            MultiDynamicVideoWallpaperHelper.clearGlobal(context);
+            // [Aiqiyi] 同上：开启全局共用时只切播放状态，不删库。
+            MultiDynamicVideoWallpaperHelper.clearGlobalState(context);
             preferences.edit().putString(GLOBAL_VIDEO, currentPath).putBoolean(GLOBAL_ENABLED, true).commit();
         } else if (MultiDynamicVideoWallpaperHelper.isEnabledForAccount(context, account)) {
             preferences.edit().remove(GLOBAL_VIDEO).putBoolean(GLOBAL_ENABLED, true).commit();
@@ -341,7 +346,10 @@ public final class DynamicVideoWallpaperHelper {
         String oldPath = safeString(preferences, key(account, dialogId), null);
         if (isGlobalSharingEnabled(context)) {
             String oldGlobalPath = safeString(preferences, GLOBAL_VIDEO, null);
-            MultiDynamicVideoWallpaperHelper.clearGlobal(context);
+            // [Aiqiyi] 这里原本调 clearGlobal()，会连磁盘文件一起删，
+            // 表现为「设置单条 -> 动态壁纸库全被清空」。
+            // 单条与多轮播放互斥只应关掉播放开关，不该动素材库，故改用 clearGlobalState()。
+            MultiDynamicVideoWallpaperHelper.clearGlobalState(context);
             preferences.edit().putBoolean(GLOBAL_RESET_REQUIRED, false).putString(GLOBAL_VIDEO, path).commit();
             notifyAllAccountsWallpaperChanged();
             if (oldGlobalPath != null && !oldGlobalPath.equals(path)) {
