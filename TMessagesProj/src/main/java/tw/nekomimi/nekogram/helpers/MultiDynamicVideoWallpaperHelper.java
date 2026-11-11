@@ -99,9 +99,11 @@ public final class MultiDynamicVideoWallpaperHelper {
      * MediaMetadataRetriever；损坏视频的 native 解码器可能造成卡顿甚至进程崩溃。
      */
     public static ArrayList<String> getVideoPaths(Context c, int account) {
-        if (DynamicVideoWallpaperHelper.requiresGlobalWallpaperReset(c)) {
-            return new ArrayList<>();
-        }
+        /* [Aiqiyi] 这里不再因为 GLOBAL_RESET_REQUIRED 提前返回空数组。
+           本方法是「读取库里有哪些视频」的唯一入口，库列表界面（reloadItems）
+           和播放器（attachMulti）共用它。把 reset 标志压在这里的后果是：
+           只要该标志为 true，用户打开动态壁纸库就是一片空白，看起来像被清空了。
+           可播放性由 isAnyEnabled / isEnabled 判断，那两处保留 reset 拦截即可。 */
         int storageAccount = storageAccount(c, account);
         ArrayList<String> paths = readPaths(c, storageAccount);
         ArrayList<String> valid = new ArrayList<>(paths.size());
@@ -169,27 +171,27 @@ public final class MultiDynamicVideoWallpaperHelper {
 
     /** 将账号级多视频配置复制为设备级配置，并删除之前的设备级旧视频。 */
     public static void copyAccountToGlobal(Context c, int account) {
-        // [Aiqiyi] 先读出源路径，再清状态。旧实现先 clearGlobal() 删文件，
-        // 而账号级和全局级很可能引用同一批文件（copy 语义），
-        // 结果是「开启全设备共用 -> 源视频被自己删掉」。
+        // [Aiqiyi] writePaths 是全量覆盖写，不需要先清任何东西。
+        // 旧实现在这里调 clearGlobal()，会把源视频文件一起删掉。
         ArrayList<String> paths = readPaths(c, account);
-        clearGlobalState(c);
         writePaths(c, GLOBAL_ACCOUNT, paths);
         prefs(c).edit().putBoolean(key(KEY_ENABLED, GLOBAL_ACCOUNT), !paths.isEmpty()).commit();
     }
 
     /** 删除设备级多视频库及其本地文件。 */
     /**
-     * [Aiqiyi] 只清全局播放状态，不动磁盘文件。
+     * [Aiqiyi] 关闭全局多轮播放开关，库里已有条目和磁盘文件全部保留。
      *
-     * 设置单条动态壁纸时会走这里：单视频与多轮播放是互斥的两种播放模式，
+     * 设置单条动态壁纸时走这里：单视频与多轮播放是互斥的两种播放模式，
      * 但「互斥」只应体现在播放选择上，不该把用户已经导入的视频库删掉。
-     * 旧实现调用 clearGlobal()，连文件一起 physical delete，导致
-     * 「设置单条 -> 动态壁纸库整个消失」。
+     *
+     * 注意这里绝不能碰 KEY_VIDEOS：
+     *   - clearGlobal() 会 physical delete 文件 -> 素材没了
+     *   - 只 remove(KEY_VIDEOS) 则文件还在但目录没了 -> 列表显示为空，同样是「库消失」
+     * 只有 KEY_ENABLED 才该被改，播放器看到 false 就不再走 playlist。
      */
     public static void clearGlobalState(Context c) {
         prefs(c).edit()
-                .remove(key(KEY_VIDEOS, GLOBAL_ACCOUNT))
                 .putBoolean(key(KEY_ENABLED, GLOBAL_ACCOUNT), false)
                 .commit();
     }

@@ -128,10 +128,9 @@ public final class DynamicVideoWallpaperHelper {
             preferences.edit().putBoolean(GLOBAL_ENABLED, false)
                     .putBoolean(GLOBAL_RESET_REQUIRED, false)
                     .remove(GLOBAL_VIDEO).commit();
-            // [Aiqiyi] 只清全局播放状态，保留用户已经导入的视频库。
-            // 旧实现调 clearGlobal() 会把整个设备级库连同文件删光，
-            // 表现是「关掉全设备共用 -> 库没了」。
-            // 旧单条文件由下一行 deleteIfUnreferenced 按引用情况单独处理。
+            // [Aiqiyi] 关闭全局共用只是切换播放来源，不动用户已经导入的视频库
+            // （既不清 KEY_VIDEOS，也不删文件）。旧实现调 clearGlobal() 会把整个
+            // 设备级库连同文件删光，表现是「关掉全设备共用 -> 库没了」。
             MultiDynamicVideoWallpaperHelper.clearGlobalState(context);
             deleteIfUnreferenced(context, oldGlobalPath);
             notifyAllAccountsWallpaperChanged();
@@ -346,9 +345,9 @@ public final class DynamicVideoWallpaperHelper {
         String oldPath = safeString(preferences, key(account, dialogId), null);
         if (isGlobalSharingEnabled(context)) {
             String oldGlobalPath = safeString(preferences, GLOBAL_VIDEO, null);
-            // [Aiqiyi] 这里原本调 clearGlobal()，会连磁盘文件一起删，
-            // 表现为「设置单条 -> 动态壁纸库全被清空」。
-            // 单条与多轮播放互斥只应关掉播放开关，不该动素材库，故改用 clearGlobalState()。
+            // [Aiqiyi] 设置单条 = 切到单视频播放模式。
+            // 这里只关掉多轮播放开关，KEY_VIDEOS 与磁盘文件必须原样保留，
+            // 否则用户导入的库会整个从列表里消失（旧实现甚至直接删文件）。
             MultiDynamicVideoWallpaperHelper.clearGlobalState(context);
             preferences.edit().putBoolean(GLOBAL_RESET_REQUIRED, false).putString(GLOBAL_VIDEO, path).commit();
             notifyAllAccountsWallpaperChanged();
