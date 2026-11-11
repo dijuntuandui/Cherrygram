@@ -11989,7 +11989,15 @@ public class ChatActivityEnterView extends FrameLayout implements
                 });
             }
         }
-        updateFieldRight(botButton != null && botButton.getVisibility() == VISIBLE && TextUtils.isEmpty(messageEditText == null ? "" : AndroidUtilities.getTrimmedString(messageEditText.getTextToUse())) ? 2 : lastAttachVisible);
+        final int fieldRightArg = botButton != null && botButton.getVisibility() == VISIBLE && TextUtils.isEmpty(messageEditText == null ? "" : AndroidUtilities.getTrimmedString(messageEditText.getTextToUse())) ? 2 : lastAttachVisible;
+        /*
+         * [Aiqiyi] botButton 显隐变化后，必须重算日历键的间距。
+         * 原代码只在开关动画那几处调 updateScheduledButtonSpacing()，
+         * 而 botButton 的 VISIBLE / GONE 是在这里切的，切完不刷新就导致：
+         * 一旦 bot 键被隐藏，日历键仍按「已知占位」算 -dp(10)，两边咬在一起。
+         */
+        updateScheduledButtonSpacing();
+        updateFieldRight(fieldRightArg);
     }
 
     public boolean isRtlText() {
@@ -16548,7 +16556,25 @@ public class ChatActivityEnterView extends FrameLayout implements
         if (scheduledButton == null || !iOSMessageInputFieldAvailable()) return;
         LinearLayout.LayoutParams lp = (LinearLayout.LayoutParams) scheduledButton.getLayoutParams();
         if (lp == null) return;
-        lp.rightMargin = botButtonDrawable == null ? dp(30) : -dp(10);
+
+        /*
+         * [Aiqiyi] 修「日历键与机器人键重叠」。
+         *
+         * 原判断是 botButtonDrawable == null，语义为「botButton 对象有没有被创建过」。
+         * 但 botButtonDrawable 在 createBotButton() 里一创建就永远是非 null，
+         * 不会随 botButton 隐藏而复位。
+         *
+         * 后果：只要进过一次带机器人的会话（点机器人快捷栏才会走到 createBotButton），
+         * 之后所有会话哪怕 botButton 是 GONE，都会算成 -dp(10)，
+         * 把 scheduledButton 往右推 10dp，正好压在 botButton 上。
+         *
+         * 改法：改看 botButton 的真实占位状态——VISIBLE 且 alpha > 0。
+         * updateBotButton() 就是用这两个控制它的，这才是当前实际状态。
+         */
+        final boolean botOccupied = botButton != null
+                && botButton.getVisibility() == View.VISIBLE
+                && botButton.getAlpha() > 0f;
+        lp.rightMargin = botOccupied ? -dp(10) : dp(30);
         scheduledButton.setLayoutParams(lp);
     }
 
