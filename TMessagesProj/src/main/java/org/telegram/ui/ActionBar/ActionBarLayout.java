@@ -1888,23 +1888,6 @@ public class ActionBarLayout extends FrameLayout implements INavigationLayout, F
         containerViewBack.setTranslationX(0);
         containerViewBack.setTranslationY(0);
 
-        /*
-         * [Aiqiyi] 修「切页面左侧露出一条纯黑、内容整体右移」。
-         *
-         * innerTranslationX 是 ActionBarLayout 整层的横向偏移，
-         * 1133 行 drawChild 里直接拿它算 canvas 平移：
-         *     int translationX = (int) innerTranslationX + getPaddingRight();
-         * 它被推右多少，左边就露出多少底下的黑。
-         *
-         * 进场和手势过程会逐帧写它（1513 / 1522 / 1648 / 1726 / 2060 / 2081），
-         * 复位点只在 onSlideAnimationEnd(1394)、动画结束分支(2087)、
-         * removeFragmentFromStackInternal(2371)、closeLastFragment(2921)。
-         *
-         * 但 onAnimationEndCheck 里把所有 translationX 都复位了，
-         * 唯独漏了 ActionBarLayout 自己的 innerTranslationX。
-         * 动画被打断时这层就停在半路上，左侧露出黑条、内容整体右移。
-         */
-        setInnerTranslationX(0);
 
         if (USE_ACTIONBAR_CROSSFADE) {
             invalidateActionBars();
