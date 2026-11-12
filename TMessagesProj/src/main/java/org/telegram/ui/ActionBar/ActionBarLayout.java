@@ -1872,6 +1872,11 @@ public class ActionBarLayout extends FrameLayout implements INavigationLayout, F
             animationRunnable = null;
         }
         setAlpha(1.0f);
+        /* [Aiqiyi] 进场动画补的退场容器底在此撤掉，避免污染后续绘制 */
+        if (containerViewBack != null
+                && uz.unnarsx.cherrygram.core.configs.CherrygramAppearanceConfig.INSTANCE.getAiqiyiFullscreenWallpaper()) {
+            containerViewBack.setBackground(null);
+        }
         containerView.setAlpha(1.0f);
         containerView.setScaleX(1.0f);
         containerView.setScaleY(1.0f);
@@ -1882,43 +1887,6 @@ public class ActionBarLayout extends FrameLayout implements INavigationLayout, F
         containerViewBack.setScaleY(1.0f);
         containerViewBack.setTranslationX(0);
         containerViewBack.setTranslationY(0);
-
-        /*
-         * [Aiqiyi] 修「切页面有几帧两个页面半重叠」。
-         *
-         * 背景：全屏壁纸把页面容器的背景铺成了透明（6 处 getAiqiyiFullscreenWallpaper 分支），
-         * 原本那层不透明的 windowBackgroundWhite 兼有「遮住下层页面」的作用，
-         * 一透明，双层就互相穿透。
-         *
-         * 正常情况下看不到，因为 presentFragmentInternalRemoveOld() 里会用
-         *     containerViewBack.setVisibility(View.INVISIBLE)
-         * 把退场容器收掉。
-         *
-         * 但这个收尾只在动画正常走完时执行。一旦动画被打断——快速连点、
-         * 手势划一半松开、checkTransitionAnimation 超时 1500ms 强制 onAnimationEndCheck(true)——
-         * 旧容器就留在可见状态，于是两页叠着透出来。
-         *
-         * 这里在动画收尾统一兜底：只要退场容器里已经空了或者不再持有页面，
-         * 就把它设为 INVISIBLE，避免残影。容器里还有东西时不动，
-         * 交给正常流程收，不抢 removeFragmentFromStack 的活。
-         */
-        if (containerViewBack != null && containerViewBack.getVisibility() == View.VISIBLE) {
-            boolean backHoldsLivePage = false;
-            for (int i = 0; i < containerViewBack.getChildCount(); i++) {
-                View backChild = containerViewBack.getChildAt(i);
-                for (int k = 0; k < fragmentsStack.size(); k++) {
-                    BaseFragment f = fragmentsStack.get(k);
-                    if (f != null && f.fragmentView == backChild) {
-                        backHoldsLivePage = true;
-                        break;
-                    }
-                }
-                if (backHoldsLivePage) break;
-            }
-            if (!backHoldsLivePage) {
-                containerViewBack.setVisibility(View.INVISIBLE);
-            }
-        }
 
         if (USE_ACTIONBAR_CROSSFADE) {
             invalidateActionBars();
@@ -2009,6 +1977,30 @@ public class ActionBarLayout extends FrameLayout implements INavigationLayout, F
         if (first) {
             animationProgress = 0.0f;
             lastFrameTime = System.nanoTime() / 1000000;
+
+            /*
+             * [Aiqiyi] 修「切页面有几帧两个页面半重叠」。
+             *
+             * 进场动画是「横向滑入 + 淡入」同时进行（2165 行 containerView.setAlpha(逐帧 0→1)），
+             * 退场容器 containerViewBack 全程可见且同时向左位移。
+             *
+             * 原本不透明底时三层叠加看不出问题：
+             *   壁纸 ← 旧页(白底) ← 新页(半透明)
+             * 新页半透明只透出旧页的白，颜色一致。
+             *
+             * 全屏壁纸把页面底铺透明后变成：
+             *   壁纸 ← 旧页(透明!) ← 新页(半透明)
+             * 三层全透，于是旧页内容、壁纸、新页内容同时可见。
+             *
+             * 退场路径不出现，因为那边只改 translationX 不改 alpha（2087 行）。
+             *
+             * 修法：进场动画期间给退场容器补一层不透明底，动画结束再撤。
+             * 用 windowBackgroundWhite，就是原本那层被替换掉的色。
+             */
+            if (open && !preview && containerViewBack != null
+                    && uz.unnarsx.cherrygram.core.configs.CherrygramAppearanceConfig.INSTANCE.getAiqiyiFullscreenWallpaper()) {
+                containerViewBack.setBackgroundColor(Theme.getColor(Theme.key_windowBackgroundWhite));
+            }
         }
         if (USE_SPRING_ANIMATION) {
             if (USE_ACTIONBAR_CROSSFADE) {
