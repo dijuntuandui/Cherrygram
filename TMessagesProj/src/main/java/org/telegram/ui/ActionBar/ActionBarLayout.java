@@ -1849,6 +1849,14 @@ public class ActionBarLayout extends FrameLayout implements INavigationLayout, F
     }
 
     private void onAnimationEndCheck(boolean byCheck) {
+        /* [AQYDBG-XFER] 记录进入 onAnimationEndCheck 时的状态（此时还没做任何复位） */
+        android.util.Log.d("AQYDBG-XFER", "AEC-ENTER byCheck=" + byCheck
+                + " cvb.tX=" + (containerViewBack == null ? "null" : containerViewBack.getTranslationX())
+                + " cvb.alpha=" + (containerViewBack == null ? "null" : containerViewBack.getAlpha())
+                + " cvb.vis=" + (containerViewBack == null ? "null" : containerViewBack.getVisibility())
+                + " cv.tX=" + (containerView == null ? "null" : containerView.getTranslationX())
+                + " innerTX=" + innerTranslationX
+                + " stack=" + fragmentsStack.size());
         onCloseAnimationEnd();
         onOpenAnimationEnd();
         if (waitingForKeyboardCloseRunnable != null) {
@@ -1887,8 +1895,16 @@ public class ActionBarLayout extends FrameLayout implements INavigationLayout, F
         containerViewBack.setScaleY(1.0f);
         containerViewBack.setTranslationX(0);
         containerViewBack.setTranslationY(0);
-
-
+        /* [AQYDBG-XFER] 复位完成后记录：cvb 若仍 VISIBLE 且 alpha=1，说明旧页没退场 */
+        android.util.Log.d("AQYDBG-XFER", "AEC-EXIT byCheck=" + byCheck
+                + " cvb.tX=" + containerViewBack.getTranslationX()
+                + " cvb.alpha=" + containerViewBack.getAlpha()
+                + " cvb.vis=" + containerViewBack.getVisibility()
+                + " cvb.hasParent=" + (containerViewBack.getParent() != null)
+                + " cvb.childCount=" + containerViewBack.getChildCount()
+                + " innerTX=" + innerTranslationX
+                + " inProgress=" + transitionAnimationInProgress
+                + " stack=" + fragmentsStack.size());
         if (USE_ACTIONBAR_CROSSFADE) {
             invalidateActionBars();
         }
@@ -2084,8 +2100,27 @@ public class ActionBarLayout extends FrameLayout implements INavigationLayout, F
                 }
             });
             currentSpringAnimation.addEndListener((animation, canceled, value, velocity) -> {
+                /* [AQYDBG-XFER] 转场两页半重叠诊断：记录 spring 结束时的全部状态 */
+                android.util.Log.d("AQYDBG-XFER", "SPRING-END canceled=" + canceled
+                        + " value=" + value + " vel=" + velocity
+                        + " backAnim=" + backAnimatorIsBack
+                        + " cv.tX=" + (containerView == null ? "null" : containerView.getTranslationX())
+                        + " cv.alpha=" + (containerView == null ? "null" : containerView.getAlpha())
+                        + " cv.vis=" + (containerView == null ? "null" : containerView.getVisibility())
+                        + " cvb.tX=" + (containerViewBack == null ? "null" : containerViewBack.getTranslationX())
+                        + " cvb.alpha=" + (containerViewBack == null ? "null" : containerViewBack.getAlpha())
+                        + " cvb.vis=" + (containerViewBack == null ? "null" : containerViewBack.getVisibility())
+                        + " innerTX=" + innerTranslationX
+                        + " stack=" + fragmentsStack.size());
                 onAnimationEndCheck(false);
                 setInnerTranslationX(0);
+                /* [AQYDBG-XFER] 复位之后再记一次，对比前后 */
+                android.util.Log.d("AQYDBG-XFER", "SPRING-END-AFTER cv.tX="
+                        + (containerView == null ? "null" : containerView.getTranslationX())
+                        + " cvb.tX=" + (containerViewBack == null ? "null" : containerViewBack.getTranslationX())
+                        + " cvb.alpha=" + (containerViewBack == null ? "null" : containerViewBack.getAlpha())
+                        + " cvb.vis=" + (containerViewBack == null ? "null" : containerViewBack.getVisibility())
+                        + " innerTX=" + innerTranslationX);
             });
             currentSpringAnimation.start();
             return;
