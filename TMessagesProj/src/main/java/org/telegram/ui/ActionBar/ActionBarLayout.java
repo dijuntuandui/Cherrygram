@@ -2052,6 +2052,13 @@ public class ActionBarLayout extends FrameLayout implements INavigationLayout, F
                 swipeProgress = open ? 1f : 0f;
                 invalidateActionBars();
             }
+            /* [AQYDBG-WHO] 谁在起这条 spring */
+            android.util.Log.d("AQYDBG-WHO", "open=" + open + " first=" + first + " preview=" + preview
+                    + " oldRunning=" + (currentSpringAnimation != null && currentSpringAnimation.isRunning())
+                    + " oldProg=" + String.format("%.4f", animationProgress)
+                    + " stack=" + fragmentsStack.size()
+                    + " t=" + System.currentTimeMillis()
+                    + "\n" + android.util.Log.getStackTraceString(new Throwable()));
             FloatValueHolder valueHolder = new FloatValueHolder(0);
             currentSpringAnimation = new SpringAnimation(valueHolder)
                     .setSpring(new SpringForce(SPRING_MULTIPLIER)
