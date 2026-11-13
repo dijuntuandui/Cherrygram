@@ -264,6 +264,17 @@ public class ActionBarLayout extends FrameLayout implements INavigationLayout, F
 
         @Override
         protected void dispatchDraw(@NonNull Canvas canvas) {
+            /* [AQYDBG-DRAW] 只在「本层是 back」或「vis 非 VISIBLE 却仍在画」时记录，避免刷屏 */
+            final int _v = getVisibility();
+            if (this == containerViewBack || _v != View.VISIBLE) {
+                android.util.Log.d("AQYDBG-XFER", "DRAW isBack=" + (this == containerViewBack)
+                        + " isFront=" + (this == containerView)
+                        + " isSheet=" + (this == sheetContainer)
+                        + " vis=" + _v
+                        + " alpha=" + getAlpha()
+                        + " tX=" + getTranslationX()
+                        + " childCount=" + getChildCount());
+            }
             if (isLayersLayout) {
                 super.dispatchDraw(canvas);
                 return;
