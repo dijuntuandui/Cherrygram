@@ -2041,6 +2041,19 @@ public class ActionBarLayout extends FrameLayout implements INavigationLayout, F
                             .setDampingRatio(preview ? 0.6f : 1f));
             currentSpringAnimation.addUpdateListener((animation, value, velocity) -> {
                 animationProgress = value / SPRING_MULTIPLIER;
+                /* [AQYDBG-FRAME] 逐帧：这里是真正的进场/退场转场 spring。
+                 * 记录 tX 与 progress 是否同步，用来判定「僵住」是数值卡住还是渲染滞后。 */
+                android.util.Log.d("AQYDBG-FRAME", "t=" + System.currentTimeMillis()
+                        + " open=" + open + " preview=" + preview
+                        + " v=" + String.format("%.1f", value)
+                        + " prog=" + String.format("%.4f", animationProgress)
+                        + " W=" + (getWidth() - getPaddingLeft() - getPaddingRight())
+                        + " cv.tX=" + (containerView == null ? "null" : String.format("%.1f", containerView.getTranslationX()))
+                        + " cv.vis=" + (containerView == null ? "null" : containerView.getVisibility())
+                        + " cvb.tX=" + (containerViewBack == null ? "null" : String.format("%.1f", containerViewBack.getTranslationX()))
+                        + " cvb.vis=" + (containerViewBack == null ? "null" : containerViewBack.getVisibility())
+                        + " innerTX=" + String.format("%.1f", innerTranslationX)
+                        + " stack=" + fragmentsStack.size());
                 if (USE_ACTIONBAR_CROSSFADE) {
                     swipeProgress = MathUtils.clamp(open ? (1f - animationProgress) : animationProgress, 0f, 1f);
                 }
