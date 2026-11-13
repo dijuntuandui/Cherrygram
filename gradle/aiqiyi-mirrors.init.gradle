@@ -10,18 +10,18 @@
 
 def MIRRORS = [
     // gradlePluginPortal / plugins.gradle.org
-    'https://plugins.gradle.org/m2'            : 'https://maven.aliyun.com/repository/gradle-plugin',
-    'https://plugins.gradle.org/m2/'           : 'https://maven.aliyun.com/repository/gradle-plugin',
-    'https://repo.maven.apache.org/maven2'     : 'https://maven.aliyun.com/repository/public',
-    'https://repo.maven.apache.org/maven2/'    : 'https://maven.aliyun.com/repository/public',
-    'https://repo1.maven.org/maven2'           : 'https://maven.aliyun.com/repository/public',
-    'https://repo1.maven.org/maven2/'          : 'https://maven.aliyun.com/repository/public',
-    'https://dl.google.com/dl/android/maven2'  : 'https://maven.aliyun.com/repository/google',
-    'https://dl.google.com/dl/android/maven2/' : 'https://maven.aliyun.com/repository/google',
-    'https://maven.google.com'                 : 'https://maven.aliyun.com/repository/google',
-    'https://maven.google.com/'                : 'https://maven.aliyun.com/repository/google',
-    'https://jitpack.io'                       : 'https://maven.aliyun.com/repository/public',
-    'https://jitpack.io/'                      : 'https://maven.aliyun.com/repository/public',
+    'https://plugins.gradle.org/m2'            : 'https://mirrors.cloud.tencent.com/nexus/repository/maven-public',
+    'https://plugins.gradle.org/m2/'           : 'https://mirrors.cloud.tencent.com/nexus/repository/maven-public',
+    'https://repo.maven.apache.org/maven2'     : 'https://mirrors.cloud.tencent.com/nexus/repository/maven-public',
+    'https://repo.maven.apache.org/maven2/'    : 'https://mirrors.cloud.tencent.com/nexus/repository/maven-public',
+    'https://repo1.maven.org/maven2'           : 'https://mirrors.cloud.tencent.com/nexus/repository/maven-public',
+    'https://repo1.maven.org/maven2/'          : 'https://mirrors.cloud.tencent.com/nexus/repository/maven-public',
+    'https://dl.google.com/dl/android/maven2'  : 'https://mirrors.cloud.tencent.com/nexus/repository/maven-public',
+    'https://dl.google.com/dl/android/maven2/' : 'https://mirrors.cloud.tencent.com/nexus/repository/maven-public',
+    'https://maven.google.com'                 : 'https://mirrors.cloud.tencent.com/nexus/repository/maven-public',
+    'https://maven.google.com/'                : 'https://mirrors.cloud.tencent.com/nexus/repository/maven-public',
+    'https://jitpack.io'                       : 'https://mirrors.cloud.tencent.com/nexus/repository/maven-public',
+    'https://jitpack.io/'                      : 'https://mirrors.cloud.tencent.com/nexus/repository/maven-public',
 ]
 
 def rewrite = { repos ->
