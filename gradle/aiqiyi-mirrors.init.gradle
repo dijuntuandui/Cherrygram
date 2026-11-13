@@ -1,55 +1,76 @@
-// [Aiqiyi] 全局仓库重定向 init script
+// [Aiqiyi] 全局仓库镜像注入 init script
 //
-// 背景：GitHub Releases 当前持续 504。而 mavenCentral()/gradlePluginPortal()
-// 里的很多 artifact 会 307 跳到 github.com/*/releases，全部下不来。
+// 历史背景：GitHub Releases 长期 504，很多 artifact 的 307 跳转指向 github.com/*/releases。
+// 早期做法是「整源替换」——把官方源改写成单一国内镜像。该做法已废弃，原因：
+//   1) 阿里云 maven 间歇 502，替换后无兜底，一挂全挂；
+//   2) 任何单一镜像都无法覆盖 gradlePluginPortal + MavenCentral + Google 三边全集
+//      （实测腾讯 gradle-plugins 有插件的 marker 但缺 AGP；maven-public 反之），
+//      整源替换必然在某些包上 404。
 //
-// 逐个项目文件改太脆（子模块 TMessagesProj_Modules 有自己的仓库声明），
-// 这里在 Gradle 生命周期的最早阶段把所有已知上游仓库改成国内镜像。
+// 现行做法：保留原仓库不动，只在其**前面插入**两 个腾讯镜像仓，按序命中。
+//   镜像 A = gradle-plugins  （代理 Gradle Plugin Portal，插件 marker 在这里）
+//   镜像 B = maven-public    （代理 Central + Google，普通依赖在这里）
+// 官方源仍在列表尾部，镜像缺包时自动回落，不会硬失败。
 //
-// 用法：通过 -I 传给 gradlew，或放到 ~/.gradle/init.d/
+// 用法：gradlew 已内置 -I 注入（见 gradlew 第 168 行附近）。
 
-def MIRRORS = [
-    // gradlePluginPortal / plugins.gradle.org
-    'https://plugins.gradle.org/m2'            : 'https://mirrors.cloud.tencent.com/nexus/repository/maven-public',
-    'https://plugins.gradle.org/m2/'           : 'https://mirrors.cloud.tencent.com/nexus/repository/maven-public',
-    'https://repo.maven.apache.org/maven2'     : 'https://mirrors.cloud.tencent.com/nexus/repository/maven-public',
-    'https://repo.maven.apache.org/maven2/'    : 'https://mirrors.cloud.tencent.com/nexus/repository/maven-public',
-    'https://repo1.maven.org/maven2'           : 'https://mirrors.cloud.tencent.com/nexus/repository/maven-public',
-    'https://repo1.maven.org/maven2/'          : 'https://mirrors.cloud.tencent.com/nexus/repository/maven-public',
-    'https://dl.google.com/dl/android/maven2'  : 'https://mirrors.cloud.tencent.com/nexus/repository/maven-public',
-    'https://dl.google.com/dl/android/maven2/' : 'https://mirrors.cloud.tencent.com/nexus/repository/maven-public',
-    'https://maven.google.com'                 : 'https://mirrors.cloud.tencent.com/nexus/repository/maven-public',
-    'https://maven.google.com/'                : 'https://mirrors.cloud.tencent.com/nexus/repository/maven-public',
-    'https://jitpack.io'                       : 'https://mirrors.cloud.tencent.com/nexus/repository/maven-public',
-    'https://jitpack.io/'                      : 'https://mirrors.cloud.tencent.com/nexus/repository/maven-public',
-]
+import org.gradle.api.artifacts.repositories.MavenArtifactRepository
 
-def rewrite = { repos ->
-    repos.withType(MavenArtifactRepository).configureEach { repo ->
-        def u = repo.url.toString()
-        // 去掉结尾斜杠再比对，命中就换镜像
-        def key = u.endsWith('/') ? u[0..-2] : u
-        for (entry in MIRRORS) {
-            def from = entry.key.endsWith('/') ? entry.key[0..-2] : entry.key
-            if (key == from || u == entry.key) {
-                println "[Aiqiyi-init] repo ${u} -> ${entry.value}"
-                repo.url = entry.value
-                break
-            }
+def MIRROR_PLUGINS = 'https://mirrors.cloud.tencent.com/nexus/repository/gradle-plugins'
+def MIRROR_PUBLIC  = 'https://mirrors.cloud.tencent.com/nexus/repository/maven-public'
+
+// 只在「看起来像远程仓库」的集合上动手：排除 flatDir / 本地 file 仓库
+// 两阶段：先计算需不需插，然后再真正 add，避免在遍历中修改集合。
+// 只在「看起来像远程仓库」的集合上动手：排除 flatDir / 本地 file 仓库
+// 两阶段：先计算需不需插，然后再真正 add，避免在遍历中修改集合。
+def injectMirrors = { repos, List<String> urls ->
+    def present = []
+    repos.withType(MavenArtifactRepository).each { r ->
+        present << r.url.toString().replaceAll('/+$', '')
+    }
+    def toAdd = []
+    urls.each { u ->
+        def norm = u.replaceAll('/+$', '')
+        if (!present.contains(norm) && !toAdd.contains(norm)) toAdd << norm
+    }
+    toAdd.each { u ->
+        println "[Aiqiyi-init] + mirror ${u}"
+        // maven{} 是追加到末尾；用 addFirst 把镜像顶到最前面，
+        // 否则官方源先试，镜像起不到加速作用。
+        def created = repos.maven { url = u }
+        try {
+            repos.remove(created)
+            repos.addFirst(created)
+        } catch (Throwable t) {
+            println "[Aiqiyi-init] !! addFirst failed (${t.class.simpleName}), mirror stays at tail: ${u}"
         }
     }
 }
 
+// 按 URL 判断该集合是「插件仓」还是「依赖仓」，分别注入对应镜像。
+def handle = { repos ->
+    def urls = []
+    repos.withType(MavenArtifactRepository).each { r -> urls << r.url.toString() }
+    def joined = urls.join(' ')
+    def want = []
+    if (joined.contains('plugins.gradle.org') || joined.contains('gradlePluginPortal')) {
+        want << MIRROR_PLUGINS
+        want << MIRROR_PUBLIC
+    } else if (joined.contains('maven') || joined.contains('google') || joined.contains('jitpack')) {
+        want << MIRROR_PUBLIC
+        want << MIRROR_PLUGINS
+    }
+    if (!want.isEmpty()) injectMirrors(repos, want)
+}
+
 beforeSettings { settings ->
-    rewrite(settings.pluginManagement.repositories)
+    handle(settings.pluginManagement.repositories)
 }
-
 settingsEvaluated { settings ->
-    rewrite(settings.dependencyResolutionManagement.repositories)
-    rewrite(settings.buildscript.repositories)
+    handle(settings.dependencyResolutionManagement.repositories)
+    handle(settings.buildscript.repositories)
 }
-
 allprojects { project ->
-    rewrite(project.buildscript.repositories)
-    rewrite(project.repositories)
+    handle(project.buildscript.repositories)
+    handle(project.repositories)
 }

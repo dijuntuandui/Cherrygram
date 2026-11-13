@@ -5,14 +5,12 @@ buildscript {
         // 阿里云 google/public 返回 502，而 Gradle 遇 5xx 会硬失败中止解析
         // （不像 404 会继续试下一个仓），所以华为源必须排最前面先命中。
         maven { url 'https://developer.huawei.com/repo/' }
-        // [Aiqiyi] 官方源在前。曾把阿里云镜像排前面以绕开 gradlePluginPortal 的 504，
-        // 但镜像自身频繁 502，而 Gradle 对 5xx 是硬失败（不像 404 会继续试下一个仓），
-        // 放在前面等于把构建交给一个不稳定的源，因此降级到最后兜底。
+        // [Aiqiyi] 这里只留官方源。国内镜像（腾讯 gradle-plugins / maven-public）
+        // 由 gradle/aiqiyi-mirrors.init.gradle 统一注入到列表最前面，并保留官方源作回落。
+        // 不要在项目文件里硬编码镜像：单一镜像覆盖面不全，缺包时是 404 而不是回退。
         gradlePluginPortal()
         google()
         mavenCentral()
-        maven { url 'https://maven.aliyun.com/repository/gradle-plugin' }
-        maven { url 'https://maven.aliyun.com/repository/public' }
     }
     dependencies {
         classpath 'com.android.tools.build:gradle:8.13.2'
