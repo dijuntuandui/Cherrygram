@@ -75,17 +75,6 @@ android {
             storePassword System.getenv('STORE_PASSWORD') ?: 'Your_Password'
             keyAlias System.getenv('KEY_ALIAS') ?: 'Your_Alias'
             keyPassword System.getenv('KEY_PASSWORD') ?: 'Your_Password'
-            // [Aiqiyi] 强制签名方案：v1 + v2 必开，v3/v4 关闭。
-            // 现象：CI 产出包在 Android 15 上安装报「无签章版本」。
-            // 实测该 APK 的 META-INF 内无任何签名文件（v1 缺失），
-            // Signing Block 中存在 0x7109871a(v2) 与 0x42726577(v3.1)。
-            // v3.1 是签名轮换扩展，本 keystore 无 rotation lineage，
-            // 部分 OEM ROM 走 v3.1 校验路径会判失败并回落到「未签名」。
-            // 显式打开 v1 并关闭 v3/v4 可绕开该判定。
-            enableV1Signing true
-            enableV2Signing true
-            enableV3Signing false
-            enableV4Signing false
         }
     }
 
