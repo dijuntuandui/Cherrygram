@@ -2001,6 +2001,24 @@ public class ActionBarLayout extends FrameLayout implements INavigationLayout, F
     }
 
     private void startLayoutAnimation(final boolean open, final boolean first, final boolean preview) {
+        /* [Aiqiyi] 进入新页面连点打断修复（丙·入场节流）。
+         *
+         * 现象：快速连点进二级页，转场停在半路——旧页停在左侧一点、新页没铺满，画面「卡一半」。
+         *
+         * 成因：每次点击都走 first=true，animationProgress 归 0 并 new 一条新 spring 从 0 起跑，
+         * 旧 spring 未 cancel；两条 spring 各自按 open / close 两套反向公式（2084-2122 行）
+         * 写同一个 View 的 translationX，互相覆盖，最终停在半路。
+         *
+         * 对照数据（pid 级逐帧埋点 AQYDBG-FRAME）：
+         *   单点 → open 全程 true，stack 2→3→4 正常，收尾 cv.tX=0.6  cvb.tX=-251.8（正确）
+         *   连点 → open 五轮 true/false 横跳，stack 4→3，收尾 cv.tX=-0.2 cvb.tX=719.4（错位）
+         *
+         * 修法：进场动画仍在跑时不触发新的进场动画，让它跑完即可。
+         * 只拦进场（open && first），退场与系统返回手势路径不碰（实测不卡）。
+         */
+        if (open && first && currentSpringAnimation != null && currentSpringAnimation.isRunning()) {
+            return;
+        }
         if (first) {
             animationProgress = 0.0f;
             lastFrameTime = System.nanoTime() / 1000000;
