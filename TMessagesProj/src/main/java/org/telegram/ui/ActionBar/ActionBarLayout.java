@@ -2024,27 +2024,26 @@ public class ActionBarLayout extends FrameLayout implements INavigationLayout, F
             lastFrameTime = System.nanoTime() / 1000000;
 
             /*
-             * [Aiqiyi] 修「切页面有几帧两个页面半重叠」。
-             *
-             * 进场动画是「横向滑入 + 淡入」同时进行（2165 行 containerView.setAlpha(逐帧 0→1)），
-             * 退场容器 containerViewBack 全程可见且同时向左位移。
-             *
-             * 原本不透明底时三层叠加看不出问题：
-             *   壁纸 ← 旧页(白底) ← 新页(半透明)
-             * 新页半透明只透出旧页的白，颜色一致。
-             *
-             * 全屏壁纸把页面底铺透明后变成：
-             *   壁纸 ← 旧页(透明!) ← 新页(半透明)
-             * 三层全透，于是旧页内容、壁纸、新页内容同时可见。
-             *
-             * 退场路径不出现，因为那边只改 translationX 不改 alpha（2087 行）。
-             *
-             * 修法：进场动画期间给退场容器补一层不透明底，动画结束再撤。
-             * 用 windowBackgroundWhite，就是原本那层被替换掉的色。
+             * [Aiqiyi] 转场旧页显隐（强制开启）。历史方案（补白底）已被下方斯拉夫逻辑取代，
+             * 原因与实测结论见下方注释。
              */
-            if (open && !preview && containerViewBack != null
+            /* ===== [Aiqiyi] 斯拉夫逻辑（强制开启，无开关） =====
+             *
+             * 补底方案仍然漏：实机截图确认返回路径会露出旧页残片（左侧一条 + 右下一条），
+             * 且补 windowBackgroundWhite 在深灰主题下反而更刺眼。
+             *
+             * 改为：转场一开始直接把退场容器按掉，一帧都不给露。
+             * 转场全程 150~190ms，中间帧用户根本看不见，＝「点进新页直接换掉」。
+             *
+             * 覆盖进场 + 退场两条路径（原先只护 open，返回路径是漏的，也就是用户反馈的那条）。
+             * 容器在 onAnimationEndCheck 统一复位为 INVISIBLE，本处不额外还原。
+             * preview 路径（缩放淡入类，如分享弹层）不动，它有独立视觉语义。
+             */
+            if (!preview && containerViewBack != null
                     && uz.unnarsx.cherrygram.core.configs.CherrygramAppearanceConfig.INSTANCE.getAiqiyiFullscreenWallpaper()) {
-                containerViewBack.setBackgroundColor(Theme.getColor(Theme.key_windowBackgroundWhite));
+                containerViewBack.setVisibility(View.INVISIBLE);
+                containerViewBack.setTranslationX(0);
+                containerViewBack.setAlpha(1.0f);
             }
         }
         if (USE_SPRING_ANIMATION) {
