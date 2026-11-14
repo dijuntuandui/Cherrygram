@@ -629,7 +629,7 @@
     <string name="AQY_GhostMode">Ghost Mode</string>
     <string name="AQY_GhostMode_Desc">Do not send read receipts, stay invisible</string>
     <string name="AQY_HideOnline">Hide Online Status</string>
-    <string name="AQY_HideOnline_Desc">Server-side last-seen privacy. Others see you as 'last seen recently', and you lose their exact timestamps too</string>
+    <string name="AQY_HideOnline_Desc">Server-side last-seen privacy. Others only see a fuzzy timestamp, and you lose exact timestamps of others too</string>
     <!--Aiqiyi: show online status-->
     <string name="AQY_UnlimitedPins">Unlimited Pins</string>
     <string name="AQY_UnlimitedPins_Desc">Remove the pinned dialogs limit — pin freely in the main list and in folders</string>
