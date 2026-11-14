@@ -1894,6 +1894,7 @@
     <string name="TodayAtFormattedWithToday">today at %1$s</string>
     <string name="YesterdayAtFormatted">yesterday at %1$s</string>
     <string name="Online">online</string>
+    <string name="AiqiyiGhostOffline">offline</string>
     <string name="LastSeen">last seen</string>
     <string name="LastSeenDate">last seen</string>
     <string name="LastSeenFormatted">last seen %1$s</string>

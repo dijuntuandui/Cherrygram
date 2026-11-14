@@ -2736,6 +2736,12 @@ public class ContactsController extends BaseController {
                     switch (num) {
                         case PRIVACY_RULES_TYPE_LASTSEEN:
                             lastseenPrivacyRules = rules.rules;
+                            // Aiqiyi: reconcile ghost-mode privacy on every fresh load
+                            try {
+                                uz.unnarsx.cherrygram.aiqiyi.AiqiyiGhostUtils.syncPrivacy(currentAccount);
+                            } catch (Throwable e) {
+                                FileLog.e(e);
+                            }
                             break;
                         case PRIVACY_RULES_TYPE_INVITE:
                             groupPrivacyRules = rules.rules;

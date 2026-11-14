@@ -355,6 +355,7 @@ import uz.unnarsx.cherrygram.helpers.ProfileActivityHelper;
 import uz.unnarsx.cherrygram.donates.BadgeHelper;
 import uz.unnarsx.cherrygram.misc.Constants;
 import uz.unnarsx.cherrygram.preferences.CherrygramPreferencesNavigator;
+import uz.unnarsx.cherrygram.aiqiyi.AiqiyiGhostUtils;
 
 import me.vkryl.android.animator.BoolAnimator;
 import me.vkryl.core.reference.ReferenceList;
@@ -12129,6 +12130,8 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                     } else {
                         if (CherrygramCoreConfig.isDevBuild() || CherrygramCoreConfig.isStandalonePremiumBuild()) {
                             newString2 = LocaleController.formatUserStatus(currentAccount, user, isOnline, shortStatus ? new boolean[1] : null);
+                        } else if (AiqiyiGhostUtils.isEnabled()) {
+                            newString2 = LocaleController.getString(R.string.AiqiyiGhostOffline);
                         } else {
                             newString2 = LocaleController.getString(R.string.Online);
                         }
