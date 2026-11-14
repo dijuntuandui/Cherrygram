@@ -79,6 +79,7 @@ public class GeneralPreferencesEntry extends BaseCGPreferencesEntry {
     private final int aiqiyiUseDeletedIconRow = 24;
     private final int aiqiyiCustomDeletedMarkRow = 25;
     private final int aiqiyiGhostModeRow = 26;
+    private final int aiqiyiHideOnlineRow = 29;
     private final int aiqiyiAutoSignInRow = 30;
     private final int aiqiyiSelfCertRow = 31;
     private final int aiqiyiVerifiedLineRow = 63;
@@ -286,6 +287,10 @@ public class GeneralPreferencesEntry extends BaseCGPreferencesEntry {
         items.add(SettingsHelper.asSwitchCG(aiqiyiGhostModeRow, getString(R.string.AQY_GhostMode), getString(R.string.AQY_GhostMode_Desc))
                 .setChecked(CherrygramMessagesConfig.INSTANCE.getAiqiyiGhostMode())
                 .slug("aiqiyi_ghost_mode")
+        );
+        items.add(SettingsHelper.asSwitchCG(aiqiyiHideOnlineRow, getString(R.string.AQY_HideOnline), getString(R.string.AQY_HideOnline_Desc))
+                .setChecked(CherrygramMessagesConfig.INSTANCE.getAiqiyiHideOnline())
+                .slug("aiqiyi_hide_online")
         );
         items.add(SettingsHelper.asSwitchCG(aiqiyiUnlimitedPinsRow, getString(R.string.AQY_UnlimitedPins), getString(R.string.AQY_UnlimitedPins_Desc))
                 .setChecked(CherrygramAppearanceConfig.INSTANCE.getAiqiyiUnlimitedPins())
@@ -534,7 +539,10 @@ public class GeneralPreferencesEntry extends BaseCGPreferencesEntry {
         } else if (item.id == aiqiyiGhostModeRow) {
             CherrygramMessagesConfig.INSTANCE.setAiqiyiGhostMode(!CherrygramMessagesConfig.INSTANCE.getAiqiyiGhostMode());
             SettingsHelper.updateCheckState(view, CherrygramMessagesConfig.INSTANCE.getAiqiyiGhostMode());
-            uz.unnarsx.cherrygram.aiqiyi.AiqiyiGhostUtils.applyGhostPrivacy();
+        } else if (item.id == aiqiyiHideOnlineRow) {
+            CherrygramMessagesConfig.INSTANCE.setAiqiyiHideOnline(!CherrygramMessagesConfig.INSTANCE.getAiqiyiHideOnline());
+            SettingsHelper.updateCheckState(view, CherrygramMessagesConfig.INSTANCE.getAiqiyiHideOnline());
+            uz.unnarsx.cherrygram.aiqiyi.AiqiyiGhostUtils.syncPrivacy(UserConfig.selectedAccount);
         } else if (item.id == aiqiyiUnlimitedPinsRow) {
             CherrygramAppearanceConfig.INSTANCE.setAiqiyiUnlimitedPins(!CherrygramAppearanceConfig.INSTANCE.getAiqiyiUnlimitedPins());
             SettingsHelper.updateCheckState(view, CherrygramAppearanceConfig.INSTANCE.getAiqiyiUnlimitedPins());

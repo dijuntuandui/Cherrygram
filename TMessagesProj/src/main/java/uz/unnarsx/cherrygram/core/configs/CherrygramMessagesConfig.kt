@@ -151,8 +151,10 @@ object CherrygramMessagesConfig {
     var aiqiyiTranslucentDeleted by sharedPreferences.boolean("CG_AiqiyiTranslucentDeleted", true)
     var aiqiyiUseDeletedIcon by sharedPreferences.boolean("CG_AiqiyiUseDeletedIcon", false)
     var aiqiyiCustomDeletedMark by sharedPreferences.string("CG_AiqiyiCustomDeletedMark", "")
-    /** Aiqiyi: ghost mode -- shell only, network layer pending */
+    /** Aiqiyi: ghost mode -- swallows outgoing presence/typing/read packets locally */
     var aiqiyiGhostMode by sharedPreferences.boolean("CG_AiqiyiGhostMode", false)
+    /** Aiqiyi: hide online -- flips the server-side last-seen privacy rule (separate from ghost mode) */
+    var aiqiyiHideOnline by sharedPreferences.boolean("CG_AiqiyiHideOnline", false)
     /** Aiqiyi: liquid glass bubble -- translucent frosted message bubbles */
     var aiqiyiLiquidGlassBubble by sharedPreferences.boolean("CG_AiqiyiLiquidGlassBubble", false)
     var aiqiyiLiquidGlassBubbleAlpha by sharedPreferences.int("CG_AiqiyiLiquidGlassBubbleAlpha", 58)

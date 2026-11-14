@@ -65,6 +65,25 @@ public class AiqiyiGhostUtils {
     }
 
     /**
+     * Hide-online is a SEPARATE switch from Ghost Mode.
+     *
+     * Ghost Mode only swallows outgoing presence packets locally, so the server
+     * still believes the account is online and keeps handing us everyone else's
+     * precise last-seen. Hiding online is the opposite trade-off: it flips the
+     * server-side last-seen privacy rule, which also costs us the ability to see
+     * other people's exact timestamps.
+     *
+     * Keeping them independent lets the user pick either behaviour - or both.
+     */
+    public static boolean isHideOnline() {
+        try {
+            return CherrygramMessagesConfig.INSTANCE.getAiqiyiHideOnline();
+        } catch (Throwable ignored) {
+            return false;
+        }
+    }
+
+    /**
      * Decide whether a request should be suppressed while Ghost Mode is on.
      * Called from the send path, so it must stay cheap and never throw.
      *
@@ -160,7 +179,7 @@ public class AiqiyiGhostUtils {
             if (!UserConfig.getInstance(account).isClientActivated()) {
                 return;
             }
-            boolean wantHidden = isEnabled();
+            boolean wantHidden = isHideOnline();
             ArrayList<TLRPC.PrivacyRule> current = ContactsController.getInstance(account)
                     .getPrivacyRules(ContactsController.PRIVACY_RULES_TYPE_LASTSEEN);
             if (current == null) {
@@ -180,14 +199,14 @@ public class AiqiyiGhostUtils {
                 }
                 p.edit().putString(KEY_SNAPSHOT, serializeRules(current)).apply();
                 sendRules(account, null, true);
-                FileLog.d("ghost: privacy -> disallow all");
+                FileLog.d("hideonline: privacy -> disallow all");
             } else {
                 if (!isHidden) {
                     return;
                 }
                 String snap = p.getString(KEY_SNAPSHOT, null);
                 sendRules(account, snap, false);
-                FileLog.d("ghost: privacy restore requested snapshot=" + snap);
+                FileLog.d("hideonline: privacy restore requested snapshot=" + snap);
             }
         } catch (Throwable e) {
             FileLog.e(e);

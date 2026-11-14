@@ -491,6 +491,8 @@
     <!--Aiqiyi: ghost mode-->
     <string name="AQY_GhostMode">幽灵模式</string>
     <string name="AQY_GhostMode_Desc">不发送已读回执，隐身在线状态</string>
+    <string name="AQY_HideOnline">隐藏在线状态</string>
+    <string name="AQY_HideOnline_Desc">服务端最后上线隐私。别人看你只能看到「最近上线」，你也看不到别人的精确在线时间</string>
     <!--Aiqiyi: show online status-->
     <string name="AQY_UnlimitedPins">无限置顶</string>
     <string name="AQY_UnlimitedPins_Desc">解除置顶数量上限，主列表与文件夹内都可随意置顶</string>
