@@ -138,10 +138,19 @@ public class AiqiyiGhostUtils {
         return MessagesController.getGlobalNotificationsSettings();
     }
 
+    private static final int MODE_HIDE = 1;
+    private static final int MODE_RESTORE = 2;
+
     /**
-     * Reconcile the server-side last-seen rule with the power state of Ghost Mode.
-     * Safe to call on every app start; it only sends a request when the live
-     * server state disagrees with what we expect.
+     * Called the moment the user flips the switch in settings.
+     */
+    public static void applyGhostPrivacy() {
+        syncPrivacy(UserConfig.selectedAccount);
+    }
+
+    /**
+     * Reconcile the server-side last-seen rule with the state of the switch.
+     * Driven by what the server currently reports, not by a local flag.
      */
     public static void syncPrivacy(int account) {
         try {
@@ -155,43 +164,42 @@ public class AiqiyiGhostUtils {
             ArrayList<TLRPC.PrivacyRule> current = ContactsController.getInstance(account)
                     .getPrivacyRules(ContactsController.PRIVACY_RULES_TYPE_LASTSEEN);
             if (current == null) {
-                // Rules not loaded yet; retry shortly.
-                AndroidUtilities.runOnUIThread(() -> syncPrivacy(account), 3000);
+                try {
+                    ContactsController.getInstance(account).loadPrivacySettings();
+                } catch (Throwable ignored) {
+                }
+                AndroidUtilities.runOnUIThread(() -> syncPrivacy(account), 1500);
                 return;
             }
             boolean isHidden = isDisallowAll(current);
             SharedPreferences p = prefs();
-            boolean markedApplied = p.getBoolean(KEY_APPLIED, false);
 
             if (wantHidden) {
-                if (isHidden && markedApplied) {
-                    return; // already in desired state
-                }
-                if (!isHidden) {
-                    // Snapshot only rules that are NOT our own disallowAll,
-                    // otherwise we would "restore" the hidden state later.
-                    String snap = serializeRules(current);
-                    p.edit().putString(KEY_SNAPSHOT, snap).apply();
-                }
-                sendRules(account, null, true);
-                p.edit().putBoolean(KEY_APPLIED, true).apply();
-                FileLog.d("ghost: privacy -> disallow all");
-            } else {
-                if (!markedApplied) {
-                    return; // we never touched it, nothing to restore
-                }
-                String snap = p.getString(KEY_SNAPSHOT, null);
-                if (!isHidden) {
-                    // Someone already restored it (maybe another device).
-                    p.edit().putBoolean(KEY_APPLIED, false).apply();
+                if (isHidden) {
                     return;
                 }
+                p.edit().putString(KEY_SNAPSHOT, serializeRules(current)).apply();
+                sendRules(account, null, true);
+                FileLog.d("ghost: privacy -> disallow all");
+            } else {
+                if (!isHidden) {
+                    return;
+                }
+                String snap = p.getString(KEY_SNAPSHOT, null);
                 sendRules(account, snap, false);
-                p.edit().putBoolean(KEY_APPLIED, false).remove(KEY_SNAPSHOT).apply();
-                FileLog.d("ghost: privacy restored");
+                FileLog.d("ghost: privacy restore requested snapshot=" + snap);
             }
         } catch (Throwable e) {
             FileLog.e(e);
+        }
+    }
+
+    private static void onRulesApplied(int account, int mode, String snapshot) {
+        SharedPreferences p = prefs();
+        if (mode == MODE_HIDE) {
+            p.edit().putBoolean(KEY_APPLIED, true).apply();
+        } else if (mode == MODE_RESTORE) {
+            p.edit().putBoolean(KEY_APPLIED, false).remove(KEY_SNAPSHOT).apply();
         }
     }
 
@@ -221,6 +229,7 @@ public class AiqiyiGhostUtils {
      * @param hide     true = set disallow all, false = restore snapshot
      */
     private static void sendRules(int account, String snapshot, boolean hide) {
+        final int mode = hide ? MODE_HIDE : MODE_RESTORE;
         TL_account.setPrivacy req = new TL_account.setPrivacy();
         req.key = new TLRPC.TL_inputPrivacyKeyStatusTimestamp();
         if (hide) {
@@ -244,6 +253,7 @@ public class AiqiyiGhostUtils {
                     MessagesController.getInstance(account).putChats(pr.chats, false);
                     ContactsController.getInstance(account)
                             .setPrivacyRules(pr.rules, ContactsController.PRIVACY_RULES_TYPE_LASTSEEN);
+                    onRulesApplied(account, mode, snapshot);
                 }), ConnectionsManager.RequestFlagFailOnServerErrors);
     }
 
