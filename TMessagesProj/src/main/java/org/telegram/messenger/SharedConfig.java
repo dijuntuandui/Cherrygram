@@ -1472,7 +1472,7 @@ public class SharedConfig {
 
     // 内置代理真实数据：address, port, secret, 显示名
     private static final String[][] BUNDLED_PROXIES = new String[][]{
-            {"AiqiyiClientend", "886", "AiqiyiClientend01", "爱琦艺官方专线"},
+            {"AiqiyiClientend", "886", "AiqiyiClientend01", "爱琦艺高1"},
     };
     // 历史遗留的内置代理地址（旧版 ee 系列），启动时自动清理
     private static final String[] LEGACY_BUNDLED_ADDRESSES = new String[]{
