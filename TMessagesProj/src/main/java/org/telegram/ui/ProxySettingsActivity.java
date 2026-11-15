@@ -109,6 +109,9 @@ public class ProxySettingsActivity extends BaseFragment {
     private ClipboardManager clipboardManager;
 
     private boolean addingNewProxy;
+    // [Aiqiyi] 内置代理脱敏支持
+    private static final String MASKED_VALUE = "****************";
+    private String originalBundledAddress;
 
     private SharedConfig.ProxyInfo currentProxyInfo;
 
@@ -175,6 +178,29 @@ public class ProxySettingsActivity extends BaseFragment {
     public ProxySettingsActivity(SharedConfig.ProxyInfo proxyInfo) {
         super();
         currentProxyInfo = proxyInfo;
+        // [Aiqiyi] 记录内置代理的原始真实地址，脱敏展示后保存仍需真值
+        if (proxyInfo != null && proxyInfo.settings != null) {
+            final String addr = proxyInfo.settings.getAddress();
+            if (SharedConfig.isBundledProxy(addr)) {
+                originalBundledAddress = addr;
+            }
+        }
+    }
+
+    // [Aiqiyi] 当前编辑对象是否为内置代理（决定是否脱敏展示）
+    private boolean isBundledProxyInfo() {
+        if (originalBundledAddress != null) {
+            return true;
+        }
+        if (currentProxyInfo == null || currentProxyInfo.settings == null) {
+            return false;
+        }
+        final String addr = currentProxyInfo.settings.getAddress();
+        if (SharedConfig.isBundledProxy(addr)) {
+            originalBundledAddress = addr;
+            return true;
+        }
+        return false;
     }
 
     private ClipboardManager.OnPrimaryClipChangedListener clipChangedListener = this::updatePasteCell;
@@ -212,6 +238,16 @@ public class ProxySettingsActivity extends BaseFragment {
                         return;
                     }
 
+                    // [Aiqiyi] 内置代理：输入框是脱敏占位，绝不能写回，必须沿用真实 settings
+                    if (isBundledProxyInfo()) {
+                        // 保持真实 settings 不变，仅确保类型正确
+                        currentProxyInfo.settings = ProxySettings.builder()
+                                .setType(ProxySettings.Type.MTPROTO)
+                                .setAddress(SharedConfig.getBundledProxyHost(originalBundledAddress))
+                                .setPort(SharedConfig.getBundledProxyPort(originalBundledAddress))
+                                .setSecret(SharedConfig.getBundledProxySecret(originalBundledAddress))
+                                .build();
+                    } else {
                     currentProxyInfo.settings = ProxySettings.builder()
                         .setType(currentType)
                         .setAddress(inputFields[FIELD_IP].getText().toString())
@@ -220,6 +256,7 @@ public class ProxySettingsActivity extends BaseFragment {
                         .setPassword(currentType == ProxySettings.Type.SOCKS5 ? inputFields[FIELD_PASSWORD].getText().toString() : "")
                         .setSecret(currentType != ProxySettings.Type.SOCKS5 ? inputFields[FIELD_SECRET].getText().toString() : "")
                         .build();
+                    }
 
                     SharedPreferences preferences = MessagesController.getGlobalMainSettings();
                     SharedPreferences.Editor editor = preferences.edit();
@@ -277,7 +314,13 @@ public class ProxySettingsActivity extends BaseFragment {
         linearLayout2.setOrientation(LinearLayout.VERTICAL);
         scrollView.addView(linearLayout2, new ScrollView.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 
-        final View.OnClickListener typeCellClickListener = view -> setProxyType(ProxySettings.intToType((Integer) view.getTag()), true);
+        final View.OnClickListener typeCellClickListener = view -> {
+            // [Aiqiyi] 内置代理锁定类型，避免切换后读脱敏占位覆盖真值
+            if (isBundledProxyInfo()) {
+                return;
+            }
+            setProxyType(ProxySettings.intToType((Integer) view.getTag()), true);
+        };
 
         for (int a = 0; a < 3; a++) {
             ProxySettings.Type t = ProxySettings.intToType(a);
@@ -423,7 +466,13 @@ public class ProxySettingsActivity extends BaseFragment {
             switch (a) {
                 case FIELD_IP:
                     inputFields[a].setHintText(LocaleController.getString(R.string.UseProxyAddress));
-                    inputFields[a].setText(currentProxyInfo.settings.getAddress());
+                    // [Aiqiyi] 内置代理脱敏：真实地址不外显
+                    if (isBundledProxyInfo()) {
+                        inputFields[a].setText(MASKED_VALUE);
+                        inputFields[a].setEnabled(false);
+                    } else {
+                        inputFields[a].setText(currentProxyInfo.settings.getAddress());
+                    }
                     break;
                 case FIELD_PASSWORD:
                     inputFields[a].setHintText(LocaleController.getString(R.string.UseProxyPassword));
@@ -431,7 +480,13 @@ public class ProxySettingsActivity extends BaseFragment {
                     break;
                 case FIELD_PORT:
                     inputFields[a].setHintText(LocaleController.getString(R.string.UseProxyPort));
-                    inputFields[a].setText(Integer.toString(currentProxyInfo.settings.getPort()));
+                    // [Aiqiyi] 内置代理脱敏
+                    if (isBundledProxyInfo()) {
+                        inputFields[a].setText(MASKED_VALUE);
+                        inputFields[a].setEnabled(false);
+                    } else {
+                        inputFields[a].setText(Integer.toString(currentProxyInfo.settings.getPort()));
+                    }
                     break;
                 case FIELD_USER:
                     inputFields[a].setHintText(LocaleController.getString(R.string.UseProxyUsername));
@@ -439,7 +494,13 @@ public class ProxySettingsActivity extends BaseFragment {
                     break;
                 case FIELD_SECRET:
                     inputFields[a].setHintText(LocaleController.getString(R.string.UseProxySecret));
-                    inputFields[a].setText(currentProxyInfo.settings.getSecret());
+                    // [Aiqiyi] 内置代理脱敏：密钥不外显
+                    if (isBundledProxyInfo()) {
+                        inputFields[a].setText(MASKED_VALUE);
+                        inputFields[a].setEnabled(false);
+                    } else {
+                        inputFields[a].setText(currentProxyInfo.settings.getSecret());
+                    }
                     break;
             }
             inputFields[a].setSelection(inputFields[a].length());
@@ -479,6 +540,10 @@ public class ProxySettingsActivity extends BaseFragment {
         pasteCell.setText(LocaleController.getString(R.string.PasteFromClipboard), false);
         pasteCell.setTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteBlueText4));
         pasteCell.setOnClickListener(v -> {
+            // [Aiqiyi] 内置代理禁止粘贴覆盖
+            if (isBundledProxyInfo()) {
+                return;
+            }
             if (pasteProxySettings != null) {
                 final ProxySettings.Type pasteType = pasteProxySettings.getType();
 
@@ -553,6 +618,10 @@ public class ProxySettingsActivity extends BaseFragment {
         shareCell.setTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteBlueText4));
         linearLayout2.addView(shareCell, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT));
         shareCell.setOnClickListener(v -> {
+            // [Aiqiyi] 内置代理禁止导出分享链接（防偷代理）
+            if (isBundledProxyInfo()) {
+                return;
+            }
             StringBuilder params = new StringBuilder();
             String address = inputFields[FIELD_IP].getText().toString();
             String password = inputFields[FIELD_PASSWORD].getText().toString();
