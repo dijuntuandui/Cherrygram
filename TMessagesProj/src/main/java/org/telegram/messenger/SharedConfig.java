@@ -1472,11 +1472,24 @@ public class SharedConfig {
 
     // 内置代理真实数据：address, port, secret, 显示名
     private static final String[][] BUNDLED_PROXIES = new String[][]{
-            {"AiqiyiClientend", "886", "AiqiyiClientend01", "爱琦艺高1"},
+            {"85.93.2.12",     "443",   "ee7ac48a82952157b430d7e833a3fa81", "爱琦艺高1"},
+            {"54.37.17.251",   "443",   "ee11985e50ce5ca6ab48a4805eb490f1", "爱琦艺高2"},
+            {"162.19.251.245", "443",   "ee76356a8987e1ec6c2b3546bcbfa744", "爱琦艺高3"},
+            {"46.38.233.231",  "443",   "ee60255f3756112c304340ab9d7573a8", "爱琦艺高4"},
+            {"77.90.15.101",   "443",   "eef7a1aaf30c6b656befad03e5215750", "爱琦艺高5"},
+            {"136.85.80.227",  "12345", "ee7197ac3ebb5e3b1cd9c5daf96b47d89b7777772e6d6963726f736f66742e636f6d", "爱琦艺高6"},
+            {"34.21.226.186",  "12345", "ee7528a1f3b29f83943eb47d3fcc59e66e7777772e6d6963726f736f66742e636f6d", "爱琦艺高7"},
+            {"34.21.226.186",  "12347", "ee7528a1f3b29f83943eb47d3fcc59e66e7777772e6d6963726f736f66742e636f6d", "爱琦艺高8"},
+            {"136.85.1.219",   "9443",  "eeb7f01f7abec67bbaf227ce230659e08a7777772e6d6963726f736f66742e636f6d", "爱琦艺高9"},
+            {"kamipo69.p.lite64.xyz", "443", "ee425883d8e3a1cf13ce05b6881d0c0b416c69746536342e73697465", "爱琦艺高10"},
+            {"34.143.150.238", "12345", "ee801dad7973c6729fc38969cb1b3456f47777772e6d6963726f736f66742e636f6d", "爱琦艺高11"},
+            {"34.143.150.238", "12346", "ee801dad7973c6729fc38969cb1b3456f47777772e6d6963726f736f66742e636f6d", "爱琦艺高12"},
+            {"34.143.150.238", "12347", "ee801dad7973c6729fc38969cb1b3456f47777772e6d6963726f736f66742e636f6d", "爱琦艺高13"},
+            {"@AiqiyiClientend", "886", "AiqiyiClientend01", "爱琦艺官方频道"},
     };
     // 历史遗留的内置代理地址（旧版 ee 系列），启动时自动清理
     private static final String[] LEGACY_BUNDLED_ADDRESSES = new String[]{
-            "85.93.2.12", "54.37.17.251", "162.19.251.245", "46.38.233.231", "77.90.15.101",
+            // 旧版 ee 系列地址已被回收为爱琦艺高1~高5，此处不得再清理
     };
 
     public static void ensureBundledProxies() {
@@ -1549,7 +1562,28 @@ public class SharedConfig {
         }
     }
 
-    // [Aiqiyi] 内置代理的中文备注名（按地址匹配）
+    // [Aiqiyi] 查找内置代理条目：地址 + 端口联合匹配
+    // 注意：存在多条目共用同一 IP 仅端口不同的情况（高7/高8、高11/12/13），
+    // 只按地址匹配会导致显示名串台，必须带上端口。
+    private static String[] findBundledEntry(String address, int port) {
+        if (address == null) {
+            return null;
+        }
+        for (String[] p : BUNDLED_PROXIES) {
+            if (p[0].equalsIgnoreCase(address) && parseIntSafe(p[1]) == port) {
+                return p;
+            }
+        }
+        return null;
+    }
+
+    // [Aiqiyi] 内置代理的中文备注名（地址 + 端口）
+    public static String getBundledProxyRemark(String address, int port) {
+        final String[] e = findBundledEntry(address, port);
+        return e == null ? null : e[3];
+    }
+
+    // [Aiqiyi] 兼容旧签名：仅按地址匹配时返回首个命中项
     public static String getBundledProxyRemark(String address) {
         if (address == null) {
             return null;
@@ -1563,46 +1597,32 @@ public class SharedConfig {
     }
 
     // [Aiqiyi] 是否为内置代理（用于详情页脱敏展示）
+    public static boolean isBundledProxy(String address, int port) {
+        if (findBundledEntry(address, port) != null) {
+            return true;
+        }
+        // 地址命中但端口对不上时（例如端口被写坏），仍按内置代理处理，避免真数据外泄
+        return getBundledProxyRemark(address) != null;
+    }
+
     public static boolean isBundledProxy(String address) {
         return getBundledProxyRemark(address) != null;
     }
 
-    // [Aiqiyi] 取内置代理的真实 host（脱敏展示时保存仍需真值）
-    public static String getBundledProxyHost(String address) {
-        if (address == null) {
-            return null;
-        }
-        for (String[] p : BUNDLED_PROXIES) {
-            if (p[0].equalsIgnoreCase(address)) {
-                return p[0];
-            }
-        }
-        return null;
+    // [Aiqiyi] 取内置代理的真实字段（脱敏展示时保存仍需真值）
+    public static String getBundledProxyHost(String address, int port) {
+        final String[] e = findBundledEntry(address, port);
+        return e == null ? null : e[0];
     }
 
-    // [Aiqiyi] 取内置代理的真实端口 / 密钥
-    public static int getBundledProxyPort(String address) {
-        if (address == null) {
-            return 0;
-        }
-        for (String[] p : BUNDLED_PROXIES) {
-            if (p[0].equalsIgnoreCase(address)) {
-                return parseIntSafe(p[1]);
-            }
-        }
-        return 0;
+    public static int getBundledProxyPort(String address, int port) {
+        final String[] e = findBundledEntry(address, port);
+        return e == null ? 0 : parseIntSafe(e[1]);
     }
 
-    public static String getBundledProxySecret(String address) {
-        if (address == null) {
-            return null;
-        }
-        for (String[] p : BUNDLED_PROXIES) {
-            if (p[0].equalsIgnoreCase(address)) {
-                return p[2];
-            }
-        }
-        return null;
+    public static String getBundledProxySecret(String address, int port) {
+        final String[] e = findBundledEntry(address, port);
+        return e == null ? null : e[2];
     }
 
     public static void saveProxyList() {

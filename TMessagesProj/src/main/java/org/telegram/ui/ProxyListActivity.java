@@ -179,7 +179,7 @@ public class ProxyListActivity extends BaseFragment implements NotificationCente
 
         public void setProxy(SharedConfig.ProxyInfo proxyInfo) {
             // [Aiqiyi] 内置代理优先显示中文备注名
-            final String remark = SharedConfig.getBundledProxyRemark(proxyInfo.settings.getAddress());
+            final String remark = SharedConfig.getBundledProxyRemark(proxyInfo.settings.getAddress(), proxyInfo.settings.getPort());
             if (remark != null) {
                 textView.setText(remark);
             } else {

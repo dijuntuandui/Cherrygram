@@ -112,6 +112,7 @@ public class ProxySettingsActivity extends BaseFragment {
     // [Aiqiyi] 内置代理脱敏支持
     private static final String MASKED_VALUE = "****************";
     private String originalBundledAddress;
+    private int originalBundledPort;
 
     private SharedConfig.ProxyInfo currentProxyInfo;
 
@@ -178,11 +179,13 @@ public class ProxySettingsActivity extends BaseFragment {
     public ProxySettingsActivity(SharedConfig.ProxyInfo proxyInfo) {
         super();
         currentProxyInfo = proxyInfo;
-        // [Aiqiyi] 记录内置代理的原始真实地址，脱敏展示后保存仍需真值
+        // [Aiqiyi] 记录内置代理的原始真实地址与端口，脱敏展示后保存仍需真值
         if (proxyInfo != null && proxyInfo.settings != null) {
             final String addr = proxyInfo.settings.getAddress();
-            if (SharedConfig.isBundledProxy(addr)) {
+            final int port = proxyInfo.settings.getPort();
+            if (SharedConfig.isBundledProxy(addr, port)) {
                 originalBundledAddress = addr;
+                originalBundledPort = port;
             }
         }
     }
@@ -196,8 +199,10 @@ public class ProxySettingsActivity extends BaseFragment {
             return false;
         }
         final String addr = currentProxyInfo.settings.getAddress();
-        if (SharedConfig.isBundledProxy(addr)) {
+        final int port = currentProxyInfo.settings.getPort();
+        if (SharedConfig.isBundledProxy(addr, port)) {
             originalBundledAddress = addr;
+            originalBundledPort = port;
             return true;
         }
         return false;
@@ -243,9 +248,9 @@ public class ProxySettingsActivity extends BaseFragment {
                         // 保持真实 settings 不变，仅确保类型正确
                         currentProxyInfo.settings = ProxySettings.builder()
                                 .setType(ProxySettings.Type.MTPROTO)
-                                .setAddress(SharedConfig.getBundledProxyHost(originalBundledAddress))
-                                .setPort(SharedConfig.getBundledProxyPort(originalBundledAddress))
-                                .setSecret(SharedConfig.getBundledProxySecret(originalBundledAddress))
+                                .setAddress(SharedConfig.getBundledProxyHost(originalBundledAddress, originalBundledPort))
+                                .setPort(SharedConfig.getBundledProxyPort(originalBundledAddress, originalBundledPort))
+                                .setSecret(SharedConfig.getBundledProxySecret(originalBundledAddress, originalBundledPort))
                                 .build();
                     } else {
                     currentProxyInfo.settings = ProxySettings.builder()
