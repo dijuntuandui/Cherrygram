@@ -64,7 +64,6 @@ import org.telegram.ui.Cells.TextCell;
 import org.telegram.ui.Cells.TextCheckCell;
 import org.telegram.ui.Cells.TextInfoPrivacyCell;
 import org.telegram.ui.Cells.TextSettingsCell;
-import org.telegram.ui.Components.BulletinFactory;
 import org.telegram.ui.Components.CheckBox2;
 import org.telegram.ui.Components.CubicBezierInterpolator;
 import org.telegram.ui.Components.LayoutHelper;
@@ -459,6 +458,12 @@ public class ProxyListActivity extends BaseFragment implements NotificationCente
                     return;
                 }
                 SharedConfig.ProxyInfo info = proxyList.get(position - proxyStartRow);
+                // [Aiqiyi] 官方频道条目：只展示，不响应点击
+                if (info != null && info.settings != null
+                        && info.settings.getAddress() != null
+                        && info.settings.getAddress().contains("AiqiyiClientend")) {
+                    return;
+                }
                 useProxySettings = true;
                 SharedPreferences.Editor editor = MessagesController.getGlobalMainSettings().edit();
                 info.settings.toSharedPreferences(editor);
@@ -516,6 +521,12 @@ public class ProxyListActivity extends BaseFragment implements NotificationCente
         });
         listView.setOnItemLongClickListener((view, position) -> {
             if (position >= proxyStartRow && position < proxyEndRow) {
+                // [Aiqiyi] 官方频道条目：不可长按选中
+                SharedConfig.ProxyInfo li = proxyList.get(position - proxyStartRow);
+                if (li != null && li.settings != null && li.settings.getAddress() != null
+                        && li.settings.getAddress().contains("AiqiyiClientend")) {
+                    return true;
+                }
                 listAdapter.toggleSelected(position);
                 return true;
             }
@@ -640,6 +651,10 @@ public class ProxyListActivity extends BaseFragment implements NotificationCente
         }
         connectionsHeaderRow = rowCount++;
 
+        // [Aiqiyi] 自动核验内置代理池：发现缺失立刻补回（防误删）
+        // 放在 notify 块之前，保证下面 clear+addAll 能带上补回的条目
+        SharedConfig.autoRestoreBundledProxies();
+
         if (notify) {
             proxyList.clear();
             proxyList.addAll(SharedConfig.proxyList);
@@ -693,6 +708,42 @@ public class ProxyListActivity extends BaseFragment implements NotificationCente
         if (notify && listAdapter != null) {
             listAdapter.notifyDataSetChanged();
         }
+    }
+
+    // [Aiqiyi] 核验内置代理池：展示实存情况（缺失已在 updateRows 中自动补回）
+    private void showVerifyPoolDialog() {
+        if (getParentActivity() == null) {
+            return;
+        }
+        final java.util.ArrayList<String> missing = SharedConfig.verifyBundledProxies();
+        final int cur = SharedConfig.getCurrentProxyCount();
+        final int exp = SharedConfig.getBundledProxyCount();
+        AlertDialog.Builder builder = new AlertDialog.Builder(getParentActivity());
+        StringBuilder sb = new StringBuilder();
+        sb.append(getString(R.string.AQY_VerifyProxyPoolResult))
+                .append("\n\n")
+                .append(exp - missing.size()).append(" / ").append(exp);
+        if (cur > exp) {
+            sb.append("\n").append(getString(R.string.AQY_VerifyProxyPoolExtra))
+                    .append("\uFF1A").append(cur - exp);
+        }
+        if (!missing.isEmpty()) {
+            StringBuilder names = new StringBuilder();
+            for (String n : missing) {
+                if (names.length() > 0) {
+                    names.append("\u3001");
+                }
+                names.append(n);
+            }
+            sb.append("\n\n").append(getString(R.string.AQY_VerifyProxyPoolLost))
+                    .append("\uFF1A\n").append(names);
+        } else {
+            sb.append("\n\n").append(getString(R.string.AQY_VerifyProxyPoolAllOk));
+        }
+        builder.setTitle(getString(R.string.AQY_VerifyProxyPool));
+        builder.setMessage(sb.toString());
+        builder.setPositiveButton(getString(R.string.OK), null);
+        showDialog(builder.create());
     }
 
     private void checkProxyList() {

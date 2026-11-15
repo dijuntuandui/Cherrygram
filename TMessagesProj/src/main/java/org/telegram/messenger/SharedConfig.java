@@ -1520,9 +1520,7 @@ public class SharedConfig {
     // [Aiqiyi] 核验内置代理池：返回缺失条目名列表（空 = 完好）
     public static java.util.ArrayList<String> verifyBundledProxies() {
         java.util.ArrayList<String> missing = new java.util.ArrayList<>();
-        if (proxyList == null) {
-            proxyList = loadProxyList();
-        }
+        loadProxyList();
         for (String[] p : BUNDLED_PROXIES) {
             boolean found = false;
             for (ProxyInfo info : proxyList) {
@@ -1549,26 +1547,28 @@ public class SharedConfig {
 
     // [Aiqiyi] 当前代理列表总条数
     public static int getCurrentProxyCount() {
-        if (proxyList == null) {
-            proxyList = loadProxyList();
-        }
+        loadProxyList();
         return proxyList == null ? 0 : proxyList.size();
     }
 
-    // [Aiqiyi] 一键恢复内置代理（清掉已删的，补齐缺的），返回本次补入条数
-    public static int restoreBundledProxies() {
+    // [Aiqiyi] 自动核验并补回：每次调用都检查，缺一条补一条
+    // 补回的条目地址/端口与 BUNDLED_PROXIES 完全一致，因此会自动获得
+    // 「爱琦艺高N」顶部编号名 + 详情页星号遮蔽，无需额外标记。
+    public static int autoRestoreBundledProxies() {
+        loadProxyList();
         if (proxyList == null) {
-            proxyList = loadProxyList();
+            return 0;
         }
         int added = 0;
         for (String[] p : BUNDLED_PROXIES) {
+            final int port = parseIntSafe(p[1]);
             boolean found = false;
             for (ProxyInfo info : proxyList) {
                 if (info == null || info.settings == null) {
                     continue;
                 }
                 if (p[0].equals(info.settings.getAddress())
-                        && parseIntSafe(p[1]) == info.settings.getPort()) {
+                        && port == info.settings.getPort()) {
                     found = true;
                     break;
                 }
@@ -1577,7 +1577,7 @@ public class SharedConfig {
                 ProxyInfo info = new ProxyInfo(ProxySettings.builder()
                         .setType(ProxySettings.Type.MTPROTO)
                         .setAddress(p[0])
-                        .setPort(parseIntSafe(p[1]))
+                        .setPort(port)
                         .setSecret(p[2])
                         .build());
                 proxyList.add(info);
@@ -1588,6 +1588,11 @@ public class SharedConfig {
             saveProxyList();
         }
         return added;
+    }
+
+    // [Aiqiyi] 兼容旧调用名
+    public static int restoreBundledProxies() {
+        return autoRestoreBundledProxies();
     }
 
     public static void ensureBundledProxies() {

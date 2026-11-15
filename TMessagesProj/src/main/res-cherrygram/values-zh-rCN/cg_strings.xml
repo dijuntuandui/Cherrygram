@@ -955,4 +955,5 @@
     <string name="AQY_VerifyProxyPoolExtra">额外条目</string>
     <string name="AQY_VerifyProxyPoolRestore">一键补回</string>
     <string name="AQY_VerifyProxyPoolRestored">已补回 %1$d 条代理</string>
+    <string name="AQY_VerifyProxyPoolAllOk">内置代理齐全</string>
 </resources>
