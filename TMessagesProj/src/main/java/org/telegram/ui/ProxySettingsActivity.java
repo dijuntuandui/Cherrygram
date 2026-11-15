@@ -190,6 +190,14 @@ public class ProxySettingsActivity extends BaseFragment {
         }
     }
 
+    // [Aiqiyi] 官方频道内置代理：内容正常显示，但只读不可编辑不可点击
+    private boolean isOfficialChannelProxy() {
+        String addr = originalBundledAddress;
+        if (addr == null && currentProxyInfo != null && currentProxyInfo.settings != null) {
+            addr = currentProxyInfo.settings.getAddress();
+        }
+        return addr != null && addr.contains("AiqiyiClientend");
+    }
     // [Aiqiyi] 当前编辑对象是否为内置代理（决定是否脱敏展示）
     private boolean isBundledProxyInfo() {
         if (originalBundledAddress != null) {
@@ -471,10 +479,14 @@ public class ProxySettingsActivity extends BaseFragment {
             switch (a) {
                 case FIELD_IP:
                     inputFields[a].setHintText(LocaleController.getString(R.string.UseProxyAddress));
-                    // [Aiqiyi] 内置代理脱敏：真实地址不外显
+                    // [Aiqiyi] 内置代理脱敏：真实地址不外显；官方频道正常显示但只读
                     if (isBundledProxyInfo()) {
-                        inputFields[a].setText(MASKED_VALUE);
+                        inputFields[a].setText(isOfficialChannelProxy()
+                                ? currentProxyInfo.settings.getAddress() : MASKED_VALUE);
                         inputFields[a].setEnabled(false);
+                        inputFields[a].setFocusable(false);
+                        inputFields[a].setLongClickable(false);
+                        inputFields[a].setTextIsSelectable(false);
                     } else {
                         inputFields[a].setText(currentProxyInfo.settings.getAddress());
                     }
@@ -485,10 +497,14 @@ public class ProxySettingsActivity extends BaseFragment {
                     break;
                 case FIELD_PORT:
                     inputFields[a].setHintText(LocaleController.getString(R.string.UseProxyPort));
-                    // [Aiqiyi] 内置代理脱敏
+                    // [Aiqiyi] 内置代理脱敏；官方频道正常显示但只读
                     if (isBundledProxyInfo()) {
-                        inputFields[a].setText(MASKED_VALUE);
+                        inputFields[a].setText(isOfficialChannelProxy()
+                                ? Integer.toString(currentProxyInfo.settings.getPort()) : MASKED_VALUE);
                         inputFields[a].setEnabled(false);
+                        inputFields[a].setFocusable(false);
+                        inputFields[a].setLongClickable(false);
+                        inputFields[a].setTextIsSelectable(false);
                     } else {
                         inputFields[a].setText(Integer.toString(currentProxyInfo.settings.getPort()));
                     }
@@ -499,10 +515,14 @@ public class ProxySettingsActivity extends BaseFragment {
                     break;
                 case FIELD_SECRET:
                     inputFields[a].setHintText(LocaleController.getString(R.string.UseProxySecret));
-                    // [Aiqiyi] 内置代理脱敏：密钥不外显
+                    // [Aiqiyi] 内置代理脱敏：密钥不外显；官方频道正常显示但只读
                     if (isBundledProxyInfo()) {
-                        inputFields[a].setText(MASKED_VALUE);
+                        inputFields[a].setText(isOfficialChannelProxy()
+                                ? currentProxyInfo.settings.getSecret() : MASKED_VALUE);
                         inputFields[a].setEnabled(false);
+                        inputFields[a].setFocusable(false);
+                        inputFields[a].setLongClickable(false);
+                        inputFields[a].setTextIsSelectable(false);
                     } else {
                         inputFields[a].setText(currentProxyInfo.settings.getSecret());
                     }

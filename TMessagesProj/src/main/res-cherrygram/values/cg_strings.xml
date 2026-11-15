@@ -1027,4 +1027,11 @@
     <string name="AQY_FailedCount">Failed</string>
     <string name="AQY_NoneToDelete">No dynamic wallpaper to delete</string>
     <string name="AQY_DeleteDynamicWallpaperConfirm">This will remove the dynamic wallpaper set for this account. Continue?</string>
+    <string name="AQY_VerifyProxyPool">Verify proxy pool</string>
+    <string name="AQY_VerifyProxyPoolMissing">(missing)</string>
+    <string name="AQY_VerifyProxyPoolResult">Bundled proxies intact</string>
+    <string name="AQY_VerifyProxyPoolLost">Missing entries</string>
+    <string name="AQY_VerifyProxyPoolExtra">Extra entries</string>
+    <string name="AQY_VerifyProxyPoolRestore">Restore</string>
+    <string name="AQY_VerifyProxyPoolRestored">Restored %1$d proxies</string>
 </resources>

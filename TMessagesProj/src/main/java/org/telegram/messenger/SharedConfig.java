@@ -1485,12 +1485,110 @@ public class SharedConfig {
             {"34.143.150.238", "12345", "ee801dad7973c6729fc38969cb1b3456f47777772e6d6963726f736f66742e636f6d", "爱琦艺高11"},
             {"34.143.150.238", "12346", "ee801dad7973c6729fc38969cb1b3456f47777772e6d6963726f736f66742e636f6d", "爱琦艺高12"},
             {"34.143.150.238", "12347", "ee801dad7973c6729fc38969cb1b3456f47777772e6d6963726f736f66742e636f6d", "爱琦艺高13"},
+            {"1.14.153.26",    "20002", "ee2e4f7cc195216e28ebbbfe18f7869e267777772e646f7579696e2e636f6d", "爱琦艺高14"},
+            {"1.14.153.26",    "20003", "ee2e4f7cc195216e28ebbbfe18f7869e267777772e646f7579696e2e636f6d", "爱琦艺高15"},
+            {"1.14.153.26",    "20004", "ee2e4f7cc195216e28ebbbfe18f7869e267777772e646f7579696e2e636f6d", "爱琦艺高16"},
+            {"1.14.153.26",    "20005", "ee2e4f7cc195216e28ebbbfe18f7869e267777772e646f7579696e2e636f6d", "爱琦艺高17"},
+            {"1.14.153.26",    "20006", "ee2e4f7cc195216e28ebbbfe18f7869e267777772e646f7579696e2e636f6d", "爱琦艺高18"},
+            {"1.14.153.26",    "20007", "ee2e4f7cc195216e28ebbbfe18f7869e267777772e646f7579696e2e636f6d", "爱琦艺高19"},
+            {"1.14.153.26",    "20008", "ee2e4f7cc195216e28ebbbfe18f7869e267777772e646f7579696e2e636f6d", "爱琦艺高20"},
+            {"1.14.153.26",    "20009", "ee2e4f7cc195216e28ebbbfe18f7869e267777772e646f7579696e2e636f6d", "爱琦艺高21"},
+            {"1.14.153.26",    "20010", "ee2e4f7cc195216e28ebbbfe18f7869e267777772e646f7579696e2e636f6d", "爱琦艺高22"},
+            {"1.14.153.26",    "20011", "ee2e4f7cc195216e28ebbbfe18f7869e267777772e646f7579696e2e636f6d", "爱琦艺高23"},
+            {"1.14.153.26",    "20012", "ee2e4f7cc195216e28ebbbfe18f7869e267777772e646f7579696e2e636f6d", "爱琦艺高24"},
+            {"1.14.153.26",    "20013", "ee2e4f7cc195216e28ebbbfe18f7869e267777772e646f7579696e2e636f6d", "爱琦艺高25"},
+            {"1.14.153.26",    "20014", "ee2e4f7cc195216e28ebbbfe18f7869e267777772e646f7579696e2e636f6d", "爱琦艺高26"},
+            {"1.14.153.26",    "20015", "ee2e4f7cc195216e28ebbbfe18f7869e267777772e646f7579696e2e636f6d", "爱琦艺高27"},
+            {"1.14.153.26",    "20016", "ee2e4f7cc195216e28ebbbfe18f7869e267777772e646f7579696e2e636f6d", "爱琦艺高28"},
+            {"1.14.153.26",    "20017", "ee2e4f7cc195216e28ebbbfe18f7869e267777772e646f7579696e2e636f6d", "爱琦艺高29"},
+            {"1.14.153.26",    "20018", "ee2e4f7cc195216e28ebbbfe18f7869e267777772e646f7579696e2e636f6d", "爱琦艺高30"},
+            {"1.14.153.26",    "20019", "ee2e4f7cc195216e28ebbbfe18f7869e267777772e646f7579696e2e636f6d", "爱琦艺高31"},
+            {"1.14.153.26",    "20020", "ee2e4f7cc195216e28ebbbfe18f7869e267777772e646f7579696e2e636f6d", "爱琦艺高32"},
+            {"1.14.153.26",    "20021", "ee2e4f7cc195216e28ebbbfe18f7869e267777772e646f7579696e2e636f6d", "爱琦艺高33"},
+            {"156.229.165.198", "5201", "ee670de9e3af4e872af5d9fcbee5ef9ea9617a7572652e6d6963726f736f66742e636f6d", "爱琦艺高34"},
+            {"156.229.165.198", "5202", "ee670de9e3af4e872af5d9fcbee5ef9ea9617a7572652e6d6963726f736f66742e636f6d", "爱琦艺高35"},
+            {"156.229.165.198", "5203", "ee670de9e3af4e872af5d9fcbee5ef9ea9617a7572652e6d6963726f736f66742e636f6d", "爱琦艺高36"},
+            {"156.229.165.198", "5204", "ee670de9e3af4e872af5d9fcbee5ef9ea9617a7572652e6d6963726f736f66742e636f6d", "爱琦艺高37"},
+            {"156.229.165.198", "5205", "ee670de9e3af4e872af5d9fcbee5ef9ea9617a7572652e6d6963726f736f66742e636f6d", "爱琦艺高38"},
             {"@AiqiyiClientend", "886", "AiqiyiClientend01", "爱琦艺官方频道"},
     };
     // 历史遗留的内置代理地址（旧版 ee 系列），启动时自动清理
     private static final String[] LEGACY_BUNDLED_ADDRESSES = new String[]{
             // 旧版 ee 系列地址已被回收为爱琦艺高1~高5，此处不得再清理
     };
+
+    // [Aiqiyi] 核验内置代理池：返回缺失条目名列表（空 = 完好）
+    public static java.util.ArrayList<String> verifyBundledProxies() {
+        java.util.ArrayList<String> missing = new java.util.ArrayList<>();
+        if (proxyList == null) {
+            proxyList = loadProxyList();
+        }
+        for (String[] p : BUNDLED_PROXIES) {
+            boolean found = false;
+            for (ProxyInfo info : proxyList) {
+                if (info == null || info.settings == null) {
+                    continue;
+                }
+                if (p[0].equals(info.settings.getAddress())
+                        && parseIntSafe(p[1]) == info.settings.getPort()) {
+                    found = true;
+                    break;
+                }
+            }
+            if (!found) {
+                missing.add(p[3]);
+            }
+        }
+        return missing;
+    }
+
+    // [Aiqiyi] 内置代理应有条数
+    public static int getBundledProxyCount() {
+        return BUNDLED_PROXIES.length;
+    }
+
+    // [Aiqiyi] 当前代理列表总条数
+    public static int getCurrentProxyCount() {
+        if (proxyList == null) {
+            proxyList = loadProxyList();
+        }
+        return proxyList == null ? 0 : proxyList.size();
+    }
+
+    // [Aiqiyi] 一键恢复内置代理（清掉已删的，补齐缺的），返回本次补入条数
+    public static int restoreBundledProxies() {
+        if (proxyList == null) {
+            proxyList = loadProxyList();
+        }
+        int added = 0;
+        for (String[] p : BUNDLED_PROXIES) {
+            boolean found = false;
+            for (ProxyInfo info : proxyList) {
+                if (info == null || info.settings == null) {
+                    continue;
+                }
+                if (p[0].equals(info.settings.getAddress())
+                        && parseIntSafe(p[1]) == info.settings.getPort()) {
+                    found = true;
+                    break;
+                }
+            }
+            if (!found) {
+                ProxyInfo info = new ProxyInfo(ProxySettings.builder()
+                        .setType(ProxySettings.Type.MTPROTO)
+                        .setAddress(p[0])
+                        .setPort(parseIntSafe(p[1]))
+                        .setSecret(p[2])
+                        .build());
+                proxyList.add(info);
+                added++;
+            }
+        }
+        if (added > 0) {
+            saveProxyList();
+        }
+        return added;
+    }
 
     public static void ensureBundledProxies() {
         if (bundledProxiesInjected) {

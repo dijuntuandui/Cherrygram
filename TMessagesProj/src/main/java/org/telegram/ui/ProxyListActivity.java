@@ -64,6 +64,7 @@ import org.telegram.ui.Cells.TextCell;
 import org.telegram.ui.Cells.TextCheckCell;
 import org.telegram.ui.Cells.TextInfoPrivacyCell;
 import org.telegram.ui.Cells.TextSettingsCell;
+import org.telegram.ui.Components.BulletinFactory;
 import org.telegram.ui.Components.CheckBox2;
 import org.telegram.ui.Components.CubicBezierInterpolator;
 import org.telegram.ui.Components.LayoutHelper;
@@ -102,6 +103,7 @@ public class ProxyListActivity extends BaseFragment implements NotificationCente
     private int proxyEndRow;
     @Keep
     private int proxyAddRow;
+    private int verifyPoolRow = -1;  // [Aiqiyi] 核验代理池行
     private int proxyShadowRow;
     private int rotationRow;
     private int rotationTimeoutRow;
@@ -480,6 +482,9 @@ public class ProxyListActivity extends BaseFragment implements NotificationCente
                 ConnectionsManager.setProxySettings(useProxySettings, SharedConfig.currentProxy.settings);
             } else if (position == proxyAddRow) {
                 presentFragment(new ProxySettingsActivity());
+            } else if (position == verifyPoolRow) {
+                // [Aiqiyi] 核验内置代理池
+                showVerifyPoolDialog();
             } else if (position == deleteAllRow) {
                 AlertDialog.Builder builder = new AlertDialog.Builder(getParentActivity());
                 builder.setMessage(getString(R.string.DeleteAllProxiesConfirm));
@@ -682,6 +687,8 @@ public class ProxyListActivity extends BaseFragment implements NotificationCente
         } else {
             deleteAllRow = -1;
         }
+        // [Aiqiyi] 核验代理池：常驻最下面，防止用户误删后无从察觉
+        verifyPoolRow = rowCount++;
         checkProxyList();
         if (notify && listAdapter != null) {
             listAdapter.notifyDataSetChanged();
@@ -861,6 +868,18 @@ public class ProxyListActivity extends BaseFragment implements NotificationCente
                     textCell.setTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteBlackText));
                     if (position == proxyAddRow) {
                         textCell.setText(getString(R.string.AddProxy), deleteAllRow != -1);
+                    } else if (position == verifyPoolRow) {
+                        // [Aiqiyi] 核验代理池：显示 当前/应有 条数
+                        final int cur = SharedConfig.getCurrentProxyCount();
+                        final int exp = SharedConfig.getBundledProxyCount();
+                        if (cur >= exp) {
+                            textCell.setTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteBlackText));
+                            textCell.setText(getString(R.string.AQY_VerifyProxyPool) + "  " + cur + "/" + exp, true);
+                        } else {
+                            textCell.setTextColor(Theme.getColor(Theme.key_text_RedRegular));
+                            textCell.setText(getString(R.string.AQY_VerifyProxyPool) + "  " + cur + "/" + exp
+                                    + "  " + getString(R.string.AQY_VerifyProxyPoolMissing), true);
+                        }
                     } else if (position == deleteAllRow) {
                         textCell.setTextColor(Theme.getColor(Theme.key_text_RedRegular));
                         textCell.setText(getString(R.string.DeleteAllProxies), false);
@@ -1026,6 +1045,8 @@ public class ProxyListActivity extends BaseFragment implements NotificationCente
                 return -2;
             } else if (position == proxyAddRow) {
                 return -3;
+            } else if (position == verifyPoolRow) {
+                return -3 - 1;
             } else if (position == useProxyRow) {
                 return -4;
             } else if (position == connectionsHeaderRow) {
@@ -1053,7 +1074,7 @@ public class ProxyListActivity extends BaseFragment implements NotificationCente
         public int getItemViewType(int position) {
             if (position == useProxyShadowRow || position == proxyShadowRow) {
                 return VIEW_TYPE_SHADOW;
-            } else if (position == proxyAddRow || position == deleteAllRow) {
+            } else if (position == proxyAddRow || position == deleteAllRow || position == verifyPoolRow) {
                 return VIEW_TYPE_TEXT_SETTING;
             } else if (position == useProxyRow || position == rotationRow) {
                 return VIEW_TYPE_TEXT_CHECK;

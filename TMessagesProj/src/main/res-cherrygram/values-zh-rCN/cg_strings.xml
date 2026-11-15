@@ -948,4 +948,11 @@
     <string name="AQY_NoneToDelete">当前没有可删除的动态壁纸</string>
     <string name="AQY_DeleteDynamicWallpaperConfirm">将删除此账号已设置的动态壁纸，确定继续？</string>
     <string name="AiqiyiGhostOffline">离线</string>
+    <string name="AQY_VerifyProxyPool">核验代理池</string>
+    <string name="AQY_VerifyProxyPoolMissing">（有缺失）</string>
+    <string name="AQY_VerifyProxyPoolResult">内置代理完好条数</string>
+    <string name="AQY_VerifyProxyPoolLost">缺失条目</string>
+    <string name="AQY_VerifyProxyPoolExtra">额外条目</string>
+    <string name="AQY_VerifyProxyPoolRestore">一键补回</string>
+    <string name="AQY_VerifyProxyPoolRestored">已补回 %1$d 条代理</string>
 </resources>
