@@ -2,7 +2,6 @@ package uz.unnarsx.cherrygram.aiqiyi.bookmark;
 
 import static org.telegram.messenger.LocaleController.getString;
 
-import android.os.Bundle;
 import android.view.View;
 
 import org.telegram.messenger.MessagesController;
@@ -141,11 +140,9 @@ public class AiqiyiBookmarksEntry extends BaseCGPreferencesEntry {
             return;
         }
         try {
-            Bundle args = new Bundle();
-            args.putLong("dialog_id", dialogId);
-            args.putInt("message_id", messageId);
-            presentFragment(new ChatActivity(args));
+            presentFragment(ChatActivity.of(dialogId, messageId));
         } catch (Throwable t) {
+            org.telegram.messenger.FileLog.e(t);
             showBulletin(getString(R.string.AQY_BookmarksJumpFail));
         }
     }
