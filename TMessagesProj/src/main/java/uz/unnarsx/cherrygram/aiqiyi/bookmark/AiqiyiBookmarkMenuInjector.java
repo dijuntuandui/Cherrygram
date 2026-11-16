@@ -90,6 +90,30 @@ public final class AiqiyiBookmarkMenuInjector {
         cell.setOnClickListener(v -> {
             chatActivity.closeMenu();
             boolean nowOn = AiqiyiBookmarksHelper.toggleBookmarks(account, finalDialogId, idArr);
+            // [Aiqiyi] 同步维护内容快照：加书签时存下预览文本，移除时删掉
+            for (MessageObject mo : selected) {
+                if (mo == null || mo.messageOwner == null) {
+                    continue;
+                }
+                final int mid = mo.messageOwner.id;
+                if (mid <= 0) {
+                    continue;
+                }
+                if (nowOn) {
+                    CharSequence txt = mo.messageText;
+                    if (txt == null || txt.length() == 0) {
+                        txt = mo.caption;
+                    }
+                    if (txt == null || txt.length() == 0) {
+                        txt = AiqiyiBookmarksHelper.describeNonText(mo);
+                    }
+                    CharSequence who = AiqiyiBookmarksHelper.resolveSenderName(account, mo);
+                    AiqiyiBookmarksHelper.saveSnapshot(account, finalDialogId, mid,
+                            mo.messageOwner.date, txt, who);
+                } else {
+                    AiqiyiBookmarksHelper.removeSnapshot(account, finalDialogId, mid);
+                }
+            }
             int res = nowOn
                     ? (single ? R.string.AQY_BookmarkAdded : R.string.AQY_BookmarksAdded)
                     : (single ? R.string.AQY_BookmarkRemoved : R.string.AQY_BookmarksRemoved);

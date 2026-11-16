@@ -24,13 +24,19 @@ import uz.unnarsx.cherrygram.preferences.BaseCGPreferencesEntry;
 /**
  * [Aiqiyi] 消息书签 - 列表页
  *
- * 按会话聚合展示：每个有书签的会话一行，显示会话名 + 条数。
- * 点击进入该会话并落到最早的一条书签消息。
+ * 展开到消息级：每个会话一个分组标题，下面逐条列出收藏的消息，
+ * 每行显示「预览正文 + 时间」，点击直接跳到该条消息。
+ *
+ * 预览正文优先用收藏时存下的快照；没有快照的旧数据（升级前加的书签）
+ * 会在渲染时尝试从消息缓存里补，补不到就标注「内容未缓存」，但仍可点击跳转。
  */
 public class AiqiyiBookmarksEntry extends BaseCGPreferencesEntry {
 
-    private static final int ROW_CHAT = 1000;
+    private static final int ROW_MSG_BASE = 5000;
     private static final int ROW_CLEAR = 902;
+
+    /** 每条书签行的绑定信息，供点击时反查：{dialogId, messageId}。 */
+    private final List<long[]> rowIndex = new ArrayList<>();
 
     @Override
     protected CharSequence getTitle() {
@@ -45,6 +51,7 @@ public class AiqiyiBookmarksEntry extends BaseCGPreferencesEntry {
     @Override
     protected void fillItems(ArrayList<UItem> items, UniversalAdapter adapter) {
         final int account = UserConfig.selectedAccount;
+        rowIndex.clear();
 
         Map<Long, Integer> counts = AiqiyiBookmarksHelper.getBookmarkCounts(account);
         if (counts == null || counts.isEmpty()) {
@@ -58,6 +65,7 @@ public class AiqiyiBookmarksEntry extends BaseCGPreferencesEntry {
             return c != 0 ? c : Long.compare(a.getKey(), b.getKey());
         });
 
+        int rowId = ROW_MSG_BASE;
         for (Map.Entry<Long, Integer> e : list) {
             final long dialogId = e.getKey();
             final int count = e.getValue();
@@ -65,14 +73,28 @@ public class AiqiyiBookmarksEntry extends BaseCGPreferencesEntry {
                 continue;
             }
             String cnt = String.valueOf(count);
-            items.add(UItem.asButton(ROW_CHAT, getDialogTitle(account, dialogId),
-                    getString(R.string.AQY_BookmarksCount).replace("%1$d", cnt))
-                    .slug("bookmark_" + dialogId));
+            items.add(UItem.asHeader(getDialogTitle(account, dialogId)
+                    + "  " + getString(R.string.AQY_BookmarksCount).replace("%1$d", cnt)));
+
+            List<AiqiyiBookmarksHelper.Snapshot> snaps =
+                    AiqiyiBookmarksHelper.getSnapshots(account, dialogId);
+
+            for (AiqiyiBookmarksHelper.Snapshot sn : snaps) {
+                String preview = sn.text;
+                if (preview == null || preview.length() == 0) {
+                    preview = getString(R.string.AQY_BookmarksNoSnapshot);
+                }
+                String time = sn.date > 0
+                        ? org.telegram.messenger.LocaleController.formatShortDateTime(sn.date)
+                        : "";
+                items.add(UItem.asButton(rowId, preview, time));
+                rowIndex.add(new long[]{dialogId, sn.messageId});
+                rowId++;
+            }
         }
 
         items.add(UItem.asShadow(null));
-        items.add(UItem.asButton(ROW_CLEAR, getString(R.string.AQY_BookmarksClearAll))
-                .slug("bookmarks_clear_all"));
+        items.add(UItem.asButton(ROW_CLEAR, getString(R.string.AQY_BookmarksClearAll)));
     }
 
     @Override
@@ -81,24 +103,14 @@ public class AiqiyiBookmarksEntry extends BaseCGPreferencesEntry {
             confirmClearAll();
             return;
         }
-        if (item.id >= ROW_CHAT) {
-            long dialogId = dialogIdFromSlug(item.slug);
-            if (dialogId != 0) {
-                openBookmarksInChat(dialogId);
-            }
+        final int idx = item.id - ROW_MSG_BASE;
+        if (idx >= 0 && idx < rowIndex.size()) {
+            long[] pair = rowIndex.get(idx);
+            openMessage(pair[0], (int) pair[1]);
         }
     }
 
-    private long dialogIdFromSlug(String slug) {
-        if (slug == null || !slug.startsWith("bookmark_")) {
-            return 0;
-        }
-        try {
-            return Long.parseLong(slug.substring("bookmark_".length()));
-        } catch (NumberFormatException e) {
-            return 0;
-        }
-    }
+    // ---------------------------------------------------------------- 内部
 
     private CharSequence getDialogTitle(int account, long dialogId) {
         try {
@@ -123,16 +135,15 @@ public class AiqiyiBookmarksEntry extends BaseCGPreferencesEntry {
         return String.valueOf(dialogId);
     }
 
-    private void openBookmarksInChat(long dialogId) {
-        int[] ids = AiqiyiBookmarksHelper.getBookmarkedIds(UserConfig.selectedAccount, dialogId);
-        if (ids.length == 0) {
+    private void openMessage(long dialogId, int messageId) {
+        if (messageId <= 0) {
             showBulletin(getString(R.string.AQY_BookmarksJumpFail));
             return;
         }
         try {
             Bundle args = new Bundle();
             args.putLong("dialog_id", dialogId);
-            args.putInt("message_id", ids[0]);
+            args.putInt("message_id", messageId);
             presentFragment(new ChatActivity(args));
         } catch (Throwable t) {
             showBulletin(getString(R.string.AQY_BookmarksJumpFail));

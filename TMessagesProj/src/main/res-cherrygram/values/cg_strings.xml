@@ -1035,4 +1035,5 @@
     <string name="AQY_VerifyProxyPoolRestore">Restore</string>
     <string name="AQY_VerifyProxyPoolRestored">Restored %1$d proxies</string>
     <string name="AQY_VerifyProxyPoolAllOk">All bundled proxies present</string>
+    <string name="AQY_BookmarksNoSnapshot">Content not cached, tap to open</string>
 </resources>

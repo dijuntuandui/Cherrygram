@@ -38,6 +38,9 @@ public final class AiqiyiBookmarksHelper {
 
     private static final ConcurrentHashMap<String, int[]> CACHE = new ConcurrentHashMap<>();
 
+    private static final String SNAPSHOT_PREFIX = "apy_bookmark_snap_v1_";
+    private static final int SNAPSHOT_MAX_LEN = 200;
+
     private static SharedPreferences prefs() {
         return ApplicationLoader.applicationContext
                 .getSharedPreferences("mainconfig", android.app.Activity.MODE_PRIVATE);
@@ -187,6 +190,159 @@ public final class AiqiyiBookmarksHelper {
             if (ids.length > 0) {
                 out.put(dialogId, ids.length);
             }
+        }
+        return out;
+    }
+
+    public static final class Snapshot {
+        public final int messageId;
+        public long date;
+        public String text = "";
+        public String sender = "";
+
+        Snapshot(int messageId) {
+            this.messageId = messageId;
+        }
+    }
+
+    private static String snapKey(int account, long dialogId, int messageId) {
+        return SNAPSHOT_PREFIX + ownerId(account) + "_" + dialogId + "_" + messageId;
+    }
+
+    /** 从消息里解析发送者显示名；解析不到返回空串。 */
+    public static String resolveSenderName(int account, org.telegram.messenger.MessageObject mo) {
+        try {
+            if (mo == null || mo.messageOwner == null) {
+                return "";
+            }
+            long fromId = 0;
+            org.telegram.tgnet.TLRPC.Peer from = mo.messageOwner.from_id;
+            if (from != null) {
+                if (from.user_id != 0) {
+                    fromId = from.user_id;
+                } else if (from.channel_id != 0) {
+                    fromId = -from.channel_id;
+                } else if (from.chat_id != 0) {
+                    fromId = -from.chat_id;
+                }
+            }
+            if (fromId == 0) {
+                return "";
+            }
+            org.telegram.messenger.MessagesController mc =
+                    org.telegram.messenger.MessagesController.getInstance(account);
+            if (fromId > 0) {
+                org.telegram.tgnet.TLRPC.User u = mc.getUser(fromId);
+                if (u != null) {
+                    String name = org.telegram.messenger.UserObject.getUserName(u);
+                    return name == null ? "" : name;
+                }
+            } else {
+                org.telegram.tgnet.TLRPC.Chat c = mc.getChat(-fromId);
+                if (c != null && c.title != null) {
+                    return c.title;
+                }
+            }
+        } catch (Throwable ignore) {
+        }
+        return "";
+    }
+
+    /** 非文本消息的占位描述，用于列表页预览。 */
+    public static CharSequence describeNonText(org.telegram.messenger.MessageObject mo) {
+        if (mo == null || mo.messageOwner == null) {
+            return "[\u6d88\u606f]";
+        }
+        try {
+            if (mo.type == org.telegram.messenger.MessageObject.TYPE_STICKER) {
+                return "[\u8d34\u7eb8]";
+            }
+            if (mo.type == org.telegram.messenger.MessageObject.TYPE_VIDEO
+                    || mo.type == org.telegram.messenger.MessageObject.TYPE_ROUND_VIDEO) {
+                return "[\u89c6\u9891]";
+            }
+            if (mo.type == org.telegram.messenger.MessageObject.TYPE_PHOTO) {
+                return "[\u56fe\u7247]";
+            }
+            if (mo.type == org.telegram.messenger.MessageObject.TYPE_VOICE) {
+                return "[\u8bed\u97f3]";
+            }
+            if (mo.type == org.telegram.messenger.MessageObject.TYPE_GIF) {
+                return "[GIF]";
+            }
+            if (mo.type == org.telegram.messenger.MessageObject.TYPE_ANIMATED_STICKER) {
+                return "[\u8d34\u7eb8]";
+            }
+            if (mo.type == org.telegram.messenger.MessageObject.TYPE_MUSIC) {
+                return "[\u97f3\u9891]";
+            }
+            org.telegram.tgnet.TLRPC.MessageMedia media = mo.messageOwner.media;
+            if (media instanceof org.telegram.tgnet.TLRPC.TL_messageMediaDocument) {
+                return "[\u6587\u4ef6]";
+            }
+            if (media instanceof org.telegram.tgnet.TLRPC.TL_messageMediaGeo
+                    || media instanceof org.telegram.tgnet.TLRPC.TL_messageMediaVenue) {
+                return "[\u4f4d\u7f6e]";
+            }
+            if (media instanceof org.telegram.tgnet.TLRPC.TL_messageMediaPoll) {
+                return "[\u6295\u7968]";
+            }
+            if (media instanceof org.telegram.tgnet.TLRPC.TL_messageMediaContact) {
+                return "[\u8054\u7cfb\u4eba]";
+            }
+        } catch (Throwable ignore) {
+        }
+        return "[\u6d88\u606f]";
+    }
+
+    public static void saveSnapshot(int account, long dialogId, int messageId,
+                                    long dateSeconds, CharSequence text, CharSequence sender) {
+        if (messageId <= 0 || dialogId == 0) {
+            return;
+        }
+        String t = text == null ? "" : text.toString();
+        t = t.replace('\u0001', ' ').replace('\n', ' ').replace('\r', ' ').trim();
+        if (t.length() > SNAPSHOT_MAX_LEN) {
+            t = t.substring(0, SNAPSHOT_MAX_LEN) + "\u2026";
+        }
+        String sn = sender == null ? "" : sender.toString().replace('\u0001', ' ').trim();
+        prefs().edit()
+                .putString(snapKey(account, dialogId, messageId),
+                        dateSeconds + "\u0001" + t + "\u0001" + sn)
+                .apply();
+    }
+
+    public static void removeSnapshot(int account, long dialogId, int messageId) {
+        prefs().edit().remove(snapKey(account, dialogId, messageId)).apply();
+    }
+
+    public static List<Snapshot> getSnapshots(int account, long dialogId) {
+        List<Snapshot> out = new ArrayList<>();
+        int[] ids = getBookmarkedIds(account, dialogId);
+        if (ids.length == 0) {
+            return out;
+        }
+        SharedPreferences p = prefs();
+        for (int id : ids) {
+            Snapshot sn = new Snapshot(id);
+            String raw = p.getString(snapKey(account, dialogId, id), null);
+            if (raw != null) {
+                String[] parts = raw.split("\u0001", -1);
+                if (parts.length >= 1) {
+                    try {
+                        sn.date = Long.parseLong(parts[0].trim());
+                    } catch (NumberFormatException ignore) {
+                        sn.date = 0;
+                    }
+                }
+                if (parts.length >= 2) {
+                    sn.text = parts[1];
+                }
+                if (parts.length >= 3) {
+                    sn.sender = parts[2];
+                }
+            }
+            out.add(sn);
         }
         return out;
     }
