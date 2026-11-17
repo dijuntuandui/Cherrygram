@@ -424,9 +424,78 @@ public final class DynamicVideoWallpaperHelper {
         }
     }
 
-    /** 只查缓存，永不阻塞。未命中返回 null。 */
+    /** 尺寸持久化用的 key：路径哈希，避免超长中文路径直接当 SP key。 */
+    private static String sizePreferenceKey(String path) {
+        return "size_" + Integer.toHexString(path.hashCode()) + "_" + path.length();
+    }
+
+    /** 把探测到的尺寸写入磁盘，供下次冷启动直接命中。 */
+    private static void persistVideoSize(Context context, String path, int[] size) {
+        if (context == null || path == null || size == null) {
+            return;
+        }
+        try {
+            context.getSharedPreferences(PREFERENCES, Context.MODE_PRIVATE)
+                    .edit()
+                    .putString(sizePreferenceKey(path), size[0] + "x" + size[1])
+                    .apply();
+        } catch (Throwable e) {
+            FileLog.e(e);
+        }
+    }
+
+    /**
+     * 只查缓存，永不阻塞。
+     *
+     * 内存未命中时回落到磁盘：SharedPreferences 在首次加载后常驻内存，
+     * 之后取值是纯内存操作，不会像 MediaMetadataRetriever 那样卡在 native 层。
+     * 冷启动第一个视频能否直接拿到正确尺寸，取决于这一步。
+     */
     private static int[] peekVideoSize(String path) {
-        return path == null ? null : VIDEO_SIZE_CACHE.get(path);
+        if (path == null) {
+            return null;
+        }
+        int[] cached = VIDEO_SIZE_CACHE.get(path);
+        if (cached != null) {
+            return cached;
+        }
+        return null;
+    }
+
+    /** 带 Context 的查询：允许回落磁盘。 */
+    private static int[] peekVideoSize(Context context, String path) {
+        if (path == null) {
+            return null;
+        }
+        int[] cached = VIDEO_SIZE_CACHE.get(path);
+        if (cached != null) {
+            return cached;
+        }
+        if (context == null) {
+            return null;
+        }
+        try {
+            String stored = context.getSharedPreferences(PREFERENCES, Context.MODE_PRIVATE)
+                    .getString(sizePreferenceKey(path), null);
+            if (stored == null) {
+                return null;
+            }
+            int sep = stored.indexOf('x');
+            if (sep <= 0) {
+                return null;
+            }
+            int width = Integer.parseInt(stored.substring(0, sep));
+            int height = Integer.parseInt(stored.substring(sep + 1));
+            if (width <= 0 || height <= 0) {
+                return null;
+            }
+            int[] result = new int[]{width, height};
+            VIDEO_SIZE_CACHE.put(path, result);
+            return result;
+        } catch (Throwable e) {
+            FileLog.e(e);
+            return null;
+        }
     }
 
     public static String importVideo(Context context, Uri source) throws IOException {
@@ -737,6 +806,10 @@ public final class DynamicVideoWallpaperHelper {
         // OnError。没有超时保护的话画面会永久停在上一帧，只有等轮播到下一段视频、
         // 复用已经热起来的同一个 Surface 才恢复。这里给首次准备兜一道时间闸。
         private Runnable prepareWatchdog;
+        // 首次尺寸未命中时允许等待探测结果一次；多次仍未命中则直接按 view 尺寸起播，
+        // 避免因探测异常导致画面永远出不来。
+        private boolean sizeWaitUsed;
+        private Runnable sizeWaitRunnable;
         private final Runnable progressCheckpointRunnable = new Runnable() {
             @Override
             public void run() {
@@ -885,6 +958,23 @@ public final class DynamicVideoWallpaperHelper {
                     }
                 } else {
                     prefetchVideoSizeAsync(path);
+                    // 首次没有尺寸记录时，先不急着用 view 尺寸建 Surface：
+                    // 那样解码器要每帧把视频缩放到屏幕缓冲区，第一个视频会明显掉帧
+                    // （后续视频因缓存命中而不掉帧，正是用户观察到的差异）。
+                    // 这里最多等 700ms 让后台探测把尺寸补上；超时则回退按 view 尺寸起播，
+                    // 保证任何情况下都不会因为探测失败而没画面。
+                    if (!sizeWaitUsed) {
+                        sizeWaitUsed = true;
+                        cancelSizeWait();
+                        sizeWaitRunnable = () -> {
+                            sizeWaitRunnable = null;
+                            if (!released && !mediaPrepared && mediaPlayer == null) {
+                                prepare(this.surfaceTexture);
+                            }
+                        };
+                        playbackHandler.postDelayed(sizeWaitRunnable, 700L);
+                        return;
+                    }
                 }
                 surface = new Surface(surfaceTexture);
                 mediaPlayer = new MediaPlayer();
@@ -931,10 +1021,12 @@ public final class DynamicVideoWallpaperHelper {
                     // 已经在播了，说明当前缓冲区没造成问题，不打扰。
                     return;
                 }
-                int[] size = peekVideoSize(probedPath);
+                int[] size = peekVideoSize(textureView.getContext(), probedPath);
                 if (size == null || surfaceTexture == null) {
                     return;
                 }
+                // 落盘：下一次冷启动即可直接命中，不必再按 view 尺寸起播。
+                persistVideoSize(textureView.getContext(), probedPath, size);
                 if (videoWidth == size[0] && videoHeight == size[1]) {
                     return;
                 }
@@ -973,6 +1065,13 @@ public final class DynamicVideoWallpaperHelper {
                 schedulePlaybackRecovery();
             };
             playbackHandler.postDelayed(prepareWatchdog, 6000L);
+        }
+
+        private void cancelSizeWait() {
+            if (sizeWaitRunnable != null) {
+                playbackHandler.removeCallbacks(sizeWaitRunnable);
+                sizeWaitRunnable = null;
+            }
         }
 
         private void disarmPrepareWatchdog() {
@@ -1118,6 +1217,7 @@ public final class DynamicVideoWallpaperHelper {
         public void release() {
             savePlaybackPosition();
             released = true;
+            cancelSizeWait();
             cancelPlaybackRecovery();
             textureView.animate().cancel();
             textureView.removeOnLayoutChangeListener(videoLayoutListener);
