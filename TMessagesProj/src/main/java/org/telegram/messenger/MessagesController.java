@@ -15284,15 +15284,17 @@ public class MessagesController extends BaseController implements NotificationCe
         req.about = about != null ? about : "";
         req.megagroup = true;
         req.broadcast = false;
-        if (ttlPeriod >= 0) {
-            req.ttl_period = ttlPeriod;
-            req.flags |= 16; // FLAG_4，createChannel 的 serializeToStream 不会自动置位
-        }
+        // [Aiqiyi] 不设 ttl_period：与原生 CHAT_TYPE_MEGAGROUP 分支保持一致。
+        // ttlPeriod 默认是 getGlobalTTl()*60 == 0，置 FLAG_4 把 0 发上去会被服务端判非法参数，
+        // 导致"建群"这一步整单失败，根本走不到逐个邀请。
         getConnectionsManager().sendRequest(req, (response, error) -> {
             if (error != null || !(response instanceof TLRPC.Updates)) {
+                final String detail = error != null && error.text != null && error.text.length() > 0
+                        ? error.text
+                        : ("响应异常(" + (response == null ? "null" : response.getClass().getSimpleName()) + ")");
                 AndroidUtilities.runOnUIThread(() -> {
                     if (fragment != null && fragment.getParentActivity() != null) {
-                        BulletinFactory.of(fragment).createErrorBulletin("建群失败：所选联系人中有无法被邀请的对象，请减少选择后重试").show();
+                        BulletinFactory.of(fragment).createErrorBulletin("建群失败：" + detail).show();
                     }
                     getNotificationCenter().postNotificationName(NotificationCenter.chatDidFailCreate);
                 });
