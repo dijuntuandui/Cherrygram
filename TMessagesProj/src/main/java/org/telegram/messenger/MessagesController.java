@@ -15209,6 +15209,10 @@ public class MessagesController extends BaseController implements NotificationCe
             }
             return getConnectionsManager().sendRequest(req, (response, error) -> {
                 if (error != null) {
+                    if (error.text != null && error.text.contains("CHAT_MEMBER_ADD_FAILED")) {
+                        createChatWithFallback(title, selectedContacts, about, ttlPeriod, fragment);
+                        return;
+                    }
                     AndroidUtilities.runOnUIThread(() -> {
                         AlertsCreator.processError(currentAccount, error, fragment, req);
                         getNotificationCenter().postNotificationName(NotificationCenter.chatDidFailCreate);
@@ -15270,6 +15274,75 @@ public class MessagesController extends BaseController implements NotificationCe
             }, ConnectionsManager.RequestFlagFailOnServerErrors);
         }
         return 0;
+    }
+
+    // [Aiqiyi] 建群兜底：老式 messages.createChat 因个别成员不可邀而整单失败时，
+    // 降级为 channels.createChannel(megagroup) 建空群，再逐个 inviteToChannel，被拒的跳过。
+    private void createChatWithFallback(String title, ArrayList<Long> selectedContacts, String about, int ttlPeriod, BaseFragment fragment) {
+        TLRPC.TL_channels_createChannel req = new TLRPC.TL_channels_createChannel();
+        req.title = title;
+        req.about = about != null ? about : "";
+        req.megagroup = true;
+        req.broadcast = false;
+        if (ttlPeriod >= 0) {
+            req.ttl_period = ttlPeriod;
+            req.flags |= 16; // FLAG_4，createChannel 的 serializeToStream 不会自动置位
+        }
+        getConnectionsManager().sendRequest(req, (response, error) -> {
+            if (error != null || !(response instanceof TLRPC.Updates)) {
+                AndroidUtilities.runOnUIThread(() -> {
+                    if (fragment != null && fragment.getParentActivity() != null) {
+                        BulletinFactory.of(fragment).createErrorBulletin("建群失败：所选联系人中有无法被邀请的对象，请减少选择后重试").show();
+                    }
+                    getNotificationCenter().postNotificationName(NotificationCenter.chatDidFailCreate);
+                });
+                return;
+            }
+            final TLRPC.Updates updates = (TLRPC.Updates) response;
+            processUpdates(updates, false);
+            AndroidUtilities.runOnUIThread(() -> {
+                putUsers(updates.users, false);
+                putChats(updates.chats, false);
+                if (updates.chats == null || updates.chats.isEmpty()) {
+                    getNotificationCenter().postNotificationName(NotificationCenter.chatDidFailCreate);
+                    return;
+                }
+                final long newChatId = updates.chats.get(0).id;
+                getNotificationCenter().postNotificationName(NotificationCenter.chatDidCreated, newChatId);
+                inviteSelectedOneByOne(newChatId, selectedContacts, 0, 0, 0, fragment);
+            });
+        }, ConnectionsManager.RequestFlagFailOnServerErrors);
+    }
+
+    // [Aiqiyi] 链式逐个邀请，失败不中断，最后汇总提示
+    private void inviteSelectedOneByOne(long chatId, ArrayList<Long> ids, int index, int okCount, int failCount, BaseFragment fragment) {
+        if (ids == null || index >= ids.size()) {
+            final int ok = okCount;
+            final int fail = failCount;
+            if (fail > 0) {
+                AndroidUtilities.runOnUIThread(() -> {
+                    if (fragment != null && fragment.getParentActivity() != null) {
+                        BulletinFactory.of(fragment).createErrorBulletin("群已创建，成功邀请 " + ok + " 人，另有 " + fail + " 人无法邀请").show();
+                    }
+                });
+            }
+            return;
+        }
+        final TLRPC.User user = getUser(ids.get(index));
+        if (user == null) {
+            inviteSelectedOneByOne(chatId, ids, index + 1, okCount, failCount + 1, fragment);
+            return;
+        }
+        final TLRPC.TL_channels_inviteToChannel ireq = new TLRPC.TL_channels_inviteToChannel();
+        ireq.channel = getInputChannel(chatId);
+        ireq.users.add(getInputUser(user));
+        getConnectionsManager().sendRequest(ireq, (res, err) -> AndroidUtilities.runOnUIThread(() -> {
+            if (err == null) {
+                inviteSelectedOneByOne(chatId, ids, index + 1, okCount + 1, failCount, fragment);
+            } else {
+                inviteSelectedOneByOne(chatId, ids, index + 1, okCount, failCount + 1, fragment);
+            }
+        }), ConnectionsManager.RequestFlagFailOnServerErrors);
     }
 
     public void convertToMegaGroup(Context context, long chatId, BaseFragment fragment, MessagesStorage.LongCallback convertRunnable) {
