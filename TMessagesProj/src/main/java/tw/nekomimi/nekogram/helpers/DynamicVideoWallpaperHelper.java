@@ -731,49 +731,70 @@ public final class DynamicVideoWallpaperHelper {
                         }
                     });
                 }
-                mediaPlayer.setOnVideoSizeChangedListener((player, width, height) -> {
-                    videoWidth = width;
-                    videoHeight = height;
-                    configureVideoBuffer();
-                    textureView.post(this::applyFitCenter);
-                });
-                mediaPlayer.setOnPreparedListener(player -> {
-                    // prepareAsync 可能在页面释放后才回调；旧播放器不得重新显示或启动。
-                    if (!released && player == mediaPlayer && surface != null && surface.isValid()) {
-                        videoWidth = player.getVideoWidth();
-                        videoHeight = player.getVideoHeight();
-                        configureVideoBuffer();
-                        applyFitCenter();
-                        textureView.animate().alpha(.96f).setDuration(220L).start();
-                        try {
-                            int position = resumePositionMs;
-                            if (position > 0 && player.getDuration() > position + 300) {
-                                player.seekTo(position);
-                            }
-                            resumePositionMs = 0;
-                            playbackErrorCount = 0;
-                            mediaPrepared = true;
-                            startProgressCheckpoint();
-                            player.start();
-                        } catch (Throwable e) {
-                            FileLog.e(e);
-                            release();
-                        }
-                    }
-                });
-                mediaPlayer.setOnErrorListener((player, what, extra) -> {
-                    FileLog.e("Dynamic video wallpaper playback failed: " + what + "/" + extra);
-                    if (!released && generation == playbackGeneration && player == mediaPlayer) {
-                        schedulePlaybackRecovery();
-                    }
-                    return true;
-                });
+                bindListeners(generation);
                 mediaPlayer.prepareAsync();
             } catch (Throwable e) {
                 FileLog.e(e);
                 // 不能只释放 MediaPlayer：此时透明 TextureView 仍会遮挡原壁纸，必须完整回滚图层。
                 release();
             }
+        }
+
+        /**
+         * [Aiqiyi] 统一的播放器回调装配点。
+         *
+         * MediaPlayer.reset() 会清空全部监听器，而 playNextVideo() 为了复用同一个
+         * 解码器实例走了 reset + setDataSource + prepareAsync 这条捷径。旧实现只补回了
+         * OnCompletionListener，于是 OnPreparedListener 永久缺失：prepareAsync 完成后
+         * 没有任何人调用 start()，画面就停在上一段视频的最后一帧，直到切到别的壁纸
+         * 走完整 prepare() 路径才恢复——这就是「动态壁纸卡住不动」的根因。
+         *
+         * 现在 prepare() 与 playNextVideo() 共用这一份装配逻辑，不再有第二套残留。
+         *
+         * @param generation 播放代数，用于丢弃过期回调
+         */
+        private void bindListeners(final long generation) {
+            if (mediaPlayer == null) {
+                return;
+            }
+            mediaPlayer.setOnVideoSizeChangedListener((player, width, height) -> {
+                videoWidth = width;
+                videoHeight = height;
+                configureVideoBuffer();
+                textureView.post(this::applyFitCenter);
+            });
+            mediaPlayer.setOnPreparedListener(player -> {
+                // prepareAsync 可能在页面释放后才回调；旧播放器不得重新显示或启动。
+                if (!released && generation == playbackGeneration && player == mediaPlayer
+                        && surface != null && surface.isValid()) {
+                    videoWidth = player.getVideoWidth();
+                    videoHeight = player.getVideoHeight();
+                    configureVideoBuffer();
+                    applyFitCenter();
+                    textureView.animate().alpha(.96f).setDuration(220L).start();
+                    try {
+                        int position = resumePositionMs;
+                        if (position > 0 && player.getDuration() > position + 300) {
+                            player.seekTo(position);
+                        }
+                        resumePositionMs = 0;
+                        playbackErrorCount = 0;
+                        mediaPrepared = true;
+                        startProgressCheckpoint();
+                        player.start();
+                    } catch (Throwable e) {
+                        FileLog.e(e);
+                        release();
+                    }
+                }
+            });
+            mediaPlayer.setOnErrorListener((player, what, extra) -> {
+                FileLog.e("Dynamic video wallpaper playback failed: " + what + "/" + extra);
+                if (!released && generation == playbackGeneration && player == mediaPlayer) {
+                    schedulePlaybackRecovery();
+                }
+                return true;
+            });
         }
 
         /**
@@ -932,7 +953,16 @@ public final class DynamicVideoWallpaperHelper {
             }
             playlistIndex = nextIndex;
             try {
-                if (mediaPlayer != null) {
+                if (mediaPlayer == null) {
+                    // 播放器曾在错误恢复里被丢掉：不能静默放弃，
+                    // 否则切到下一段时画面会一直停住，只有换壁纸才能救回来。
+                    path = nextPath;
+                    resumePositionMs = 0;
+                    writePlaybackState(playbackKey, path, playlistIndex, 0);
+                    prepare(surfaceTexture);
+                    return;
+                }
+                {
                     final long generation = ++playbackGeneration;
                     path = nextPath;
                     resumePositionMs = 0;
@@ -940,15 +970,21 @@ public final class DynamicVideoWallpaperHelper {
                     writePlaybackState(playbackKey, path, playlistIndex, 0);
                     mediaPrepared = false;
                     mediaPlayer.reset();
+                    // reset() 会清空所有监听器，必须在此之后重新装配全部回调，
+                    // 否则 OnPreparedListener 缺失会导致 prepareAsync 完成后永不 start()，
+                    // 画面就停在上一段视频的最后一帧。
                     mediaPlayer.setDataSource(nextPath);
                     mediaPlayer.setSurface(surface);
                     mediaPlayer.setVideoScalingMode(MediaPlayer.VIDEO_SCALING_MODE_SCALE_TO_FIT_WITH_CROPPING);
                     mediaPlayer.setLooping(false);
+                    // reset() 同样会把音量恢复成默认值，不加这一行有音轨的视频会突然出声。
+                    mediaPlayer.setVolume(0f, 0f);
                     mediaPlayer.setOnCompletionListener(player -> {
                         if (!released && generation == playbackGeneration && player == mediaPlayer) {
                             playNextVideo();
                         }
                     });
+                    bindListeners(generation);
                     mediaPlayer.prepareAsync();
                 }
             } catch (Throwable e) { FileLog.e(e); }
