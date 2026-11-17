@@ -592,6 +592,11 @@ public final class DynamicVideoWallpaperHelper {
         private final ArrayList<SuppressedAlpha> suppressedAlphas = new ArrayList<>();
         private final Handler playbackHandler = new Handler(Looper.getMainLooper());
         private Runnable retryRunnable;
+        // [Aiqiyi] prepareAsync 看门狗。首帧准备期间 Surface 的 native window 可能尚未
+        // 真正就绪，MediaPlayer 会卡在 preparing 状态：既不回调 OnPrepared，也不报
+        // OnError。没有超时保护的话画面会永久停在上一帧，只有等轮播到下一段视频、
+        // 复用已经热起来的同一个 Surface 才恢复。这里给首次准备兜一道时间闸。
+        private Runnable prepareWatchdog;
         private final Runnable progressCheckpointRunnable = new Runnable() {
             @Override
             public void run() {
@@ -732,11 +737,50 @@ public final class DynamicVideoWallpaperHelper {
                     });
                 }
                 bindListeners(generation);
+                armPrepareWatchdog(generation);
                 mediaPlayer.prepareAsync();
             } catch (Throwable e) {
                 FileLog.e(e);
+                disarmPrepareWatchdog();
                 // 不能只释放 MediaPlayer：此时透明 TextureView 仍会遮挡原壁纸，必须完整回滚图层。
                 release();
+            }
+        }
+
+        /**
+         * [Aiqiyi] 首帧准备超时闸。
+         *
+         * MediaPlayer.prepareAsync() 在 Surface 尚未拿到有效 native window 时会静默
+         * 卡在 preparing：不回调 OnPrepared，也不触发 OnError，于是既没有人调用
+         * start()，画面就永远停在上一段视频的最后一帧。用户看到的就是「动态壁纸卡住
+         * 不动，直到下一段视频播起来才恢复」。
+         *
+         * 这里在 prepareAsync 之后挂一个超时任务，超时仍未 prepared 就走一次恢复流程
+         * （重建 MediaPlayer）。正常设备上 OnPrepared 会先行到达并撤销该任务，不会误伤。
+         *
+         * @param generation 播放代数，用于丢弃过期回调
+         */
+        private void armPrepareWatchdog(final long generation) {
+            disarmPrepareWatchdog();
+            prepareWatchdog = () -> {
+                prepareWatchdog = null;
+                if (released || generation != playbackGeneration) {
+                    return;
+                }
+                if (mediaPrepared) {
+                    return;
+                }
+                FileLog.e("Dynamic video wallpaper prepare timed out, retrying: " + path);
+                resumePositionMs = 0;
+                schedulePlaybackRecovery();
+            };
+            playbackHandler.postDelayed(prepareWatchdog, 6000L);
+        }
+
+        private void disarmPrepareWatchdog() {
+            if (prepareWatchdog != null) {
+                playbackHandler.removeCallbacks(prepareWatchdog);
+                prepareWatchdog = null;
             }
         }
 
@@ -780,6 +824,7 @@ public final class DynamicVideoWallpaperHelper {
                         resumePositionMs = 0;
                         playbackErrorCount = 0;
                         mediaPrepared = true;
+                        disarmPrepareWatchdog();
                         startProgressCheckpoint();
                         player.start();
                     } catch (Throwable e) {
@@ -985,6 +1030,7 @@ public final class DynamicVideoWallpaperHelper {
                         }
                     });
                     bindListeners(generation);
+                    armPrepareWatchdog(generation);
                     mediaPlayer.prepareAsync();
                 }
             } catch (Throwable e) { FileLog.e(e); }
@@ -1001,7 +1047,22 @@ public final class DynamicVideoWallpaperHelper {
             playbackErrorCount++;
             retryRunnable = () -> {
                 retryRunnable = null;
-                if (released || surfaceTexture == null || !textureView.isAvailable()) {
+                if (released) {
+                    return;
+                }
+                // [Aiqiyi] 首次启动时 TextureView 往往还没真正 attach，isAvailable()
+                // 会是 false。旧实现直接 return，等于把唯一一次重试吞掉，画面就永久
+                // 停在冻结帧上——这正是「首个动态壁纸卡住」的直接成因之一。
+                // 现在改成延后再试，直到视图就绪或播放器被释放。
+                if (surfaceTexture == null || !textureView.isAvailable()) {
+                    // 视图未就绪不算播放错误，不递增 playbackErrorCount，只做轮询等待。
+                    retryRunnable = () -> {
+                        retryRunnable = null;
+                        if (!released) {
+                            schedulePlaybackRecovery();
+                        }
+                    };
+                    playbackHandler.postDelayed(retryRunnable, 600L);
                     return;
                 }
                 if (mediaPlayer != null) {
@@ -1097,6 +1158,7 @@ public final class DynamicVideoWallpaperHelper {
         }
 
         private void releaseMediaPlayer() {
+            disarmPrepareWatchdog();
             stopProgressCheckpoint();
             mediaPrepared = false;
             savePlaybackPosition();
