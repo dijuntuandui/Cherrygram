@@ -245,6 +245,33 @@ public final class DynamicVideoWallpaperHelper {
     private static final long METADATA_TIMEOUT_MS = 3000L;
 
     /**
+     * [Aiqiyi] 视频尺寸缓存：路径 -> {width, height}。
+     *
+     * 尺寸探测走 MediaMetadataRetriever，在部分机型上是几十到几百毫秒级的开销，
+     * 首次甚至可能卡在 native 层。它绝不能出现在首帧准备的同步路径上：一旦在主线程
+     * 上等待，首个视频的画面就会被推迟整整一个探测周期，表现为「启动后第一个动态
+     * 壁纸明显卡顿，之后才顺畅」。
+     *
+     * 因此改成：构造播放器时异步探测并写入本缓存；prepare() 只做 O(1) 查表，
+     * 未命中就先按旧行为起播，等探测结果回来再决定是否重建。
+     */
+    private static final java.util.concurrent.ConcurrentHashMap<String, int[]> VIDEO_SIZE_CACHE =
+            new java.util.concurrent.ConcurrentHashMap<>();
+
+    /** 单线程探测池，避免为每个视频都新建线程。 */
+    private static java.util.concurrent.ExecutorService SIZE_PROBE_EXECUTOR;
+
+    /**
+     * [Aiqiyi] 当前活跃播放器的弱引用。
+     *
+     * 首次播放时尺寸缓存必然还是空的，只能按 view 尺寸起播；等后台探测把真实尺寸
+     * 补进缓存后，需要有机会让首帧用上它，否则「第一个视频卡」的问题会一直复现。
+     * 这里不引入强引用，播放器释放后自然失效。
+     */
+    private static java.lang.ref.WeakReference<Player> ACTIVE_PLAYER =
+            new java.lang.ref.WeakReference<>(null);
+
+    /**
      * 部分机型（vivo/iQOO 的媒体解码器）在 MediaMetadataRetriever 处理某些编码时
      * 会卡在 native 层不返回，Java 层 catch 接不到，导致调用线程永久阻塞。
      * 这里把元数据读取丢到独立线程并加超时，超时即视为不可判定，放行让播放器自行处理。
@@ -359,6 +386,47 @@ public final class DynamicVideoWallpaperHelper {
         } finally {
             pool.shutdownNow();
         }
+    }
+
+    /**
+     * [Aiqiyi] 异步预热视频尺寸到缓存。不阻塞调用线程，可重复调用。
+     */
+    private static void prefetchVideoSizeAsync(final String path) {
+        if (path == null || VIDEO_SIZE_CACHE.containsKey(path)) {
+            return;
+        }
+        synchronized (DynamicVideoWallpaperHelper.class) {
+            if (SIZE_PROBE_EXECUTOR == null) {
+                SIZE_PROBE_EXECUTOR = java.util.concurrent.Executors.newSingleThreadExecutor(r -> {
+                    Thread t = new Thread(r, "aqy-size-probe");
+                    t.setDaemon(true);
+                    return t;
+                });
+            }
+        }
+        try {
+            SIZE_PROBE_EXECUTOR.execute(() -> {
+                if (VIDEO_SIZE_CACHE.containsKey(path)) {
+                    return;
+                }
+                int[] size = readVideoSizeWithTimeout(path, 2500L);
+                if (size != null) {
+                    VIDEO_SIZE_CACHE.put(path, size);
+                    // 尺寸补齐后通知当前播放器：若它尚未出帧，可以立刻用正确尺寸重建。
+                    Player active = ACTIVE_PLAYER.get();
+                    if (active != null) {
+                        active.onVideoSizeProbed(path);
+                    }
+                }
+            });
+        } catch (Throwable e) {
+            FileLog.e(e);
+        }
+    }
+
+    /** 只查缓存，永不阻塞。未命中返回 null。 */
+    private static int[] peekVideoSize(String path) {
+        return path == null ? null : VIDEO_SIZE_CACHE.get(path);
     }
 
     public static String importVideo(Context context, Uri source) throws IOException {
@@ -579,6 +647,7 @@ public final class DynamicVideoWallpaperHelper {
             View background = ((SizeNotifierFrameLayout) contentAnchor).backgroundView;
             if (background != null) { background.setAlpha(0f); player.setSuppressedContentBackground(background); }
         }
+        ACTIVE_PLAYER = new java.lang.ref.WeakReference<>(player);
         player.start();
         return player;
     }
@@ -638,6 +707,7 @@ public final class DynamicVideoWallpaperHelper {
                 player.setSuppressedContentBackground(originalBackground);
             }
         }
+        ACTIVE_PLAYER = new java.lang.ref.WeakReference<>(player);
         player.start();
         return player;
     }
@@ -709,6 +779,9 @@ public final class DynamicVideoWallpaperHelper {
             this.playlistModeValue = mode;
             this.playbackKey = playbackKey;
             this.sourceSignature = playbackKey;
+            // [Aiqiyi] 构造时就把当前视频尺寸丢到后台探测，这样哪怕这次没赶上缓存，
+            // 下一次进入（或下一轮轮播）就能直接命中，不再重复探测。
+            prefetchVideoSizeAsync(this.path);
             PlaybackState state = getPlaybackState();
             if (state != null) {
                 resumePositionMs = state.positionMs;
@@ -799,8 +872,9 @@ public final class DynamicVideoWallpaperHelper {
                 // 真实尺寸。Surface 一创建就会锁定当前缓冲区大小，之后再改
                 // setDefaultBufferSize 时，vivo/iQOO 一类解码器不会重建输出通道，
                 // 只投递首帧就停住——这就是「有画面但完全静止」的成因。
-                // 探测失败时回退到旧行为（交由 OnVideoSizeChanged 兜底）。
-                int[] probedSize = readVideoSizeWithTimeout(path, 1500L);
+                // 只查缓存，绝不在主线程上等待探测。未命中时先按旧行为起播，
+                // 同时后台预热；探测结果回来后会触发一次重建（见下方 flushPendingSize）。
+                int[] probedSize = peekVideoSize(path);
                 if (probedSize != null) {
                     videoWidth = probedSize[0];
                     videoHeight = probedSize[1];
@@ -809,6 +883,8 @@ public final class DynamicVideoWallpaperHelper {
                     } catch (Throwable e) {
                         FileLog.e(e);
                     }
+                } else {
+                    prefetchVideoSizeAsync(path);
                 }
                 surface = new Surface(surfaceTexture);
                 mediaPlayer = new MediaPlayer();
@@ -837,6 +913,36 @@ public final class DynamicVideoWallpaperHelper {
                 // 不能只释放 MediaPlayer：此时透明 TextureView 仍会遮挡原壁纸，必须完整回滚图层。
                 release();
             }
+        }
+
+        /**
+         * [Aiqiyi] 尺寸探测完成回调（后台线程调用）。
+         *
+         * 只在「还没准备好出帧」时重建，避免打断已经正常播放的画面：
+         * 首次进入时缓存为空，缓冲区沿用了 view 尺寸，某些解码器会因此不出帧；
+         * 此时拿到真实尺寸后重建一次，就能直接起播而不必等看门狗超时。
+         */
+        void onVideoSizeProbed(String probedPath) {
+            playbackHandler.post(() -> {
+                if (released || mediaPlayer == null || probedPath == null || !probedPath.equals(path)) {
+                    return;
+                }
+                if (mediaPrepared) {
+                    // 已经在播了，说明当前缓冲区没造成问题，不打扰。
+                    return;
+                }
+                int[] size = peekVideoSize(probedPath);
+                if (size == null || surfaceTexture == null) {
+                    return;
+                }
+                if (videoWidth == size[0] && videoHeight == size[1]) {
+                    return;
+                }
+                FileLog.e("Dynamic video wallpaper applying probed size before first frame: "
+                        + size[0] + "x" + size[1]);
+                resumePositionMs = 0;
+                prepare(surfaceTexture);
+            });
         }
 
         /**
@@ -1115,7 +1221,12 @@ public final class DynamicVideoWallpaperHelper {
                     // [Aiqiyi] 换视频时同样要先把缓冲区尺寸对齐到新视频的真实尺寸。
                     // 直接复用上一段的 Surface 会让缓冲区沿用旧尺寸，尺寸不同的视频
                     // 就会卡在首帧不出帧。这里重建 Surface 以让新尺寸真正生效。
-                    int[] probedSize = readVideoSizeWithTimeout(nextPath, 1500L);
+                    // 只查缓存，不在切换路径上同步探测：MediaMetadataRetriever 在部分
+                    // 机型上要几百毫秒甚至更久，同步等待会让每次换视频都明显一顿。
+                    int[] probedSize = peekVideoSize(nextPath);
+                    if (probedSize == null) {
+                        prefetchVideoSizeAsync(nextPath);
+                    }
                     if (probedSize != null && surfaceTexture != null) {
                         videoWidth = probedSize[0];
                         videoHeight = probedSize[1];
