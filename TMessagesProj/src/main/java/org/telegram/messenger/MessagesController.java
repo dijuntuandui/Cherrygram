@@ -1761,6 +1761,14 @@ public class MessagesController extends BaseController implements NotificationCe
         freezeAppealUrl = mainPreferences.getString("freezeAppealUrl", "t.me/spambot");
         enableGiftsInProfile = mainPreferences.getBoolean("enableGiftsInProfile", true);
         storiesPosting = mainPreferences.getString("storiesPosting", "enabled");
+        // [Aiqiyi local] 自愈：旧版本在收到 PREMIUM_ACCOUNT_REQUIRED 时会把 storiesPosting
+        // 永久写成 "premium" 并落盘，导致此后无法发布动态且不会自动恢复。
+        // 这里在启动时把该污染值改回 "enabled"。服务端仍会按真实会员态校验，
+        // 因此不会伪造任何能力，只是不让本地开关把功能锁死。
+        if ("premium".equals(storiesPosting)) {
+            storiesPosting = "enabled";
+            mainPreferences.edit().putString("storiesPosting", "enabled").apply();
+        }
         storiesEntities = mainPreferences.getString("storiesEntities", "premium");
         storiesExportNopublicLink = mainPreferences.getBoolean("storiesExportNopublicLink", false);
         authorizationAutoconfirmPeriod = mainPreferences.getInt("authorization_autoconfirm_period", 604800);
@@ -23960,6 +23968,13 @@ public class MessagesController extends BaseController implements NotificationCe
         if (CherrygramCoreConfig.INSTANCE.getHideStories()) return false;
         switch (storiesPosting) {
             case "premium":
+                // [Aiqiyi local] 本地高级版：开启后允许进入发动态界面。
+                // 只放行 UI 入口，服务端仍会按真实会员态返回 PREMIUM_ACCOUNT_REQUIRED，
+                // 不伪造任何服务端能力。
+                if (uz.unnarsx.cherrygram.core.configs.AiqiyiLocalDataConfig.INSTANCE.getLocalZoneEnabled()
+                        && uz.unnarsx.cherrygram.core.configs.AiqiyiLocalDataConfig.INSTANCE.getLocalPremiumOverride()) {
+                    return true;
+                }
                 return getUserConfig().isPremium();
             case "enabled":
                 return true;
