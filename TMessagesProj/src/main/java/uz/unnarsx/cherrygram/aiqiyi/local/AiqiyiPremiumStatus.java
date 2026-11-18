@@ -35,11 +35,20 @@ public final class AiqiyiPremiumStatus {
             if (userConfig == null) {
                 return base;
             }
-            // 丙（真会员）与乙（专区总闸 + 本地高级版）都收敛在 isPremium() 里
-            if (!userConfig.isPremium()) {
+            // 只对本人生效：他人一律原样返回，走官方 user.premium
+            if (user.id != userConfig.clientUserId) {
                 return base;
             }
-            if (user.id != userConfig.clientUserId) {
+            // 乙：专区总闸 + 本地高级版，均开才伪装
+            boolean localFake = false;
+            try {
+                localFake = uz.unnarsx.cherrygram.core.configs.AiqiyiLocalDataConfig.INSTANCE.getLocalZoneEnabled()
+                        && uz.unnarsx.cherrygram.core.configs.AiqiyiLocalDataConfig.INSTANCE.getLocalPremiumOverride();
+            } catch (Throwable ignore) {
+                localFake = false;
+            }
+            // 丙：账号本身真会员。两路任一成立才追加后缀
+            if (!localFake && !user.premium) {
                 return base;
             }
         } catch (Exception e) {
