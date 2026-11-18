@@ -617,11 +617,9 @@ public class UserConfig extends BaseController {
     }
 
     public boolean isPremium() {
-        // [Aiqiyi local] 本地功能专区：本地高级版伪装（仅本机显示）
-        if (uz.unnarsx.cherrygram.core.configs.AiqiyiLocalDataConfig.INSTANCE.getLocalZoneEnabled()
-                && uz.unnarsx.cherrygram.core.configs.AiqiyiLocalDataConfig.INSTANCE.getLocalPremiumOverride()) {
-            return true;
-        }
+        // [Aiqiyi local] 此处只做官方判定，不得短路。
+        // 本地高级版的伪装仅限资料页状态行（AiqiyiPremiumStatus），
+        // 一旦在这里返回 true，他人资料页、会员菜单、账号数上限都会跟着伪造。
         TLRPC.User user = currentUser;
         if (user == null) {
             return false;
