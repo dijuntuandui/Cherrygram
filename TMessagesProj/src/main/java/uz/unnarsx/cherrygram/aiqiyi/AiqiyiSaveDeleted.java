@@ -494,29 +494,38 @@ public class AiqiyiSaveDeleted {
             android.util.Log.d("AQYDBG", "merge dialog=" + dialogId + " win=[" + minMid + "," + maxMid
                     + "] live=" + target.messages.size() + " hit=" + diagMerged);
             if (merged != null && !merged.isEmpty()) {
-                // [Aiqiyi] The page assembled by getMessagesInternal is NOT a single
-                // monotonic list: the hole logic UNIONs a "date DESC" half with a
-                // "date ASC" half. Inserting into that shape by binary search puts
-                // messages in the wrong slots and flips the chat. Rebuild the whole
-                // page in one consistent order instead (newest first, matching
-                // messages.v2 ordering), keeping the merged entries in place.
-                merged.addAll(target.messages);
-                // [Aiqiyi] Only messages that actually came out of
-                // saved_deleted_cherry are revoked. `merged` at this point also
-                // contains every live message of the page, so the cache must be
-                // built from `revokedIds` alone - seeding it with the whole page
-                // made healthy messages render as deleted.
-                Collections.sort(merged, (a, b) -> {
-                    if (a == null || b == null) {
-                        return 0;
+                // [Aiqiyi] 不要在整页上做全量排序。
+                //
+                // 原因：getMessagesInternal 拼出来的页面并不是单调序列——挖洞逻辑
+                // 把一段 "date DESC" 和一段 "date ASC" UNION 在一起，顺序本身是
+                // 有意义的。旧的实现把整页 + 撤回消息合到一起再按 (date,id) 全量
+                // 重排，会：
+                //   1) 打乱原有元素的相对位置 —— UI 层 processLoadedMessages 在普通
+                //      聊天模式下不做二次排序，拿到什么顺序就按什么顺序建列表，
+                //      于是表现为「消息定位漂移 / 索引不到正确位置」；
+                //   2) 把 minDate 挖洞的边界一并抹平 —— 本该被挡在页外的消息混了
+                //      进来、本该在页内的被挤了出去，于是表现为「部分消息被吞」。
+                //
+                // 改为逐条插入：为每条撤回消息在原列表里找一个锚点，插到第一个
+                // date 不晚于它的位置之前；原有元素的相对顺序完全不动。
+                for (int mi = 0; mi < merged.size(); mi++) {
+                    TLRPC.Message add = merged.get(mi);
+                    if (add == null) {
+                        continue;
                     }
-                    if (a.date != b.date) {
-                        return Integer.compare(b.date, a.date);
+                    int at = target.messages.size();
+                    for (int ti = 0; ti < target.messages.size(); ti++) {
+                        TLRPC.Message cur = target.messages.get(ti);
+                        if (cur == null) {
+                            continue;
+                        }
+                        if (cur.date <= add.date) {
+                            at = ti;
+                            break;
+                        }
                     }
-                    return Integer.compare(b.id, a.id);
-                });
-                target.messages.clear();
-                target.messages.addAll(merged);
+                    target.messages.add(at, add);
+                }
                 // Warm the membership cache with the revoked ids only, so
                 // processLoadedMessages (UI thread) can flag the MessageObjects
                 // without touching SQLite.
