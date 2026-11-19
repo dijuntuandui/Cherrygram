@@ -582,6 +582,8 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
     private final static int share_contact = 3;
     private final static int edit_contact = 4;
     private final static int delete_contact = 5;
+    private final static int aqy_peer_name = 991;
+    private final static int aqy_peer_bio = 992;
     private final static int leave_group = 7;
     private final static int invite_to_group = 9;
     private final static int share = 10;
@@ -2910,6 +2912,22 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                     Bundle args = new Bundle();
                     args.putLong("user_id", userId);
                     presentFragment(new ContactAddActivity(args, resourcesProvider));
+                } else if (id == aqy_peer_name) {
+                    TLRPC.User aqyU = getMessagesController().getUser(userId);
+                    if (aqyU != null) {
+                        uz.unnarsx.cherrygram.aiqiyi.local.AiqiyiLocalDataInputHelper.showPeer(
+                                this, userId,
+                                uz.unnarsx.cherrygram.aiqiyi.local.AiqiyiLocalDataInputHelper.TYPE_PEER_NAME,
+                                UserObject.getUserName(aqyU), this::aqyRefreshPeerOverride);
+                    }
+                } else if (id == aqy_peer_bio) {
+                    TLRPC.User aqyU2 = getMessagesController().getUser(userId);
+                    if (aqyU2 != null) {
+                        uz.unnarsx.cherrygram.aiqiyi.local.AiqiyiLocalDataInputHelper.showPeer(
+                                this, userId,
+                                uz.unnarsx.cherrygram.aiqiyi.local.AiqiyiLocalDataInputHelper.TYPE_PEER_BIO,
+                                UserObject.getUserName(aqyU2), this::aqyRefreshPeerOverride);
+                    }
                 } else if (id == delete_contact) {
                     final TLRPC.User user = getMessagesController().getUser(userId);
                     if (user == null || getParentActivity() == null) {
@@ -12994,6 +13012,11 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                     otherItem.addSubItem(block_contact, !userBlocked ? R.drawable.msg_block : R.drawable.msg_block, !userBlocked ? LocaleController.getString(R.string.BlockContact) : LocaleController.getString(R.string.Unblock));
                     otherItem.addSubItem(edit_contact, R.drawable.msg_edit, LocaleController.getString(R.string.EditContact));
                     otherItem.addSubItem(delete_contact, R.drawable.msg_delete, LocaleController.getString(R.string.DeleteContact));
+                    // [Aiqiyi] 他人资料本地覆盖（仅本机可见，仅非本人）
+                    if (!user.self) {
+                        otherItem.addSubItem(aqy_peer_name, R.drawable.msg_edit, LocaleController.getString(R.string.AQY_Menu_PeerName));
+                        otherItem.addSubItem(aqy_peer_bio, R.drawable.msg_edit, LocaleController.getString(R.string.AQY_Menu_PeerBio));
+                    }
                 }
                 if (!UserObject.isDeleted(user) && !isBot && currentEncryptedChat == null && !userBlocked && userId != 333000 && userId != 777000 && userId != 42777) {
                     if (!BuildVars.IS_BILLING_UNAVAILABLE && !user.self && !user.bot && !MessagesController.isSupportUser(user) && !getMessagesController().premiumPurchaseBlocked()) {
@@ -14608,6 +14631,17 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                             currentBio = null;
                         }
                         aboutLinkCell.setMoreButtonDisabled(true);
+                        // [Aiqiyi] 他人资料页：简介行(AboutLinkCell)长按弹本地覆盖菜单
+                        aboutLinkCell.setOnLongClickListener(v -> {
+                            try {
+                                if (userId != 0 && userId != getUserConfig().getClientUserId()) {
+                                    return showAqyPeerOverrideMenu(v);
+                                }
+                            } catch (Throwable e) {
+                                org.telegram.messenger.FileLog.e(e);
+                            }
+                            return false;
+                        });
                     }
                     break;
                 case VIEW_TYPE_LINKED_COMMUNITY:
@@ -17276,12 +17310,9 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
      * [Aiqiyi] 他人资料页长按菜单：本地覆盖名称 / 简介 / 一键还原。
      * 命中返回 true（已弹菜单），未命中返回 false 交回原有逻辑。
      */
-    private boolean addPeerOverrideMenuItems(View view, int position) {
+    private boolean showAqyPeerOverrideMenu(View view) {
         try {
             if (userId == 0 || userId == getUserConfig().getClientUserId()) {
-                return false;
-            }
-            if (position != userInfoRow && position != bioRow && position != usernameRow) {
                 return false;
             }
             final TLRPC.User user = getMessagesController().getUser(userId);
@@ -17336,10 +17367,6 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
     }
 
     private boolean editRow(View view, int position) {
-        // [Aiqiyi] 他人资料页：简介/用户名行长按提供「本地覆盖」(仅本机可见)
-        if (!myProfile) {
-            return addPeerOverrideMenuItems(view, position);
-        }
 
         final View cell = view;
         if (view instanceof ProfileChannelCell) {
