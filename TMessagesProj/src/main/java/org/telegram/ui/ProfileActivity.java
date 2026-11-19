@@ -2916,17 +2916,17 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                     TLRPC.User aqyU = getMessagesController().getUser(userId);
                     if (aqyU != null) {
                         uz.unnarsx.cherrygram.aiqiyi.local.AiqiyiLocalDataInputHelper.showPeer(
-                                this, userId,
+                                ProfileActivity.this, userId,
                                 uz.unnarsx.cherrygram.aiqiyi.local.AiqiyiLocalDataInputHelper.TYPE_PEER_NAME,
-                                UserObject.getUserName(aqyU), this::aqyRefreshPeerOverride);
+                                UserObject.getUserName(aqyU), ProfileActivity.this::aqyRefreshPeerOverride);
                     }
                 } else if (id == aqy_peer_bio) {
                     TLRPC.User aqyU2 = getMessagesController().getUser(userId);
                     if (aqyU2 != null) {
                         uz.unnarsx.cherrygram.aiqiyi.local.AiqiyiLocalDataInputHelper.showPeer(
-                                this, userId,
+                                ProfileActivity.this, userId,
                                 uz.unnarsx.cherrygram.aiqiyi.local.AiqiyiLocalDataInputHelper.TYPE_PEER_BIO,
-                                UserObject.getUserName(aqyU2), this::aqyRefreshPeerOverride);
+                                UserObject.getUserName(aqyU2), ProfileActivity.this::aqyRefreshPeerOverride);
                     }
                 } else if (id == delete_contact) {
                     final TLRPC.User user = getMessagesController().getUser(userId);
