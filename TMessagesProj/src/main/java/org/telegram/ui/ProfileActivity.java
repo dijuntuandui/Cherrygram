@@ -17272,8 +17272,74 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
         return true;
     }
 
+    /**
+     * [Aiqiyi] 他人资料页长按菜单：本地覆盖名称 / 简介 / 一键还原。
+     * 命中返回 true（已弹菜单），未命中返回 false 交回原有逻辑。
+     */
+    private boolean addPeerOverrideMenuItems(View view, int position) {
+        try {
+            if (userId == 0 || userId == getUserConfig().getClientUserId()) {
+                return false;
+            }
+            if (position != userInfoRow && position != bioRow && position != usernameRow) {
+                return false;
+            }
+            final TLRPC.User user = getMessagesController().getUser(userId);
+            if (user == null) {
+                return false;
+            }
+            final String originalName = UserObject.getUserName(user);
+            final ItemOptions o = ItemOptions.makeOptions(this, view);
+            if (view != null && listView != null) {
+                o.setScrimViewBackground(listView.getClipBackground(view));
+            }
+            o.setLongPressSelectionEnabled(false);
+            o.add(R.drawable.msg_edit, LocaleController.getString(R.string.AQY_Menu_PeerName), () ->
+                    uz.unnarsx.cherrygram.aiqiyi.local.AiqiyiLocalDataInputHelper.showPeer(
+                            this, userId,
+                            uz.unnarsx.cherrygram.aiqiyi.local.AiqiyiLocalDataInputHelper.TYPE_PEER_NAME,
+                            originalName, this::aqyRefreshPeerOverride));
+            o.add(R.drawable.msg_edit, LocaleController.getString(R.string.AQY_Menu_PeerBio), () ->
+                    uz.unnarsx.cherrygram.aiqiyi.local.AiqiyiLocalDataInputHelper.showPeer(
+                            this, userId,
+                            uz.unnarsx.cherrygram.aiqiyi.local.AiqiyiLocalDataInputHelper.TYPE_PEER_BIO,
+                            originalName, this::aqyRefreshPeerOverride));
+            if (uz.unnarsx.cherrygram.aiqiyi.local.AiqiyiPeerOverrideHelper.hasAny(userId)) {
+                o.addGap();
+                o.add(R.drawable.msg_reset, LocaleController.getString(R.string.AQY_Menu_PeerResetAll), () -> {
+                    uz.unnarsx.cherrygram.aiqiyi.local.AiqiyiPeerOverrideHelper.clearAll(userId);
+                    aqyRefreshPeerOverride();
+                });
+            }
+            o.show();
+            return true;
+        } catch (Throwable e) {
+            org.telegram.messenger.FileLog.e(e);
+            return false;
+        }
+    }
+
+    /** [Aiqiyi] 本地覆盖变更后刷新本页 */
+    private void aqyRefreshPeerOverride() {
+        try {
+            org.telegram.messenger.AndroidUtilities.runOnUIThread(() -> {
+                updateListAnimated(false);
+                if (listAdapter != null) {
+                    listAdapter.notifyDataSetChanged();
+                }
+            });
+            getNotificationCenter().postNotificationName(
+                    org.telegram.messenger.NotificationCenter.dialogsNeedReload);
+        } catch (Throwable e) {
+            org.telegram.messenger.FileLog.e(e);
+        }
+    }
+
     private boolean editRow(View view, int position) {
-        if (!myProfile) return false;
+        // [Aiqiyi] 他人资料页：简介/用户名行长按提供「本地覆盖」(仅本机可见)
+        if (!myProfile) {
+            return addPeerOverrideMenuItems(view, position);
+        }
 
         final View cell = view;
         if (view instanceof ProfileChannelCell) {

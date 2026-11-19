@@ -957,4 +957,11 @@
     <string name="AQY_VerifyProxyPoolRestored">已补回 %1$d 条代理</string>
     <string name="AQY_VerifyProxyPoolAllOk">内置代理齐全</string>
     <string name="AQY_BookmarksNoSnapshot">内容未缓存，点击查看</string>
+    <!-- [Aiqiyi] 他人资料本地覆盖 -->
+    <string name="AQY_Menu_PeerName">修改本地名称</string>
+    <string name="AQY_Menu_PeerNameHint">输入新的名称（仅本机可见）</string>
+    <string name="AQY_Menu_PeerBio">修改本地简介</string>
+    <string name="AQY_Menu_PeerBioHint">输入新的简介（仅本机可见）</string>
+    <string name="AQY_Menu_PeerResetAll">还原原始资料</string>
+    <string name="AQY_Menu_Reset">还原</string>
 </resources>
