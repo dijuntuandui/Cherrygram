@@ -491,6 +491,8 @@
     <!--Aiqiyi: ghost mode-->
     <string name="AQY_GhostMode">幽灵模式</string>
     <string name="AQY_GhostMode_Desc">不发送已读回执，隐身在线状态</string>
+    <string name="AQY_HideOnline">隐藏在线状态</string>
+    <string name="AQY_HideOnline_Desc">服务端最后上线隐私。别人看你只能看到「最近上线」，你也看不到别人的精确在线时间</string>
     <!--Aiqiyi: show online status-->
     <string name="AQY_UnlimitedPins">无限置顶</string>
     <string name="AQY_UnlimitedPins_Desc">解除置顶数量上限，主列表与文件夹内都可随意置顶</string>
@@ -946,4 +948,20 @@
     <string name="AQY_NoneToDelete">当前没有可删除的动态壁纸</string>
     <string name="AQY_DeleteDynamicWallpaperConfirm">将删除此账号已设置的动态壁纸，确定继续？</string>
     <string name="AiqiyiGhostOffline">离线</string>
+    <string name="AQY_VerifyProxyPool">核验代理池</string>
+    <string name="AQY_VerifyProxyPoolMissing">（有缺失）</string>
+    <string name="AQY_VerifyProxyPoolResult">内置代理完好条数</string>
+    <string name="AQY_VerifyProxyPoolLost">缺失条目</string>
+    <string name="AQY_VerifyProxyPoolExtra">额外条目</string>
+    <string name="AQY_VerifyProxyPoolRestore">一键补回</string>
+    <string name="AQY_VerifyProxyPoolRestored">已补回 %1$d 条代理</string>
+    <string name="AQY_VerifyProxyPoolAllOk">内置代理齐全</string>
+    <string name="AQY_BookmarksNoSnapshot">内容未缓存，点击查看</string>
+    <!-- [Aiqiyi] 他人资料本地覆盖 -->
+    <string name="AQY_Menu_PeerName">修改本地名称</string>
+    <string name="AQY_Menu_PeerNameHint">输入新的名称（仅本机可见）</string>
+    <string name="AQY_Menu_PeerBio">修改本地简介</string>
+    <string name="AQY_Menu_PeerBioHint">输入新的简介（仅本机可见）</string>
+    <string name="AQY_Menu_PeerResetAll">还原原始资料</string>
+    <string name="AQY_Menu_Reset">还原</string>
 </resources>
