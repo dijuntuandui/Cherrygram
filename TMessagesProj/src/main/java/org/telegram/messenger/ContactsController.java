@@ -3050,6 +3050,12 @@ public class ContactsController extends BaseController {
         if (user == null) {
             return "";
         }
+        // [Aiqiyi] 他人本地名称覆盖（精确路径，按 userId 查，不受同名影响）
+        String aqyOv = uz.unnarsx.cherrygram.aiqiyi.local.AiqiyiPeerOverrideHelper
+                .getName(user.id);
+        if (aqyOv != null) {
+            return aqyOv;
+        }
         return formatName(user.first_name, user.last_name, 0);
     }
 
@@ -3058,8 +3064,50 @@ public class ContactsController extends BaseController {
         return formatName(firstName, lastName, 0);
     }
 
+    /**
+     * [Aiqiyi] 按当前显示顺序拼出「原名全名」，用于对方姓名覆盖的反查。
+     * 必须与 formatName 的拼接顺序保持一致，否则反查不到。
+     */
+    private static String aqyBuildFullName(String firstName, String lastName) {
+        StringBuilder sb = new StringBuilder();
+        if (LocaleController.nameDisplayOrder == 1) {
+            if (!TextUtils.isEmpty(firstName)) {
+                sb.append(firstName.trim());
+            }
+            if (!TextUtils.isEmpty(lastName)) {
+                if (sb.length() > 0) sb.append(' ');
+                sb.append(lastName.trim());
+            }
+        } else {
+            if (!TextUtils.isEmpty(lastName)) {
+                sb.append(lastName.trim());
+            }
+            if (!TextUtils.isEmpty(firstName)) {
+                if (sb.length() > 0) sb.append(' ');
+                sb.append(firstName.trim());
+            }
+        }
+        // 与 UserObject.getUserName 的规范化保持一致，否则反查 key 永远对不上
+        return AndroidUtilities.removeRTL(AndroidUtilities.removeDiacritics(sb.toString()));
+    }
+
     @NonNull
     public static String formatName(String firstName, String lastName, int maxLength) {
+        // [Aiqiyi] 他人本地名称覆盖。
+        // 本方法拿不到 userId，改用「原名 -> 覆盖名」反查表命中。
+        // 必须在入参阶段替换，才能让下面的排序 / 截断逻辑与返回值保持一致；
+        // 若只改末尾 return，maxLength 分支的三处提前 return 会漏掉。
+        if (firstName != null || lastName != null) {
+            String aqyFull = aqyBuildFullName(firstName, lastName);
+            String aqyOv = uz.unnarsx.cherrygram.aiqiyi.local.AiqiyiPeerOverrideHelper
+                    .lookupByOriginalName(aqyFull);
+            if (aqyOv != null) {
+                if (maxLength > 0 && aqyOv.length() > maxLength + 2) {
+                    return aqyOv.substring(0, maxLength) + "…";
+                }
+                return aqyOv;
+            }
+        }
         /*if ((firstName == null || firstName.length() == 0) && (lastName == null || lastName.length() == 0)) {
             return LocaleController.getString(R.string.HiddenName);
         }*/

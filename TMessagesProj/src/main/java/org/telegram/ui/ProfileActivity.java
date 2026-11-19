@@ -2918,7 +2918,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                         uz.unnarsx.cherrygram.aiqiyi.local.AiqiyiLocalDataInputHelper.showPeer(
                                 ProfileActivity.this, userId,
                                 uz.unnarsx.cherrygram.aiqiyi.local.AiqiyiLocalDataInputHelper.TYPE_PEER_NAME,
-                                UserObject.getUserName(aqyU), ProfileActivity.this::aqyRefreshPeerOverride);
+                                UserObject.getUserNameRaw(aqyU), ProfileActivity.this::aqyRefreshPeerOverride);
                     }
                 } else if (id == aqy_peer_bio) {
                     TLRPC.User aqyU2 = getMessagesController().getUser(userId);
@@ -2926,7 +2926,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                         uz.unnarsx.cherrygram.aiqiyi.local.AiqiyiLocalDataInputHelper.showPeer(
                                 ProfileActivity.this, userId,
                                 uz.unnarsx.cherrygram.aiqiyi.local.AiqiyiLocalDataInputHelper.TYPE_PEER_BIO,
-                                UserObject.getUserName(aqyU2), ProfileActivity.this::aqyRefreshPeerOverride);
+                                UserObject.getUserNameRaw(aqyU2), ProfileActivity.this::aqyRefreshPeerOverride);
                     }
                 } else if (id == delete_contact) {
                     final TLRPC.User user = getMessagesController().getUser(userId);
@@ -17319,7 +17319,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
             if (user == null) {
                 return false;
             }
-            final String originalName = UserObject.getUserName(user);
+            final String originalName = UserObject.getUserNameRaw(user);
             final ItemOptions o = ItemOptions.makeOptions(this, view);
             if (view != null && listView != null) {
                 o.setScrimViewBackground(listView.getClipBackground(view));
