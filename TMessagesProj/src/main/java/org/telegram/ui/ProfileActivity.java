@@ -584,6 +584,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
     private final static int delete_contact = 5;
     private final static int aqy_peer_name = 991;
     private final static int aqy_peer_bio = 992;
+    private boolean aqyAddedOverrideMenu = false;
     private final static int leave_group = 7;
     private final static int invite_to_group = 9;
     private final static int share = 10;
@@ -12981,6 +12982,12 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                             shareAction = true;
                         } else {
                             otherItem.addSubItem(add_contact, R.drawable.msg_addcontact, LocaleController.getString(R.string.AddContact));
+                            // [Aiqiyi] 非联系人同样提供本地覆盖入口
+                            if (!user.self) {
+                                otherItem.addSubItem(aqy_peer_name, R.drawable.msg_edit, LocaleController.getString(R.string.AQY_Menu_PeerName));
+                                otherItem.addSubItem(aqy_peer_bio, R.drawable.msg_edit, LocaleController.getString(R.string.AQY_Menu_PeerBio));
+                            }
+                            aqyAddedOverrideMenu = true;
                         }
                         if (!TextUtils.isEmpty(user.phone)) {
                             otherItem.addSubItem(share_contact, R.drawable.msg_share, LocaleController.getString(R.string.ShareContact));
@@ -13017,6 +13024,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                         otherItem.addSubItem(aqy_peer_name, R.drawable.msg_edit, LocaleController.getString(R.string.AQY_Menu_PeerName));
                         otherItem.addSubItem(aqy_peer_bio, R.drawable.msg_edit, LocaleController.getString(R.string.AQY_Menu_PeerBio));
                     }
+                    aqyAddedOverrideMenu = true;
                 }
                 if (!UserObject.isDeleted(user) && !isBot && currentEncryptedChat == null && !userBlocked && userId != 333000 && userId != 777000 && userId != 42777) {
                     if (!BuildVars.IS_BILLING_UNAVAILABLE && !user.self && !user.bot && !MessagesController.isSupportUser(user) && !getMessagesController().premiumPurchaseBlocked()) {
@@ -14622,7 +14630,13 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                         aboutLinkCell.setTextAndValue(text, LocaleController.getString(R.string.DescriptionPlaceholder), ChatObject.isChannel(currentChat) && !currentChat.megagroup);
                     } else if (position == bioRow) {
                         String value;
-                        if (userInfo == null || !TextUtils.isEmpty(userInfo.about)) {
+                        // [Aiqiyi] 本地简介覆盖优先（仅本机可见）
+                        String aqyLocalBio = (userId != 0 && userId != getUserConfig().getClientUserId())
+                                ? uz.unnarsx.cherrygram.aiqiyi.local.AiqiyiPeerOverrideHelper.getBio(userId) : null;
+                        if (aqyLocalBio != null) {
+                            aboutLinkCell.setTextAndValue(aqyLocalBio, LocaleController.getString(R.string.UserBio), getUserConfig().isPremium());
+                            currentBio = aqyLocalBio;
+                        } else if (userInfo == null || !TextUtils.isEmpty(userInfo.about)) {
                             value = userInfo == null ? LocaleController.getString(R.string.Loading) : userInfo.about;
                             aboutLinkCell.setTextAndValue(value, LocaleController.getString(R.string.UserBio), getUserConfig().isPremium());
                             currentBio = userInfo != null ? userInfo.about : null;
