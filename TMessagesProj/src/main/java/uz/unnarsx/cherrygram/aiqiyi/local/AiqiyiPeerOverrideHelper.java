@@ -83,14 +83,57 @@ public final class AiqiyiPeerOverrideHelper {
 
     // ============ 读写 ============
 
+    /** 当前登录用户 id（拿不到时返回 0） */
+    private static long selfId() {
+        try {
+            org.telegram.messenger.UserConfig cfg = org.telegram.messenger.UserConfig.getInstance(0);
+            return cfg == null ? 0 : cfg.getClientUserId();
+        } catch (Throwable e) {
+            return 0;
+        }
+    }
+
+    /**
+     * 判定一条覆盖值是否「脏数据」。
+     * 历史版本曾把本人数据写到他人 key 上，表现为「所有人的资料都变成你的」。
+     * 自愈：覆盖值与本人当前名字/简介完全相同时，视为脏数据忽略。
+     */
+    private static boolean looksLikeSelf(long userId, String value, boolean isBio) {
+        if (value == null || value.length() == 0) return false;
+        long self = selfId();
+        if (self == 0 || userId == self) return false;
+        try {
+            org.telegram.messenger.UserConfig cfg = org.telegram.messenger.UserConfig.getInstance(0);
+            org.telegram.tgnet.TLRPC.User me = cfg == null ? null : cfg.getCurrentUser();
+            if (me == null) return false;
+            if (isBio) {
+                org.telegram.tgnet.TLRPC.UserFull full =
+                        org.telegram.messenger.MessagesController.getInstance(0).getUserFull(self);
+                String myBio = full == null ? null : full.about;
+                return myBio != null && myBio.length() > 0 && myBio.equals(value);
+            } else {
+                String myFirst = me.first_name == null ? "" : me.first_name.trim();
+                String myLast = me.last_name == null ? "" : me.last_name.trim();
+                String mine = (myFirst + " " + myLast).trim();
+                String mine2 = (myLast + " " + myFirst).trim();
+                return value.equals(mine) || value.equals(mine2) || value.equals(myFirst) || value.equals(myLast);
+            }
+        } catch (Throwable e) {
+            return false;
+        }
+    }
+
     public static String getName(long userId) {
         if (userId <= 0) return null;
         String v = rawGet(KEY_NAME_PREFIX + userId);
-        return TextUtils.isEmpty(v) ? null : v;
+        if (TextUtils.isEmpty(v)) return null;
+        if (looksLikeSelf(userId, v, false)) return null;
+        return v;
     }
 
     public static void setName(long userId, String value) {
         if (userId <= 0) return;
+        if (userId == selfId()) return; // 禁止把覆盖写到本人身上
         if (TextUtils.isEmpty(value)) {
             rawPut(KEY_NAME_PREFIX + userId, null);
             unregisterId(userId);
@@ -104,11 +147,14 @@ public final class AiqiyiPeerOverrideHelper {
     public static String getBio(long userId) {
         if (userId <= 0) return null;
         String v = rawGet(KEY_BIO_PREFIX + userId);
-        return TextUtils.isEmpty(v) ? null : v;
+        if (TextUtils.isEmpty(v)) return null;
+        if (looksLikeSelf(userId, v, true)) return null;
+        return v;
     }
 
     public static void setBio(long userId, String value) {
         if (userId <= 0) return;
+        if (userId == selfId()) return; // 禁止把覆盖写到本人身上
         if (TextUtils.isEmpty(value)) {
             rawPut(KEY_BIO_PREFIX + userId, null);
             unregisterId(userId);
@@ -127,6 +173,7 @@ public final class AiqiyiPeerOverrideHelper {
 
     public static void setAvatar(long userId, String value) {
         if (userId <= 0) return;
+        if (userId == selfId()) return; // 禁止把覆盖写到本人身上
         if (TextUtils.isEmpty(value)) {
             rawPut(KEY_AVATAR_PREFIX + userId, null);
             unregisterId(userId);
