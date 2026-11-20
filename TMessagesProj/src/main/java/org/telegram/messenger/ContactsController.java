@@ -3093,21 +3093,11 @@ public class ContactsController extends BaseController {
 
     @NonNull
     public static String formatName(String firstName, String lastName, int maxLength) {
-        // [Aiqiyi] 他人本地名称覆盖。
-        // 本方法拿不到 userId，改用「原名 -> 覆盖名」反查表命中。
-        // 必须在入参阶段替换，才能让下面的排序 / 截断逻辑与返回值保持一致；
-        // 若只改末尾 return，maxLength 分支的三处提前 return 会漏掉。
-        if (firstName != null || lastName != null) {
-            String aqyFull = aqyBuildFullName(firstName, lastName);
-            String aqyOv = uz.unnarsx.cherrygram.aiqiyi.local.AiqiyiPeerOverrideHelper
-                    .lookupByOriginalName(aqyFull);
-            if (aqyOv != null) {
-                if (maxLength > 0 && aqyOv.length() > maxLength + 2) {
-                    return aqyOv.substring(0, maxLength) + "…";
-                }
-                return aqyOv;
-            }
-        }
+        // [Aiqiyi] 已移除「原名 -> 覆盖名」模糊反查。
+        // 原因：本重载拿不到 userId，靠名字字符串匹配会导致同名 / 空名互相串号，
+        //       表现为「所有人的资料都变成某一个人」。
+        // 覆盖只保留两条按 userId 精确的路径：
+        //   formatName(TLRPC.User)  与  UserObject.getUserName(TLRPC.User)。
         /*if ((firstName == null || firstName.length() == 0) && (lastName == null || lastName.length() == 0)) {
             return LocaleController.getString(R.string.HiddenName);
         }*/
