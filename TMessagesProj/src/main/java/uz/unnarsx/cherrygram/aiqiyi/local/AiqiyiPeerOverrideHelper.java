@@ -50,29 +50,52 @@ public final class AiqiyiPeerOverrideHelper {
         if (prefs == null) {
             synchronized (AiqiyiPeerOverrideHelper.class) {
                 if (prefs == null) {
-                    prefs = ApplicationLoader.applicationContext
-                            .getSharedPreferences(PREFS_NAME, android.app.Activity.MODE_PRIVATE);
+                    android.content.Context ctx = ApplicationLoader.applicationContext;
+                    if (ctx == null) {
+                        // 保底：某些早期调用点 applicationContext 尚未就绪，用 ApplicationLoader 兜底
+                        ctx = org.telegram.messenger.ApplicationLoader.applicationContext;
+                    }
+                    if (ctx == null) {
+                        return null;
+                    }
+                    prefs = ctx.getSharedPreferences(PREFS_NAME, android.app.Activity.MODE_PRIVATE);
                 }
             }
         }
         return prefs;
     }
 
+    /** 所有读操作统一入口，prefs 不可用时返回 null 而不是 NPE */
+    private static String rawGet(String key) {
+        SharedPreferences p = prefs();
+        return p == null ? null : p.getString(key, null);
+    }
+
+    /** 所有写操作统一入口，返回是否真的提交成功 */
+    private static boolean rawPut(String key, String value) {
+        SharedPreferences p = prefs();
+        if (p == null) return false;
+        if (value == null) {
+            return p.edit().remove(key).commit();
+        }
+        return p.edit().putString(key, value).commit();
+    }
+
     // ============ 读写 ============
 
     public static String getName(long userId) {
         if (userId <= 0) return null;
-        String v = prefs().getString(KEY_NAME_PREFIX + userId, null);
+        String v = rawGet(KEY_NAME_PREFIX + userId);
         return TextUtils.isEmpty(v) ? null : v;
     }
 
     public static void setName(long userId, String value) {
         if (userId <= 0) return;
         if (TextUtils.isEmpty(value)) {
-            prefs().edit().remove(KEY_NAME_PREFIX + userId).apply();
+            rawPut(KEY_NAME_PREFIX + userId, null);
             unregisterId(userId);
         } else {
-            prefs().edit().putString(KEY_NAME_PREFIX + userId, value).apply();
+            rawPut(KEY_NAME_PREFIX + userId, value);
             registerId(userId);
         }
         invalidateCache();
@@ -80,36 +103,38 @@ public final class AiqiyiPeerOverrideHelper {
 
     public static String getBio(long userId) {
         if (userId <= 0) return null;
-        String v = prefs().getString(KEY_BIO_PREFIX + userId, null);
+        String v = rawGet(KEY_BIO_PREFIX + userId);
         return TextUtils.isEmpty(v) ? null : v;
     }
 
     public static void setBio(long userId, String value) {
         if (userId <= 0) return;
         if (TextUtils.isEmpty(value)) {
-            prefs().edit().remove(KEY_BIO_PREFIX + userId).apply();
+            rawPut(KEY_BIO_PREFIX + userId, null);
             unregisterId(userId);
         } else {
-            prefs().edit().putString(KEY_BIO_PREFIX + userId, value).apply();
+            rawPut(KEY_BIO_PREFIX + userId, value);
             registerId(userId);
         }
+        invalidateCache();
     }
 
     public static String getAvatar(long userId) {
         if (userId <= 0) return null;
-        String v = prefs().getString(KEY_AVATAR_PREFIX + userId, null);
+        String v = rawGet(KEY_AVATAR_PREFIX + userId);
         return TextUtils.isEmpty(v) ? null : v;
     }
 
     public static void setAvatar(long userId, String value) {
         if (userId <= 0) return;
         if (TextUtils.isEmpty(value)) {
-            prefs().edit().remove(KEY_AVATAR_PREFIX + userId).apply();
+            rawPut(KEY_AVATAR_PREFIX + userId, null);
             unregisterId(userId);
         } else {
-            prefs().edit().putString(KEY_AVATAR_PREFIX + userId, value).apply();
+            rawPut(KEY_AVATAR_PREFIX + userId, value);
             registerId(userId);
         }
+        invalidateCache();
     }
 
     /** 该用户是否存在任意一项覆盖 */
@@ -121,11 +146,9 @@ public final class AiqiyiPeerOverrideHelper {
     /** 一键清除某用户的全部覆盖 */
     public static void clearAll(long userId) {
         if (userId <= 0) return;
-        prefs().edit()
-                .remove(KEY_NAME_PREFIX + userId)
-                .remove(KEY_BIO_PREFIX + userId)
-                .remove(KEY_AVATAR_PREFIX + userId)
-                .apply();
+        rawPut(KEY_NAME_PREFIX + userId, null);
+        rawPut(KEY_BIO_PREFIX + userId, null);
+        rawPut(KEY_AVATAR_PREFIX + userId, null);
         unregisterId(userId);
         invalidateCache();
     }
@@ -153,8 +176,8 @@ public final class AiqiyiPeerOverrideHelper {
             List<Long> ids = readIds();
             for (Long id : ids) {
                 if (id == null || id <= 0) continue;
-                String ovName = prefs().getString(KEY_NAME_PREFIX + id, null);
-                String origName = prefs().getString(KEY_NAME_PREFIX + id + "_orig", null);
+                String ovName = rawGet(KEY_NAME_PREFIX + id);
+                String origName = rawGet(KEY_NAME_PREFIX + id + "_orig");
                 if (!TextUtils.isEmpty(ovName) && !TextUtils.isEmpty(origName)) {
                     nameReverseMap.put(origName, ovName);
                 }
@@ -169,7 +192,7 @@ public final class AiqiyiPeerOverrideHelper {
      */
     public static void putNameMapping(long userId, String originalName, String overrideName) {
         if (userId <= 0) return;
-        prefs().edit().putString(KEY_NAME_PREFIX + userId + "_orig", originalName).apply();
+        rawPut(KEY_NAME_PREFIX + userId + "_orig", originalName);
         synchronized (nameReverseMap) {
             if (!TextUtils.isEmpty(originalName) && !TextUtils.isEmpty(overrideName)) {
                 nameReverseMap.put(originalName, overrideName);
@@ -190,7 +213,8 @@ public final class AiqiyiPeerOverrideHelper {
     // ============ id 列表维护 ============
 
     private static List<Long> readIds() {
-        String raw = prefs().getString(KEY_IDS, "");
+        String raw = rawGet(KEY_IDS);
+        if (raw == null) raw = "";
         ArrayList<Long> out = new ArrayList<>();
         if (TextUtils.isEmpty(raw)) return out;
         for (String s : raw.split(",")) {
@@ -210,7 +234,7 @@ public final class AiqiyiPeerOverrideHelper {
             if (i > 0) sb.append(',');
             sb.append(ids.get(i));
         }
-        prefs().edit().putString(KEY_IDS, sb.toString()).apply();
+        rawPut(KEY_IDS, sb.toString());
     }
 
     private static void registerId(long userId) {
@@ -227,7 +251,7 @@ public final class AiqiyiPeerOverrideHelper {
         if (ids.remove(Long.valueOf(userId))) {
             writeIds(ids);
         }
-        prefs().edit().remove(KEY_NAME_PREFIX + userId + "_orig").apply();
+        rawPut(KEY_NAME_PREFIX + userId + "_orig", null);
     }
 
     /** 调试/统计用 */
