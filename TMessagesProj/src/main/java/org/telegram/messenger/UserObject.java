@@ -57,40 +57,10 @@ public class UserObject {
         if (user == null || isDeleted(user)) {
             return LocaleController.getString(R.string.HiddenName);
         }
-        // [Aiqiyi] 他人本地名称覆盖（精确路径）
-        // getUserName 内部走的是 formatName(first,last)，绕过了 formatName(User)，
-        // 因此这里必须单独拦截一次，否则聊天列表 / 消息气泡仍显示原名。
-        String aqyOv = uz.unnarsx.cherrygram.aiqiyi.local.AiqiyiPeerOverrideHelper
-                .getName(user.id);
-        if (aqyOv != null) {
-            return aqyOv;
-        }
         String name = AndroidUtilities.removeRTL(AndroidUtilities.removeDiacritics(ContactsController.formatName(user.first_name, user.last_name)));
         return name.length() != 0 || TextUtils.isEmpty(user.phone) ? name : PhoneFormat.getInstance().format("+" + user.phone);
     }
 
-    /**
-     * [Aiqiyi] 取「未受本地覆盖影响」的原生显示名。
-     * 用于本地改名功能在写入覆盖表时采集真实原名，避免反查表 key 被上一次覆盖名污染。
-     */
-    @NonNull
-    public static String getUserNameRaw(TLRPC.User user) {
-        if (user == null || isDeleted(user)) {
-            return LocaleController.getString(R.string.HiddenName);
-        }
-        // 注意：不能走 ContactsController.formatName(...)，那条路径内部带「原名->覆盖名」反查，
-        // 会把上一次的覆盖名当成原名回读进来。这里按 nameDisplayOrder 手工拼接。
-        String first = user.first_name == null ? "" : user.first_name.trim();
-        String last = user.last_name == null ? "" : user.last_name.trim();
-        String name;
-        if (LocaleController.nameDisplayOrder == 1) {
-            name = last.length() != 0 ? first + (first.length() != 0 ? " " : "") + last : first;
-        } else {
-            name = first.length() != 0 ? last + (last.length() != 0 ? " " : "") + first : last;
-        }
-        name = AndroidUtilities.removeRTL(AndroidUtilities.removeDiacritics(name));
-        return name.length() != 0 || TextUtils.isEmpty(user.phone) ? name : PhoneFormat.getInstance().format("+" + user.phone);
-    }
     public static String getPublicUsername(TLRPC.User user, boolean editable) {
         if (user == null) {
             return null;

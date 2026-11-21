@@ -11250,11 +11250,11 @@
     <string name="AQY_Menu_CustomIdClear">Restore Original ID</string>
     <string name="AQY_Menu_CustomIdDate">Registration Date</string>
     <string name="AQY_Menu_CustomIdHint">Enter new ID (local only)</string>
-    <string name="AQY_Menu_OK">OK</string>
-    <string name="AQY_Menu_Reset">Reset</string>
     <string name="AQY_Menu_PeerName">Set Local Name</string>
     <string name="AQY_Menu_PeerNameHint">Enter new name (local only)</string>
     <string name="AQY_Menu_PeerBio">Set Local Bio</string>
     <string name="AQY_Menu_PeerBioHint">Enter new bio (local only)</string>
     <string name="AQY_Menu_PeerResetAll">Restore Original Profile</string>
+    <string name="AQY_Menu_OK">OK</string>
+    <string name="AQY_Menu_Reset">Reset</string>
 </resources>

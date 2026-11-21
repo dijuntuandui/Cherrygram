@@ -1761,6 +1761,14 @@ public class MessagesController extends BaseController implements NotificationCe
         freezeAppealUrl = mainPreferences.getString("freezeAppealUrl", "t.me/spambot");
         enableGiftsInProfile = mainPreferences.getBoolean("enableGiftsInProfile", true);
         storiesPosting = mainPreferences.getString("storiesPosting", "enabled");
+        // [Aiqiyi local] 自愈：旧版本在收到 PREMIUM_ACCOUNT_REQUIRED 时会把 storiesPosting
+        // 永久写成 "premium" 并落盘，导致此后无法发布动态且不会自动恢复。
+        // 这里在启动时把该污染值改回 "enabled"。服务端仍会按真实会员态校验，
+        // 因此不会伪造任何能力，只是不让本地开关把功能锁死。
+        if ("premium".equals(storiesPosting)) {
+            storiesPosting = "enabled";
+            mainPreferences.edit().putString("storiesPosting", "enabled").apply();
+        }
         storiesEntities = mainPreferences.getString("storiesEntities", "premium");
         storiesExportNopublicLink = mainPreferences.getBoolean("storiesExportNopublicLink", false);
         authorizationAutoconfirmPeriod = mainPreferences.getInt("authorization_autoconfirm_period", 604800);
@@ -6934,6 +6942,21 @@ public class MessagesController extends BaseController implements NotificationCe
             }
         }
         updateEmojiStatusUntilUpdate(user.id, user.emoji_status);
+        // [Aiqiyi local] 他人姓名本地覆盖：按 user.id 精确注入，只改这一个 user 对象。
+        // 与「按姓名文本反查」的根本差别在于：这里定位依据是 id，不可能把 A 的覆盖名
+        // 应用到 B 身上，因此不会出现「所有人资料都变成同一个人」。
+        // 写入时机在 putUser，覆盖后所有读取 first_name/last_name 的界面自动生效。
+        {
+            String aqyOverrideName = uz.unnarsx.cherrygram.aiqiyi.local.AiqiyiLocalPeerName.getName(user.id);
+            if (aqyOverrideName != null) {
+                user.first_name = aqyOverrideName;
+                user.last_name = "";
+                if (oldUser != null) {
+                    oldUser.first_name = aqyOverrideName;
+                    oldUser.last_name = "";
+                }
+            }
+        }
         if (oldUser != null && oldUser.access_hash == 0 && user.fromMessageDialogId != 0 && user.fromMessageId != 0) {
             oldUser.fromMessageDialogId = user.fromMessageDialogId;
             oldUser.fromMessageId = user.fromMessageId;
@@ -15209,6 +15232,10 @@ public class MessagesController extends BaseController implements NotificationCe
             }
             return getConnectionsManager().sendRequest(req, (response, error) -> {
                 if (error != null) {
+                    if (error.text != null && error.text.contains("CHAT_MEMBER_ADD_FAILED")) {
+                        createChatWithFallback(title, selectedContacts, about, ttlPeriod, fragment);
+                        return;
+                    }
                     AndroidUtilities.runOnUIThread(() -> {
                         AlertsCreator.processError(currentAccount, error, fragment, req);
                         getNotificationCenter().postNotificationName(NotificationCenter.chatDidFailCreate);
@@ -15270,6 +15297,77 @@ public class MessagesController extends BaseController implements NotificationCe
             }, ConnectionsManager.RequestFlagFailOnServerErrors);
         }
         return 0;
+    }
+
+    // [Aiqiyi] 建群兜底：老式 messages.createChat 因个别成员不可邀而整单失败时，
+    // 降级为 channels.createChannel(megagroup) 建空群，再逐个 inviteToChannel，被拒的跳过。
+    private void createChatWithFallback(String title, ArrayList<Long> selectedContacts, String about, int ttlPeriod, BaseFragment fragment) {
+        TLRPC.TL_channels_createChannel req = new TLRPC.TL_channels_createChannel();
+        req.title = title;
+        req.about = about != null ? about : "";
+        req.megagroup = true;
+        req.broadcast = false;
+        // [Aiqiyi] 不设 ttl_period：与原生 CHAT_TYPE_MEGAGROUP 分支保持一致。
+        // ttlPeriod 默认是 getGlobalTTl()*60 == 0，置 FLAG_4 把 0 发上去会被服务端判非法参数，
+        // 导致"建群"这一步整单失败，根本走不到逐个邀请。
+        getConnectionsManager().sendRequest(req, (response, error) -> {
+            if (error != null || !(response instanceof TLRPC.Updates)) {
+                final String detail = error != null && error.text != null && error.text.length() > 0
+                        ? error.text
+                        : ("响应异常(" + (response == null ? "null" : response.getClass().getSimpleName()) + ")");
+                AndroidUtilities.runOnUIThread(() -> {
+                    if (fragment != null && fragment.getParentActivity() != null) {
+                        BulletinFactory.of(fragment).createErrorBulletin("建群失败：" + detail).show();
+                    }
+                    getNotificationCenter().postNotificationName(NotificationCenter.chatDidFailCreate);
+                });
+                return;
+            }
+            final TLRPC.Updates updates = (TLRPC.Updates) response;
+            processUpdates(updates, false);
+            AndroidUtilities.runOnUIThread(() -> {
+                putUsers(updates.users, false);
+                putChats(updates.chats, false);
+                if (updates.chats == null || updates.chats.isEmpty()) {
+                    getNotificationCenter().postNotificationName(NotificationCenter.chatDidFailCreate);
+                    return;
+                }
+                final long newChatId = updates.chats.get(0).id;
+                getNotificationCenter().postNotificationName(NotificationCenter.chatDidCreated, newChatId);
+                inviteSelectedOneByOne(newChatId, selectedContacts, 0, 0, 0, fragment);
+            });
+        }, ConnectionsManager.RequestFlagFailOnServerErrors);
+    }
+
+    // [Aiqiyi] 链式逐个邀请，失败不中断，最后汇总提示
+    private void inviteSelectedOneByOne(long chatId, ArrayList<Long> ids, int index, int okCount, int failCount, BaseFragment fragment) {
+        if (ids == null || index >= ids.size()) {
+            final int ok = okCount;
+            final int fail = failCount;
+            if (fail > 0) {
+                AndroidUtilities.runOnUIThread(() -> {
+                    if (fragment != null && fragment.getParentActivity() != null) {
+                        BulletinFactory.of(fragment).createErrorBulletin("群已创建，成功邀请 " + ok + " 人，另有 " + fail + " 人无法邀请").show();
+                    }
+                });
+            }
+            return;
+        }
+        final TLRPC.User user = getUser(ids.get(index));
+        if (user == null) {
+            inviteSelectedOneByOne(chatId, ids, index + 1, okCount, failCount + 1, fragment);
+            return;
+        }
+        final TLRPC.TL_channels_inviteToChannel ireq = new TLRPC.TL_channels_inviteToChannel();
+        ireq.channel = getInputChannel(chatId);
+        ireq.users.add(getInputUser(user));
+        getConnectionsManager().sendRequest(ireq, (res, err) -> AndroidUtilities.runOnUIThread(() -> {
+            if (err == null) {
+                inviteSelectedOneByOne(chatId, ids, index + 1, okCount + 1, failCount, fragment);
+            } else {
+                inviteSelectedOneByOne(chatId, ids, index + 1, okCount, failCount + 1, fragment);
+            }
+        }), ConnectionsManager.RequestFlagFailOnServerErrors);
     }
 
     public void convertToMegaGroup(Context context, long chatId, BaseFragment fragment, MessagesStorage.LongCallback convertRunnable) {
@@ -23885,6 +23983,13 @@ public class MessagesController extends BaseController implements NotificationCe
         if (CherrygramCoreConfig.INSTANCE.getHideStories()) return false;
         switch (storiesPosting) {
             case "premium":
+                // [Aiqiyi local] 本地高级版：开启后允许进入发动态界面。
+                // 只放行 UI 入口，服务端仍会按真实会员态返回 PREMIUM_ACCOUNT_REQUIRED，
+                // 不伪造任何服务端能力。
+                if (uz.unnarsx.cherrygram.core.configs.AiqiyiLocalDataConfig.INSTANCE.getLocalZoneEnabled()
+                        && uz.unnarsx.cherrygram.core.configs.AiqiyiLocalDataConfig.INSTANCE.getLocalPremiumOverride()) {
+                    return true;
+                }
                 return getUserConfig().isPremium();
             case "enabled":
                 return true;

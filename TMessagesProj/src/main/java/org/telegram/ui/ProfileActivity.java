@@ -352,11 +352,11 @@ import uz.unnarsx.cherrygram.core.configs.CherrygramCoreConfig;
 import uz.unnarsx.cherrygram.core.helpers.AppRestartHelper;
 import uz.unnarsx.cherrygram.core.ui.mainTabs.MainTabsManager;
 import uz.unnarsx.cherrygram.helpers.ProfileActivityHelper;
+import uz.unnarsx.cherrygram.aiqiyi.local.AiqiyiLocalPeerName;
 import uz.unnarsx.cherrygram.donates.BadgeHelper;
 import uz.unnarsx.cherrygram.misc.Constants;
 import uz.unnarsx.cherrygram.preferences.CherrygramPreferencesNavigator;
 import uz.unnarsx.cherrygram.aiqiyi.AiqiyiGhostUtils;
-import uz.unnarsx.cherrygram.aiqiyi.local.AiqiyiPremiumStatus;
 
 import me.vkryl.android.animator.BoolAnimator;
 import me.vkryl.core.reference.ReferenceList;
@@ -582,9 +582,6 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
     private final static int share_contact = 3;
     private final static int edit_contact = 4;
     private final static int delete_contact = 5;
-    private final static int aqy_peer_name = 991;
-    private final static int aqy_peer_bio = 992;
-    private boolean aqyAddedOverrideMenu = false;
     private final static int leave_group = 7;
     private final static int invite_to_group = 9;
     private final static int share = 10;
@@ -2913,22 +2910,6 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                     Bundle args = new Bundle();
                     args.putLong("user_id", userId);
                     presentFragment(new ContactAddActivity(args, resourcesProvider));
-                } else if (id == aqy_peer_name) {
-                    TLRPC.User aqyU = getMessagesController().getUser(userId);
-                    if (aqyU != null) {
-                        uz.unnarsx.cherrygram.aiqiyi.local.AiqiyiLocalDataInputHelper.showPeer(
-                                ProfileActivity.this, userId,
-                                uz.unnarsx.cherrygram.aiqiyi.local.AiqiyiLocalDataInputHelper.TYPE_PEER_NAME,
-                                UserObject.getUserNameRaw(aqyU), ProfileActivity.this::aqyRefreshPeerOverride);
-                    }
-                } else if (id == aqy_peer_bio) {
-                    TLRPC.User aqyU2 = getMessagesController().getUser(userId);
-                    if (aqyU2 != null) {
-                        uz.unnarsx.cherrygram.aiqiyi.local.AiqiyiLocalDataInputHelper.showPeer(
-                                ProfileActivity.this, userId,
-                                uz.unnarsx.cherrygram.aiqiyi.local.AiqiyiLocalDataInputHelper.TYPE_PEER_BIO,
-                                UserObject.getUserNameRaw(aqyU2), ProfileActivity.this::aqyRefreshPeerOverride);
-                    }
                 } else if (id == delete_contact) {
                     final TLRPC.User user = getMessagesController().getUser(userId);
                     if (user == null || getParentActivity() == null) {
@@ -6011,6 +5992,22 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
             nameTextView[a].setEllipsizeByGradient(true);
             nameTextView[a].setRightDrawableOutside(a == 0);
             avatarContainer2.addView(nameTextView[a], LayoutHelper.createFrame(a == 0 ? initialTitleWidth : LayoutHelper.WRAP_CONTENT, LayoutHelper.WRAP_CONTENT, Gravity.LEFT | Gravity.TOP, 109, -6, (a == 0 ? rightMargin - (hasTitleExpanded ? 10 : 0) : 0), 0));
+            // [Aiqiyi local] 他人资料页长按名字 -> 本地名称 / 本地简介菜单
+            nameTextView[a].setOnLongClickListener(v -> {
+                if (userId == 0 || userId == getUserConfig().getClientUserId()) {
+                    return false;
+                }
+                uz.unnarsx.cherrygram.aiqiyi.local.AiqiyiLocalDataInputHelper.showPeerMenu(
+                        ProfileActivity.this, v, userId, () -> {
+                            // 名称变化后需重刷列表，简介变化只刷新本行
+                            if (listAdapter != null) {
+                                listAdapter.notifyDataSetChanged();
+                            }
+                            getNotificationCenter().postNotificationName(
+                                    NotificationCenter.updateInterfaces, MessagesController.UPDATE_MASK_NAME);
+                        });
+                return true;
+            });
         }
         for (int a = 0; a < onlineTextView.length; a++) {
             if (a == 1) {
@@ -11241,7 +11238,9 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                 if (!isBot && (hasPhone || !hasInfo)) {
                     phoneRow = rowCount++;
                 }
-                if (userInfo != null && !TextUtils.isEmpty(userInfo.about)) {
+                // [Aiqiyi local] 本地简介也算有简介，否则行不会出现，后续渲染无从生效
+                if ((userInfo != null && !TextUtils.isEmpty(userInfo.about))
+                        || AiqiyiLocalPeerName.getBio(userId) != null) {
                     userInfoRow = rowCount++;
                 }
                 if (user != null && username != null) {
@@ -12150,12 +12149,10 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                     } else {
                         if (CherrygramCoreConfig.isDevBuild() || CherrygramCoreConfig.isStandalonePremiumBuild()) {
                             newString2 = LocaleController.formatUserStatus(currentAccount, user, isOnline, shortStatus ? new boolean[1] : null);
-                        } else if (AiqiyiGhostUtils.isHideOnline()) {
-                            newString2 = AiqiyiPremiumStatus.append(currentAccount, user,
-                                    LocaleController.getString(R.string.AiqiyiGhostOffline));
+                        } else if (AiqiyiGhostUtils.isEnabled()) {
+                            newString2 = LocaleController.getString(R.string.AiqiyiGhostOffline);
                         } else {
-                            newString2 = AiqiyiPremiumStatus.append(currentAccount, user,
-                                    LocaleController.getString(R.string.Online));
+                            newString2 = LocaleController.getString(R.string.Online);
                         }
                     }
                 }
@@ -12982,12 +12979,6 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                             shareAction = true;
                         } else {
                             otherItem.addSubItem(add_contact, R.drawable.msg_addcontact, LocaleController.getString(R.string.AddContact));
-                            // [Aiqiyi] 非联系人同样提供本地覆盖入口
-                            if (!user.self) {
-                                otherItem.addSubItem(aqy_peer_name, R.drawable.msg_edit, LocaleController.getString(R.string.AQY_Menu_PeerName));
-                                otherItem.addSubItem(aqy_peer_bio, R.drawable.msg_edit, LocaleController.getString(R.string.AQY_Menu_PeerBio));
-                            }
-                            aqyAddedOverrideMenu = true;
                         }
                         if (!TextUtils.isEmpty(user.phone)) {
                             otherItem.addSubItem(share_contact, R.drawable.msg_share, LocaleController.getString(R.string.ShareContact));
@@ -13019,12 +13010,6 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                     otherItem.addSubItem(block_contact, !userBlocked ? R.drawable.msg_block : R.drawable.msg_block, !userBlocked ? LocaleController.getString(R.string.BlockContact) : LocaleController.getString(R.string.Unblock));
                     otherItem.addSubItem(edit_contact, R.drawable.msg_edit, LocaleController.getString(R.string.EditContact));
                     otherItem.addSubItem(delete_contact, R.drawable.msg_delete, LocaleController.getString(R.string.DeleteContact));
-                    // [Aiqiyi] 他人资料本地覆盖（仅本机可见，仅非本人）
-                    if (!user.self) {
-                        otherItem.addSubItem(aqy_peer_name, R.drawable.msg_edit, LocaleController.getString(R.string.AQY_Menu_PeerName));
-                        otherItem.addSubItem(aqy_peer_bio, R.drawable.msg_edit, LocaleController.getString(R.string.AQY_Menu_PeerBio));
-                    }
-                    aqyAddedOverrideMenu = true;
                 }
                 if (!UserObject.isDeleted(user) && !isBot && currentEncryptedChat == null && !userBlocked && userId != 333000 && userId != 777000 && userId != 42777) {
                     if (!BuildVars.IS_BILLING_UNAVAILABLE && !user.self && !user.bot && !MessagesController.isSupportUser(user) && !getMessagesController().premiumPurchaseBlocked()) {
@@ -14620,8 +14605,11 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                     AboutLinkCell aboutLinkCell = (AboutLinkCell) holder.itemView;
                     if (position == userInfoRow) {
                         TLRPC.User user = userInfo.user != null ? userInfo.user : getMessagesController().getUser(userInfo.id);
-                        boolean addlinks = isBot || (user != null && user.premium && userInfo.about != null);
-                        aboutLinkCell.setTextAndValue(userInfo.about, LocaleController.getString(R.string.UserBio), addlinks);
+                        // [Aiqiyi local] 本地简介按 userId 精确覆盖，仅本机可见
+                        String aqyLocalBio = AiqiyiLocalPeerName.getBio(userId);
+                        String aqyDisplayBio = aqyLocalBio != null ? aqyLocalBio : userInfo.about;
+                        boolean addlinks = isBot || (user != null && user.premium && aqyDisplayBio != null);
+                        aboutLinkCell.setTextAndValue(aqyDisplayBio, LocaleController.getString(R.string.UserBio), addlinks);
                     } else if (position == channelInfoRow) {
                         String text = chatInfo.about;
                         while (text.contains("\n\n\n")) {
@@ -14630,32 +14618,18 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                         aboutLinkCell.setTextAndValue(text, LocaleController.getString(R.string.DescriptionPlaceholder), ChatObject.isChannel(currentChat) && !currentChat.megagroup);
                     } else if (position == bioRow) {
                         String value;
-                        // [Aiqiyi] 本地简介覆盖优先（仅本机可见）
-                        String aqyLocalBio = (userId != 0 && userId != getUserConfig().getClientUserId())
-                                ? uz.unnarsx.cherrygram.aiqiyi.local.AiqiyiPeerOverrideHelper.getBio(userId) : null;
-                        if (aqyLocalBio != null) {
-                            aboutLinkCell.setTextAndValue(aqyLocalBio, LocaleController.getString(R.string.UserBio), getUserConfig().isPremium());
-                            currentBio = aqyLocalBio;
-                        } else if (userInfo == null || !TextUtils.isEmpty(userInfo.about)) {
-                            value = userInfo == null ? LocaleController.getString(R.string.Loading) : userInfo.about;
+                        // [Aiqiyi local] 本地简介优先于服务端简介
+                        String aqyLocalBioRow = AiqiyiLocalPeerName.getBio(userId);
+                        String aqyRowBio = aqyLocalBioRow != null ? aqyLocalBioRow : (userInfo != null ? userInfo.about : null);
+                        if (aqyRowBio != null && !TextUtils.isEmpty(aqyRowBio)) {
+                            value = aqyRowBio;
                             aboutLinkCell.setTextAndValue(value, LocaleController.getString(R.string.UserBio), getUserConfig().isPremium());
-                            currentBio = userInfo != null ? userInfo.about : null;
+                            currentBio = aqyRowBio;
                         } else {
                             aboutLinkCell.setTextAndValue(LocaleController.getString(R.string.UserBio), LocaleController.getString(R.string.UserBioDetail), false);
                             currentBio = null;
                         }
                         aboutLinkCell.setMoreButtonDisabled(true);
-                        // [Aiqiyi] 他人资料页：简介行(AboutLinkCell)长按弹本地覆盖菜单
-                        aboutLinkCell.setOnLongClickListener(v -> {
-                            try {
-                                if (userId != 0 && userId != getUserConfig().getClientUserId()) {
-                                    return showAqyPeerOverrideMenu(v);
-                                }
-                            } catch (Throwable e) {
-                                org.telegram.messenger.FileLog.e(e);
-                            }
-                            return false;
-                        });
                     }
                     break;
                 case VIEW_TYPE_LINKED_COMMUNITY:
@@ -17320,67 +17294,8 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
         return true;
     }
 
-    /**
-     * [Aiqiyi] 他人资料页长按菜单：本地覆盖名称 / 简介 / 一键还原。
-     * 命中返回 true（已弹菜单），未命中返回 false 交回原有逻辑。
-     */
-    private boolean showAqyPeerOverrideMenu(View view) {
-        try {
-            if (userId == 0 || userId == getUserConfig().getClientUserId()) {
-                return false;
-            }
-            final TLRPC.User user = getMessagesController().getUser(userId);
-            if (user == null) {
-                return false;
-            }
-            final String originalName = UserObject.getUserNameRaw(user);
-            final ItemOptions o = ItemOptions.makeOptions(this, view);
-            if (view != null && listView != null) {
-                o.setScrimViewBackground(listView.getClipBackground(view));
-            }
-            o.setLongPressSelectionEnabled(false);
-            o.add(R.drawable.msg_edit, LocaleController.getString(R.string.AQY_Menu_PeerName), () ->
-                    uz.unnarsx.cherrygram.aiqiyi.local.AiqiyiLocalDataInputHelper.showPeer(
-                            this, userId,
-                            uz.unnarsx.cherrygram.aiqiyi.local.AiqiyiLocalDataInputHelper.TYPE_PEER_NAME,
-                            originalName, this::aqyRefreshPeerOverride));
-            o.add(R.drawable.msg_edit, LocaleController.getString(R.string.AQY_Menu_PeerBio), () ->
-                    uz.unnarsx.cherrygram.aiqiyi.local.AiqiyiLocalDataInputHelper.showPeer(
-                            this, userId,
-                            uz.unnarsx.cherrygram.aiqiyi.local.AiqiyiLocalDataInputHelper.TYPE_PEER_BIO,
-                            originalName, this::aqyRefreshPeerOverride));
-            if (uz.unnarsx.cherrygram.aiqiyi.local.AiqiyiPeerOverrideHelper.hasAny(userId)) {
-                o.addGap();
-                o.add(R.drawable.msg_reset, LocaleController.getString(R.string.AQY_Menu_PeerResetAll), () -> {
-                    uz.unnarsx.cherrygram.aiqiyi.local.AiqiyiPeerOverrideHelper.clearAll(userId);
-                    aqyRefreshPeerOverride();
-                });
-            }
-            o.show();
-            return true;
-        } catch (Throwable e) {
-            org.telegram.messenger.FileLog.e(e);
-            return false;
-        }
-    }
-
-    /** [Aiqiyi] 本地覆盖变更后刷新本页 */
-    private void aqyRefreshPeerOverride() {
-        try {
-            org.telegram.messenger.AndroidUtilities.runOnUIThread(() -> {
-                updateListAnimated(false);
-                if (listAdapter != null) {
-                    listAdapter.notifyDataSetChanged();
-                }
-            });
-            getNotificationCenter().postNotificationName(
-                    org.telegram.messenger.NotificationCenter.dialogsNeedReload);
-        } catch (Throwable e) {
-            org.telegram.messenger.FileLog.e(e);
-        }
-    }
-
     private boolean editRow(View view, int position) {
+        if (!myProfile) return false;
 
         final View cell = view;
         if (view instanceof ProfileChannelCell) {
