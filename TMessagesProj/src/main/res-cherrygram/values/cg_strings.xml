@@ -879,7 +879,10 @@
     <string name="AQY_BookmarksCount">%1$d saved</string>
     <string name="AQY_BookmarksOpenChat">Open chat</string>
     <string name="AQY_BookmarksJumpFail">This message can no longer be located</string>
+    <string name="AQY_BookmarksNoSnapshot">Content not cached, tap to open</string>
     <string name="AQY_Bookmarks_Empty_Summary">None yet</string>
+    <string name="AQY_HideOnline">Hide Online Status</string>
+    <string name="AQY_HideOnline_Desc">Server-side last-seen privacy. Others only see a fuzzy timestamp, and you lose exact timestamps of others too</string>
     <string name="AQY_Zone_Emoji">Auto reaction emoji</string>
     <string name="AQY_Zone_Emoji_Hint">e.g. 👍 ❤️ 🔥</string>
     <string name="AQY_Zone_Direction">React to</string>

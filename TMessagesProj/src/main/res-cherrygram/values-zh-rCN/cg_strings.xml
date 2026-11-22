@@ -809,7 +809,10 @@
     <string name="AQY_BookmarksCount">%1$d 条</string>
     <string name="AQY_BookmarksOpenChat">打开会话</string>
     <string name="AQY_BookmarksJumpFail">这条消息已无法定位</string>
+    <string name="AQY_BookmarksNoSnapshot">内容未缓存，点击查看</string>
     <string name="AQY_Bookmarks_Empty_Summary">还没有</string>
+    <string name="AQY_HideOnline">隐藏在线状态</string>
+    <string name="AQY_HideOnline_Desc">服务端最后上线隐私。别人看你只能看到「最近上线」，你也看不到别人的精确在线时间</string>
     <string name="AQY_Zone_Emoji">🎯 自动反应表情</string>
     <string name="AQY_Zone_Emoji_Hint">例如 👍 ❤️ 🔥</string>
     <string name="AQY_Zone_Direction">对哪些消息反应</string>
