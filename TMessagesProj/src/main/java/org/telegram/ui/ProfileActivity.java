@@ -352,6 +352,7 @@ import uz.unnarsx.cherrygram.core.configs.CherrygramCoreConfig;
 import uz.unnarsx.cherrygram.core.helpers.AppRestartHelper;
 import uz.unnarsx.cherrygram.core.ui.mainTabs.MainTabsManager;
 import uz.unnarsx.cherrygram.helpers.ProfileActivityHelper;
+import uz.unnarsx.cherrygram.aiqiyi.local.AiqiyiLocalPeerName;
 import uz.unnarsx.cherrygram.donates.BadgeHelper;
 import uz.unnarsx.cherrygram.misc.Constants;
 import uz.unnarsx.cherrygram.preferences.CherrygramPreferencesNavigator;
@@ -5991,6 +5992,22 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
             nameTextView[a].setEllipsizeByGradient(true);
             nameTextView[a].setRightDrawableOutside(a == 0);
             avatarContainer2.addView(nameTextView[a], LayoutHelper.createFrame(a == 0 ? initialTitleWidth : LayoutHelper.WRAP_CONTENT, LayoutHelper.WRAP_CONTENT, Gravity.LEFT | Gravity.TOP, 109, -6, (a == 0 ? rightMargin - (hasTitleExpanded ? 10 : 0) : 0), 0));
+            // [Aiqiyi local] 他人资料页长按名字 -> 本地名称 / 本地简介菜单
+            nameTextView[a].setOnLongClickListener(v -> {
+                if (userId == 0 || userId == getUserConfig().getClientUserId()) {
+                    return false;
+                }
+                uz.unnarsx.cherrygram.aiqiyi.local.AiqiyiLocalDataInputHelper.showPeerMenu(
+                        ProfileActivity.this, v, userId, () -> {
+                            // 名称变化后需重刷列表，简介变化只刷新本行
+                            if (listAdapter != null) {
+                                listAdapter.notifyDataSetChanged();
+                            }
+                            getNotificationCenter().postNotificationName(
+                                    NotificationCenter.updateInterfaces, MessagesController.UPDATE_MASK_NAME);
+                        });
+                return true;
+            });
         }
         for (int a = 0; a < onlineTextView.length; a++) {
             if (a == 1) {
@@ -11221,7 +11238,9 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                 if (!isBot && (hasPhone || !hasInfo)) {
                     phoneRow = rowCount++;
                 }
-                if (userInfo != null && !TextUtils.isEmpty(userInfo.about)) {
+                // [Aiqiyi local] 本地简介也算有简介，否则行不会出现，后续渲染无从生效
+                if ((userInfo != null && !TextUtils.isEmpty(userInfo.about))
+                        || AiqiyiLocalPeerName.getBio(userId) != null) {
                     userInfoRow = rowCount++;
                 }
                 if (user != null && username != null) {
@@ -12128,13 +12147,11 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                     if (userInfo != null && userInfo.stars_rating != null && userInfo.stars_rating.stars < 0) {
                         newString2 = getString(R.string.StarRatingLevelNegative).toLowerCase(Locale.ROOT);
                     } else {
-                        if (CherrygramCoreConfig.isDevBuild() || CherrygramCoreConfig.isStandalonePremiumBuild()) {
-                            newString2 = LocaleController.formatUserStatus(currentAccount, user, isOnline, shortStatus ? new boolean[1] : null);
-                        } else if (AiqiyiGhostUtils.isEnabled()) {
-                            newString2 = LocaleController.getString(R.string.AiqiyiGhostOffline);
-                        } else {
-                            newString2 = LocaleController.getString(R.string.Online);
-                        }
+                        // [Aiqiyi] 本人状态行：主体一律走官方 formatUserStatus（内含
+                        // AiqiyiPremiumStatus.append，本地会员时追加 " | TG Premium"）。
+                        // 旧代码在这里用 AiqiyiGhostUtils.isEnabled() 覆盖成"离线"，
+                        // 既误把幽灵模式与隐藏在线混为一谈，也让后缀永远没机会出现。
+                        newString2 = LocaleController.formatUserStatus(currentAccount, user, isOnline, shortStatus ? new boolean[1] : null);
                     }
                 }
             } else if (user.id == UserObject.VERIFY) {
@@ -14586,8 +14603,11 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                     AboutLinkCell aboutLinkCell = (AboutLinkCell) holder.itemView;
                     if (position == userInfoRow) {
                         TLRPC.User user = userInfo.user != null ? userInfo.user : getMessagesController().getUser(userInfo.id);
-                        boolean addlinks = isBot || (user != null && user.premium && userInfo.about != null);
-                        aboutLinkCell.setTextAndValue(userInfo.about, LocaleController.getString(R.string.UserBio), addlinks);
+                        // [Aiqiyi local] 本地简介按 userId 精确覆盖，仅本机可见
+                        String aqyLocalBio = AiqiyiLocalPeerName.getBio(userId);
+                        String aqyDisplayBio = aqyLocalBio != null ? aqyLocalBio : userInfo.about;
+                        boolean addlinks = isBot || (user != null && user.premium && aqyDisplayBio != null);
+                        aboutLinkCell.setTextAndValue(aqyDisplayBio, LocaleController.getString(R.string.UserBio), addlinks);
                     } else if (position == channelInfoRow) {
                         String text = chatInfo.about;
                         while (text.contains("\n\n\n")) {
@@ -14596,10 +14616,13 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                         aboutLinkCell.setTextAndValue(text, LocaleController.getString(R.string.DescriptionPlaceholder), ChatObject.isChannel(currentChat) && !currentChat.megagroup);
                     } else if (position == bioRow) {
                         String value;
-                        if (userInfo == null || !TextUtils.isEmpty(userInfo.about)) {
-                            value = userInfo == null ? LocaleController.getString(R.string.Loading) : userInfo.about;
+                        // [Aiqiyi local] 本地简介优先于服务端简介
+                        String aqyLocalBioRow = AiqiyiLocalPeerName.getBio(userId);
+                        String aqyRowBio = aqyLocalBioRow != null ? aqyLocalBioRow : (userInfo != null ? userInfo.about : null);
+                        if (aqyRowBio != null && !TextUtils.isEmpty(aqyRowBio)) {
+                            value = aqyRowBio;
                             aboutLinkCell.setTextAndValue(value, LocaleController.getString(R.string.UserBio), getUserConfig().isPremium());
-                            currentBio = userInfo != null ? userInfo.about : null;
+                            currentBio = aqyRowBio;
                         } else {
                             aboutLinkCell.setTextAndValue(LocaleController.getString(R.string.UserBio), LocaleController.getString(R.string.UserBioDetail), false);
                             currentBio = null;

@@ -79,6 +79,7 @@ public class GeneralPreferencesEntry extends BaseCGPreferencesEntry {
     private final int aiqiyiUseDeletedIconRow = 24;
     private final int aiqiyiCustomDeletedMarkRow = 25;
     private final int aiqiyiGhostModeRow = 26;
+    private final int aiqiyiHideOnlineRow = 29;
     private final int aiqiyiAutoSignInRow = 30;
     private final int aiqiyiSelfCertRow = 31;
     private final int aiqiyiVerifiedLineRow = 63;
@@ -287,6 +288,27 @@ public class GeneralPreferencesEntry extends BaseCGPreferencesEntry {
                 .setChecked(CherrygramMessagesConfig.INSTANCE.getAiqiyiGhostMode())
                 .slug("aiqiyi_ghost_mode")
         );
+        // [Aiqiyi] 隐藏在线：不用 asSwitchCG，直白构造，避免任何隐式渲染分支
+        // 诊断版：副标题前缀拼出 T/S/V 三个探针值，装一次就能看清是哪一环断的
+        {
+            UItem _hideOnline = new UItem(UniversalAdapter.VIEW_TYPE_TEXT_CHECK, false);
+            _hideOnline.id = aiqiyiHideOnlineRow;
+            CharSequence _t = getString(R.string.AQY_HideOnline);
+            CharSequence _s = getString(R.string.AQY_HideOnline_Desc);
+            boolean _v;
+            try {
+                _v = CherrygramMessagesConfig.INSTANCE.getAiqiyiHideOnline();
+            } catch (Throwable e) {
+                _v = false;
+            }
+            _hideOnline.text = _t;
+            _hideOnline.subtext = "[T=" + (_t == null ? -1 : _t.length())
+                    + " S=" + (_s == null ? -1 : _s.length())
+                    + " V=" + (_v ? 1 : 0) + "] " + (_s == null ? "" : _s);
+            _hideOnline.checked = _v;
+            _hideOnline.slug("aiqiyi_hide_online");
+            items.add(_hideOnline);
+        }
         items.add(SettingsHelper.asSwitchCG(aiqiyiUnlimitedPinsRow, getString(R.string.AQY_UnlimitedPins), getString(R.string.AQY_UnlimitedPins_Desc))
                 .setChecked(CherrygramAppearanceConfig.INSTANCE.getAiqiyiUnlimitedPins())
                 .slug("aiqiyi_unlimited_pins")
@@ -534,7 +556,10 @@ public class GeneralPreferencesEntry extends BaseCGPreferencesEntry {
         } else if (item.id == aiqiyiGhostModeRow) {
             CherrygramMessagesConfig.INSTANCE.setAiqiyiGhostMode(!CherrygramMessagesConfig.INSTANCE.getAiqiyiGhostMode());
             SettingsHelper.updateCheckState(view, CherrygramMessagesConfig.INSTANCE.getAiqiyiGhostMode());
-            uz.unnarsx.cherrygram.aiqiyi.AiqiyiGhostUtils.applyGhostPrivacy();
+        } else if (item.id == aiqiyiHideOnlineRow) {
+            CherrygramMessagesConfig.INSTANCE.setAiqiyiHideOnline(!CherrygramMessagesConfig.INSTANCE.getAiqiyiHideOnline());
+            SettingsHelper.updateCheckState(view, CherrygramMessagesConfig.INSTANCE.getAiqiyiHideOnline());
+            uz.unnarsx.cherrygram.aiqiyi.AiqiyiGhostUtils.syncPrivacy(UserConfig.selectedAccount);
         } else if (item.id == aiqiyiUnlimitedPinsRow) {
             CherrygramAppearanceConfig.INSTANCE.setAiqiyiUnlimitedPins(!CherrygramAppearanceConfig.INSTANCE.getAiqiyiUnlimitedPins());
             SettingsHelper.updateCheckState(view, CherrygramAppearanceConfig.INSTANCE.getAiqiyiUnlimitedPins());
