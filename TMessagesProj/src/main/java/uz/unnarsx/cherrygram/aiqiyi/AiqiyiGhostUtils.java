@@ -58,6 +58,19 @@ public class AiqiyiGhostUtils {
 
     public static boolean isEnabled() {
         try {
+            // [Aiqiyi] Either switch alone must open the gate: Ghost Mode owns
+            // typing/read/story suppression, Hide-Online owns the forced-offline
+            // status. Gating on ghost alone made Hide-Online a dead switch.
+            return CherrygramMessagesConfig.INSTANCE.getAiqiyiGhostMode()
+                    || CherrygramMessagesConfig.INSTANCE.getAiqiyiHideOnline();
+        } catch (Throwable ignored) {
+            return false;
+        }
+    }
+
+    /** Ghost Mode only -- Hide-Online must never drag typing/read suppression in. */
+    public static boolean isGhostMode() {
+        try {
             return CherrygramMessagesConfig.INSTANCE.getAiqiyiGhostMode();
         } catch (Throwable ignored) {
             return false;
@@ -96,26 +109,24 @@ public class AiqiyiGhostUtils {
         }
         try {
             // 1. typing notifications
-            if (request instanceof TLRPC.TL_messages_setTyping
-                    || request instanceof TLRPC.TL_messages_setEncryptedTyping) {
+            if (isGhostMode() && (request instanceof TLRPC.TL_messages_setTyping
+                    || request instanceof TLRPC.TL_messages_setEncryptedTyping)) {
                 if (BuildVarsLog("ghost: blocking typing notification")) {
                     return InterceptResult.block(delegate);
                 }
             }
-
             // 2. read receipts (private / channel / encrypted)
-            if (request instanceof TLRPC.TL_messages_readHistory
+            if (isGhostMode() && (request instanceof TLRPC.TL_messages_readHistory
                     || request instanceof TLRPC.TL_messages_readMessageContents
                     || request instanceof TLRPC.TL_channels_readHistory
-                    || request instanceof TLRPC.TL_messages_readEncryptedHistory) {
+                    || request instanceof TLRPC.TL_messages_readEncryptedHistory)) {
                 if (BuildVarsLog("ghost: blocking read receipt")) {
                     return InterceptResult.block(delegate);
                 }
             }
-
             // 3. story read receipts / view increments
-            if (request instanceof TL_stories.TL_stories_readStories
-                    || request instanceof TL_stories.TL_stories_incrementStoryViews) {
+            if (isGhostMode() && (request instanceof TL_stories.TL_stories_readStories
+                    || request instanceof TL_stories.TL_stories_incrementStoryViews)) {
                 if (BuildVarsLog("ghost: blocking story read")) {
                     return InterceptResult.block(delegate);
                 }
