@@ -792,6 +792,11 @@
     <string name="AQY_Menu_CustomIdDate">注册日期</string>
     <string name="AQY_Menu_CustomIdHint">输入新的ID（仅本地生效）</string>
     <string name="AQY_Menu_OK">确定</string>
+    <string name="AQY_Menu_PeerName">设置本地名称</string>
+    <string name="AQY_Menu_PeerNameHint">输入新名称（仅本地生效）</string>
+    <string name="AQY_Menu_PeerBio">设置本地简介</string>
+    <string name="AQY_Menu_PeerBioHint">输入新简介（仅本地生效）</string>
+    <string name="AQY_Menu_PeerResetAll">恢复原始资料</string>
     <!-- [Aiqiyi] 消息书签 -->
     <string name="AQY_Menu_AddBookmark">添加书签</string>
     <string name="AQY_Menu_RemoveBookmark">移除书签</string>

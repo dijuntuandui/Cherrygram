@@ -22,6 +22,10 @@ import org.telegram.ui.Components.ItemOptions;
 public final class AiqiyiLocalDataInputHelper {
 
     public static final int TYPE_USER_ID = 1;
+    /** 他人资料 - 本地名称 */
+    public static final int TYPE_PEER_NAME = 2;
+    /** 他人资料 - 本地简介 */
+    public static final int TYPE_PEER_BIO = 3;
 
     private AiqiyiLocalDataInputHelper() {
     }
@@ -85,6 +89,92 @@ public final class AiqiyiLocalDataInputHelper {
             AiqiyiLocalProfileHelper.setUserId("");
             if (onChanged != null) onChanged.run();
         });
+        options.show();
+    }
+
+    // ========================================================================
+    // [Aiqiyi local] 他人资料本地覆盖：名称 / 简介
+    // 与「本人资料」的分支差别是这里需要携带目标 userId。
+    // 写盘时一律走 AiqiyiLocalPeerName，键为 userId，不涉及任何姓名文本。
+    // ========================================================================
+
+    public static void showPeer(BaseFragment fragment, long userId, int type, Runnable onDone) {
+        if (fragment == null || fragment.getParentActivity() == null || userId <= 0) {
+            return;
+        }
+        if (type != TYPE_PEER_NAME && type != TYPE_PEER_BIO) {
+            return;
+        }
+        final int titleRes;
+        final int hintRes;
+        final String current;
+        if (type == TYPE_PEER_NAME) {
+            titleRes = R.string.AQY_Menu_PeerName;
+            hintRes = R.string.AQY_Menu_PeerNameHint;
+            String v = AiqiyiLocalPeerName.getName(userId);
+            current = v == null ? "" : v;
+        } else {
+            titleRes = R.string.AQY_Menu_PeerBio;
+            hintRes = R.string.AQY_Menu_PeerBioHint;
+            String v = AiqiyiLocalPeerName.getBio(userId);
+            current = v == null ? "" : v;
+        }
+
+        AlertDialog.Builder builder = new AlertDialog.Builder(fragment.getParentActivity());
+        builder.setTitle(LocaleController.getString(titleRes));
+
+        final EditTextBoldCursor editText = new EditTextBoldCursor(fragment.getParentActivity());
+        editText.setTextSize(16);
+        editText.setTextColor(Theme.getColor(Theme.key_dialogTextBlack));
+        editText.setHintTextColor(Theme.getColor(Theme.key_dialogTextHint));
+        editText.setHint(LocaleController.getString(hintRes));
+        editText.setInputType(InputType.TYPE_CLASS_TEXT);
+        if (type == TYPE_PEER_NAME) {
+            editText.setSingleLine(true);
+        } else {
+            editText.setSingleLine(false);
+            editText.setMaxLines(5);
+        }
+        editText.setBackground(null);
+        editText.setPadding(AndroidUtilities.dp(24), AndroidUtilities.dp(4), AndroidUtilities.dp(24), AndroidUtilities.dp(4));
+        if (!TextUtils.isEmpty(current)) {
+            editText.setText(current);
+            editText.setSelection(current.length());
+        }
+
+        builder.setView(editText, AndroidUtilities.dp(type == TYPE_PEER_NAME ? 64 : 120));
+        builder.setPositiveButton(LocaleController.getString(R.string.AQY_Menu_OK), (dialog, which) -> {
+            String value = editText.getText().toString().trim();
+            if (type == TYPE_PEER_NAME) {
+                AiqiyiLocalPeerName.setName(userId, value);
+            } else {
+                AiqiyiLocalPeerName.setBio(userId, value);
+            }
+            if (onDone != null) {
+                onDone.run();
+            }
+        });
+        builder.setNegativeButton(LocaleController.getString(R.string.Cancel), null);
+        builder.show();
+    }
+
+    /** 他人资料页长按 / 三点菜单 */
+    public static void showPeerMenu(BaseFragment fragment, android.view.View anchor, long userId, Runnable onChanged) {
+        if (fragment == null || fragment.getParentActivity() == null || anchor == null || userId <= 0) {
+            return;
+        }
+        ItemOptions options = ItemOptions.makeOptions(fragment, anchor);
+        options.add(R.drawable.msg_edit, LocaleController.getString(R.string.AQY_Menu_PeerName),
+                () -> showPeer(fragment, userId, TYPE_PEER_NAME, onChanged));
+        options.add(R.drawable.msg_edit, LocaleController.getString(R.string.AQY_Menu_PeerBio),
+                () -> showPeer(fragment, userId, TYPE_PEER_BIO, onChanged));
+        if (AiqiyiLocalPeerName.hasAny(userId)) {
+            options.addGap();
+            options.add(R.drawable.msg_reset, LocaleController.getString(R.string.AQY_Menu_PeerResetAll), () -> {
+                AiqiyiLocalPeerName.clearAll(userId);
+                if (onChanged != null) onChanged.run();
+            });
+        }
         options.show();
     }
 }
