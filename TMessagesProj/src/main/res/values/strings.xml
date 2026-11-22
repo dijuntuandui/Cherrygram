@@ -11257,4 +11257,10 @@
     <string name="AQY_Menu_PeerResetAll">Restore Original Profile</string>
     <string name="AQY_Menu_OK">OK</string>
     <string name="AQY_Menu_Reset">Reset</string>
+    <string name="AQY_VerifyProxyPool">Built-in proxy pool</string>
+    <string name="AQY_VerifyProxyPoolResult">Current built-in proxy status</string>
+    <string name="AQY_VerifyProxyPoolExtra">Extra entries</string>
+    <string name="AQY_VerifyProxyPoolMissing">missing</string>
+    <string name="AQY_VerifyProxyPoolLost">Missing entries</string>
+    <string name="AQY_VerifyProxyPoolAllOk">All in place, nothing missing.</string>
 </resources>

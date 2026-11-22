@@ -1466,51 +1466,266 @@ public class SharedConfig {
         ensureBundledProxies();
     }
 
-    // [Aiqiyi] 内置代理：首次启动（代理列表为空）时注入内置 MTPROTO 代理
+    // [Aiqiyi] 内置代理：官方专线（MTPROTO 明文密钥）
+    // 说明：改为「校正模式」——每次加载都保证内置条目存在，同时清掉历史遗留的旧内置条目。
     private static boolean bundledProxiesInjected = false;
+
+    // 内置代理真实数据：address, port, secret, 显示名
+    private static final String[][] BUNDLED_PROXIES = new String[][]{
+            {"85.93.2.12",     "443",   "ee7ac48a82952157b430d7e833a3fa81", "爱琦艺高1"},
+            {"54.37.17.251",   "443",   "ee11985e50ce5ca6ab48a4805eb490f1", "爱琦艺高2"},
+            {"162.19.251.245", "443",   "ee76356a8987e1ec6c2b3546bcbfa744", "爱琦艺高3"},
+            {"46.38.233.231",  "443",   "ee60255f3756112c304340ab9d7573a8", "爱琦艺高4"},
+            {"77.90.15.101",   "443",   "eef7a1aaf30c6b656befad03e5215750", "爱琦艺高5"},
+            {"136.85.80.227",  "12345", "ee7197ac3ebb5e3b1cd9c5daf96b47d89b7777772e6d6963726f736f66742e636f6d", "爱琦艺高6"},
+            {"34.21.226.186",  "12345", "ee7528a1f3b29f83943eb47d3fcc59e66e7777772e6d6963726f736f66742e636f6d", "爱琦艺高7"},
+            {"34.21.226.186",  "12347", "ee7528a1f3b29f83943eb47d3fcc59e66e7777772e6d6963726f736f66742e636f6d", "爱琦艺高8"},
+            {"136.85.1.219",   "9443",  "eeb7f01f7abec67bbaf227ce230659e08a7777772e6d6963726f736f66742e636f6d", "爱琦艺高9"},
+            {"kamipo69.p.lite64.xyz", "443", "ee425883d8e3a1cf13ce05b6881d0c0b416c69746536342e73697465", "爱琦艺高10"},
+            {"34.143.150.238", "12345", "ee801dad7973c6729fc38969cb1b3456f47777772e6d6963726f736f66742e636f6d", "爱琦艺高11"},
+            {"34.143.150.238", "12346", "ee801dad7973c6729fc38969cb1b3456f47777772e6d6963726f736f66742e636f6d", "爱琦艺高12"},
+            {"34.143.150.238", "12347", "ee801dad7973c6729fc38969cb1b3456f47777772e6d6963726f736f66742e636f6d", "爱琦艺高13"},
+            {"1.14.153.26",    "20002", "ee2e4f7cc195216e28ebbbfe18f7869e267777772e646f7579696e2e636f6d", "爱琦艺高14"},
+            {"1.14.153.26",    "20003", "ee2e4f7cc195216e28ebbbfe18f7869e267777772e646f7579696e2e636f6d", "爱琦艺高15"},
+            {"1.14.153.26",    "20004", "ee2e4f7cc195216e28ebbbfe18f7869e267777772e646f7579696e2e636f6d", "爱琦艺高16"},
+            {"1.14.153.26",    "20005", "ee2e4f7cc195216e28ebbbfe18f7869e267777772e646f7579696e2e636f6d", "爱琦艺高17"},
+            {"1.14.153.26",    "20006", "ee2e4f7cc195216e28ebbbfe18f7869e267777772e646f7579696e2e636f6d", "爱琦艺高18"},
+            {"1.14.153.26",    "20007", "ee2e4f7cc195216e28ebbbfe18f7869e267777772e646f7579696e2e636f6d", "爱琦艺高19"},
+            {"1.14.153.26",    "20008", "ee2e4f7cc195216e28ebbbfe18f7869e267777772e646f7579696e2e636f6d", "爱琦艺高20"},
+            {"1.14.153.26",    "20009", "ee2e4f7cc195216e28ebbbfe18f7869e267777772e646f7579696e2e636f6d", "爱琦艺高21"},
+            {"1.14.153.26",    "20010", "ee2e4f7cc195216e28ebbbfe18f7869e267777772e646f7579696e2e636f6d", "爱琦艺高22"},
+            {"1.14.153.26",    "20011", "ee2e4f7cc195216e28ebbbfe18f7869e267777772e646f7579696e2e636f6d", "爱琦艺高23"},
+            {"1.14.153.26",    "20012", "ee2e4f7cc195216e28ebbbfe18f7869e267777772e646f7579696e2e636f6d", "爱琦艺高24"},
+            {"1.14.153.26",    "20013", "ee2e4f7cc195216e28ebbbfe18f7869e267777772e646f7579696e2e636f6d", "爱琦艺高25"},
+            {"1.14.153.26",    "20014", "ee2e4f7cc195216e28ebbbfe18f7869e267777772e646f7579696e2e636f6d", "爱琦艺高26"},
+            {"1.14.153.26",    "20015", "ee2e4f7cc195216e28ebbbfe18f7869e267777772e646f7579696e2e636f6d", "爱琦艺高27"},
+            {"1.14.153.26",    "20016", "ee2e4f7cc195216e28ebbbfe18f7869e267777772e646f7579696e2e636f6d", "爱琦艺高28"},
+            {"1.14.153.26",    "20017", "ee2e4f7cc195216e28ebbbfe18f7869e267777772e646f7579696e2e636f6d", "爱琦艺高29"},
+            {"1.14.153.26",    "20018", "ee2e4f7cc195216e28ebbbfe18f7869e267777772e646f7579696e2e636f6d", "爱琦艺高30"},
+            {"1.14.153.26",    "20019", "ee2e4f7cc195216e28ebbbfe18f7869e267777772e646f7579696e2e636f6d", "爱琦艺高31"},
+            {"1.14.153.26",    "20020", "ee2e4f7cc195216e28ebbbfe18f7869e267777772e646f7579696e2e636f6d", "爱琦艺高32"},
+            {"1.14.153.26",    "20021", "ee2e4f7cc195216e28ebbbfe18f7869e267777772e646f7579696e2e636f6d", "爱琦艺高33"},
+            {"156.229.165.198", "5201", "ee670de9e3af4e872af5d9fcbee5ef9ea9617a7572652e6d6963726f736f66742e636f6d", "爱琦艺高34"},
+            {"156.229.165.198", "5202", "ee670de9e3af4e872af5d9fcbee5ef9ea9617a7572652e6d6963726f736f66742e636f6d", "爱琦艺高35"},
+            {"156.229.165.198", "5203", "ee670de9e3af4e872af5d9fcbee5ef9ea9617a7572652e6d6963726f736f66742e636f6d", "爱琦艺高36"},
+            {"156.229.165.198", "5204", "ee670de9e3af4e872af5d9fcbee5ef9ea9617a7572652e6d6963726f736f66742e636f6d", "爱琦艺高37"},
+            {"156.229.165.198", "5205", "ee670de9e3af4e872af5d9fcbee5ef9ea9617a7572652e6d6963726f736f66742e636f6d", "爱琦艺高38"},
+            {"@AiqiyiClientend", "886", "AiqiyiClientend01", "爱琦艺官方频道"},
+    };
+    // 历史遗留的内置代理地址（旧版 ee 系列），启动时自动清理
+    private static final String[] LEGACY_BUNDLED_ADDRESSES = new String[]{
+            // 旧版 ee 系列地址已被回收为爱琦艺高1~高5，此处不得再清理
+    };
+
+    // [Aiqiyi] 核验内置代理池：返回缺失条目名列表（空 = 完好）
+    public static java.util.ArrayList<String> verifyBundledProxies() {
+        java.util.ArrayList<String> missing = new java.util.ArrayList<>();
+        loadProxyList();
+        for (String[] p : BUNDLED_PROXIES) {
+            boolean found = false;
+            for (ProxyInfo info : proxyList) {
+                if (info == null || info.settings == null) {
+                    continue;
+                }
+                if (p[0].equals(info.settings.getAddress())
+                        && parseIntSafe(p[1]) == info.settings.getPort()) {
+                    found = true;
+                    break;
+                }
+            }
+            if (!found) {
+                missing.add(p[3]);
+            }
+        }
+        return missing;
+    }
+
+    // [Aiqiyi] 内置代理应有条数
+    public static int getBundledProxyCount() {
+        return BUNDLED_PROXIES.length;
+    }
+
+    // [Aiqiyi] 当前代理列表总条数
+    public static int getCurrentProxyCount() {
+        loadProxyList();
+        return proxyList == null ? 0 : proxyList.size();
+    }
+
+    // [Aiqiyi] 自动核验并补回：每次调用都检查，缺一条补一条
+    // 补回的条目地址/端口与 BUNDLED_PROXIES 完全一致，因此会自动获得
+    // 「爱琦艺高N」顶部编号名 + 详情页星号遮蔽，无需额外标记。
+    public static int autoRestoreBundledProxies() {
+        loadProxyList();
+        if (proxyList == null) {
+            return 0;
+        }
+        int added = 0;
+        for (String[] p : BUNDLED_PROXIES) {
+            final int port = parseIntSafe(p[1]);
+            boolean found = false;
+            for (ProxyInfo info : proxyList) {
+                if (info == null || info.settings == null) {
+                    continue;
+                }
+                if (p[0].equals(info.settings.getAddress())
+                        && port == info.settings.getPort()) {
+                    found = true;
+                    break;
+                }
+            }
+            if (!found) {
+                ProxyInfo info = new ProxyInfo(ProxySettings.builder()
+                        .setType(ProxySettings.Type.MTPROTO)
+                        .setAddress(p[0])
+                        .setPort(port)
+                        .setSecret(p[2])
+                        .build());
+                proxyList.add(info);
+                added++;
+            }
+        }
+        if (added > 0) {
+            saveProxyList();
+        }
+        return added;
+    }
+
+    // [Aiqiyi] 兼容旧调用名
+    public static int restoreBundledProxies() {
+        return autoRestoreBundledProxies();
+    }
+
     public static void ensureBundledProxies() {
         if (bundledProxiesInjected) {
             return;
         }
         bundledProxiesInjected = true;
-        if (proxyList != null && !proxyList.isEmpty()) {
-            return;
-        }
-        final String[][] bundled = new String[][] {
-                {"85.93.2.12",    "ee7ac48a82952157b430d7e833a3fa81"},
-                {"54.37.17.251",  "ee11985e50ce5ca6ab48a4805eb490f1"},
-                {"162.19.251.245","ee76356a8987e1ec6c2b3546bcbfa744"},
-                {"46.38.233.231", "ee60255f3756112c304340ab9d7573a8"},
-                {"77.90.15.101",  "eef7a1aaf30c6b656befad03e5215750"},
-        };
         if (proxyList == null) {
             proxyList = new ArrayList<>();
         }
-        for (String[] p : bundled) {
+        boolean changed = false;
+
+        // 1. 清掉历史遗留的旧内置代理
+        for (int i = proxyList.size() - 1; i >= 0; i--) {
+            final ProxyInfo info = proxyList.get(i);
+            if (info == null || info.settings == null) {
+                continue;
+            }
+            final String addr = info.settings.getAddress();
+            if (addr == null) {
+                continue;
+            }
+            boolean legacy = false;
+            for (String l : LEGACY_BUNDLED_ADDRESSES) {
+                if (l.equals(addr)) {
+                    legacy = true;
+                    break;
+                }
+            }
+            if (legacy) {
+                if (currentProxy == info) {
+                    currentProxy = null;
+                }
+                proxyList.remove(i);
+                changed = true;
+            }
+        }
+
+        // 2. 确保新的内置条目存在（按 address+port+secret 判重）
+        for (String[] p : BUNDLED_PROXIES) {
             final ProxySettings s = ProxySettings.builder()
                     .setType(ProxySettings.Type.MTPROTO)
                     .setAddress(p[0])
-                    .setPort(443)
-                    .setSecret(p[1])
+                    .setPort(parseIntSafe(p[1]))
+                    .setSecret(p[2])
                     .build();
-            proxyList.add(new ProxyInfo(s));
+            boolean exists = false;
+            for (ProxyInfo info : proxyList) {
+                if (info != null && info.settings != null && Objects.equals(info.settings, s)) {
+                    exists = true;
+                    break;
+                }
+            }
+            if (!exists) {
+                proxyList.add(new ProxyInfo(s));
+                changed = true;
+            }
         }
-        saveProxyList();
+
+        if (changed) {
+            saveProxyList();
+        }
     }
 
-    // [Aiqiyi] 内置代理的中文备注名（按 IP 匹配）
+    private static int parseIntSafe(String v) {
+        try {
+            return Integer.parseInt(v);
+        } catch (Throwable ignored) {
+            return 0;
+        }
+    }
+
+    // [Aiqiyi] 查找内置代理条目：地址 + 端口联合匹配
+    // 注意：存在多条目共用同一 IP 仅端口不同的情况（高7/高8、高11/12/13），
+    // 只按地址匹配会导致显示名串台，必须带上端口。
+    private static String[] findBundledEntry(String address, int port) {
+        if (address == null) {
+            return null;
+        }
+        for (String[] p : BUNDLED_PROXIES) {
+            if (p[0].equalsIgnoreCase(address) && parseIntSafe(p[1]) == port) {
+                return p;
+            }
+        }
+        return null;
+    }
+
+    // [Aiqiyi] 内置代理的中文备注名（地址 + 端口）
+    public static String getBundledProxyRemark(String address, int port) {
+        final String[] e = findBundledEntry(address, port);
+        return e == null ? null : e[3];
+    }
+
+    // [Aiqiyi] 兼容旧签名：仅按地址匹配时返回首个命中项
     public static String getBundledProxyRemark(String address) {
         if (address == null) {
             return null;
         }
-        switch (address) {
-            case "85.93.2.12":     return "黎巴嫩 高1";
-            case "54.37.17.251":   return "大英 高1";
-            case "162.19.251.245": return "德意志 高1";
-            case "46.38.233.231":  return "德意志 高2";
-            case "77.90.15.101":   return "德意志 高3";
+        for (String[] p : BUNDLED_PROXIES) {
+            if (p[0].equalsIgnoreCase(address)) {
+                return p[3];
+            }
         }
         return null;
+    }
+
+    // [Aiqiyi] 是否为内置代理（用于详情页脱敏展示）
+    public static boolean isBundledProxy(String address, int port) {
+        if (findBundledEntry(address, port) != null) {
+            return true;
+        }
+        // 地址命中但端口对不上时（例如端口被写坏），仍按内置代理处理，避免真数据外泄
+        return getBundledProxyRemark(address) != null;
+    }
+
+    public static boolean isBundledProxy(String address) {
+        return getBundledProxyRemark(address) != null;
+    }
+
+    // [Aiqiyi] 取内置代理的真实字段（脱敏展示时保存仍需真值）
+    public static String getBundledProxyHost(String address, int port) {
+        final String[] e = findBundledEntry(address, port);
+        return e == null ? null : e[0];
+    }
+
+    public static int getBundledProxyPort(String address, int port) {
+        final String[] e = findBundledEntry(address, port);
+        return e == null ? 0 : parseIntSafe(e[1]);
+    }
+
+    public static String getBundledProxySecret(String address, int port) {
+        final String[] e = findBundledEntry(address, port);
+        return e == null ? null : e[2];
     }
 
     public static void saveProxyList() {

@@ -39,6 +39,15 @@ public final class AiqiyiPremiumStatus {
             if (user.id != userConfig.clientUserId) {
                 return base;
             }
+            // [Aiqiyi] 隐藏在线：开启时本人状态主体强制显示「离线」。
+            // 纯渲染层覆盖，不改 user 对象、不发服务器，与网络层
+            // interceptRequest 里的 updateStatus.offline 各管一边。
+            try {
+                if (uz.unnarsx.cherrygram.aiqiyi.AiqiyiGhostUtils.isHideOnline()) {
+                    base = org.telegram.messenger.LocaleController.getString(org.telegram.messenger.R.string.AiqiyiGhostOffline);
+                }
+            } catch (Throwable ignore) {
+            }
             // 乙：专区总闸 + 本地高级版，均开才伪装
             boolean localFake = false;
             try {
