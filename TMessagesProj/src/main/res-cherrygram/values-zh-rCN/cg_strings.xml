@@ -750,6 +750,16 @@
     <string name="AQY_LocalTime_ValueHintOffset">偏移秒数，可正可负。例：3600 = 快 1 小时</string>
     <string name="AQY_LocalTime_ValueHintFixed">格式 HH:mm，例：12:00</string>
     <string name="AQY_LocalTime_Note">时间伪装只影响本机气泡上的时间文字，不修改消息本身的时间戳，因此排序、未读、查找、转发等都不受影响。</string>
+    <string name="AQY_PurgeDeleted_Header">撤回存档清理</string>
+    <string name="AQY_PurgeDeleted_Title">清理已保存的撤回副本</string>
+    <string name="AQY_PurgeDeleted_Desc">列出仍存着副本的对话</string>
+    <string name="AQY_PurgeDeleted_Note">旧版本可能把整批普通消息误存成「已撤回」，导致这些消息一直显示为已删除。现在的写入逻辑已经不会产生新脏数据，这些残留可以放心清掉。清理只动存档副本，不碰真实消息。</string>
+    <string name="AQY_PurgeDeleted_Empty">没有存档，无需清理。</string>
+    <string name="AQY_PurgeDeleted_All">全部清除</string>
+    <string name="AQY_PurgeDeleted_AllConfirm">这会清掉本机所有对话的撤回存档。真实消息不受影响，但之前恢复出来的撤回消息将不再显示。</string>
+    <string name="AQY_PurgeDeleted_Confirm">确定清空「%1$s」的全部撤回存档？</string>
+    <string name="AQY_PurgeDeleted_Done">已清除 %1$d 条存档。</string>
+    <string name="AQY_PurgeDeleted_DoneAll">已清除全部存档。</string>
 
     <string name="AQY_LocalStars_Header">虚拟星星</string>
     <string name="AQY_LocalStars_Override">使用本地星星余额</string>

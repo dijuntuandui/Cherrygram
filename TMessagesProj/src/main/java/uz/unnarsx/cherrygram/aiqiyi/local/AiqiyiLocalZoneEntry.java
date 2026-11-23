@@ -17,6 +17,9 @@ import android.view.View;
 import org.telegram.messenger.R;
 import org.telegram.messenger.UserConfig;
 import org.telegram.messenger.NotificationCenter;
+import org.telegram.messenger.AndroidUtilities;
+import org.telegram.messenger.MessagesStorage;
+import org.telegram.messenger.MessagesController;
 import org.telegram.tgnet.tl.TL_stars;
 import org.telegram.ui.Stars.StarsController;
 import org.telegram.ui.ActionBar.AlertDialog;
@@ -26,10 +29,12 @@ import org.telegram.ui.Components.UItem;
 import org.telegram.ui.Components.UniversalAdapter;
 
 import java.util.ArrayList;
+import java.util.Locale;
 
 import com.aiqiyi.local.AiqiyiLocalGramHelper;
 import com.aiqiyi.local.AiqiyiLocalStarsHelper;
 import uz.unnarsx.cherrygram.core.configs.AiqiyiLocalDataConfig;
+import uz.unnarsx.cherrygram.aiqiyi.AiqiyiSaveDeleted;
 import uz.unnarsx.cherrygram.core.helpers.localdata.LocalGiftData;
 import uz.unnarsx.cherrygram.core.helpers.localdata.LocalGiftStore;
 import uz.unnarsx.cherrygram.preferences.BaseCGPreferencesEntry;
@@ -57,6 +62,7 @@ public class AiqiyiLocalZoneEntry extends BaseCGPreferencesEntry {
     private final int localGiftListRow = 336;
     // Aiqiyi: 临时导出礼物目录（用于挑选模板，挑完即删）
     private final int DUMP_ROW = 337;
+    private final int purgeDeletedRow = 338;
 
     @Override
     protected CharSequence getTitle() {
@@ -173,6 +179,17 @@ public class AiqiyiLocalZoneEntry extends BaseCGPreferencesEntry {
                 .slug("aqy_local_time_count")
         );
         items.add(UItem.asShadow(getString(R.string.AQY_LocalTime_Note)));
+
+        // ===== 撤回存档清理 =====
+        // [Aiqiyi] 防撤回存档里可能残留历史脏数据：旧版本曾把整批普通消息写成「已撤回」，
+        // 之后这些消息就会一直显示成已删除。写入侧已经不会再产生新脏数据，这里只负责清理存量。
+        items.add(UItem.asHeader(getString(R.string.AQY_PurgeDeleted_Header)));
+        items.add(UItem.asButton(purgeDeletedRow,
+                        getString(R.string.AQY_PurgeDeleted_Title),
+                        getString(R.string.AQY_PurgeDeleted_Desc))
+                .slug("aqy_purge_deleted")
+        );
+        items.add(UItem.asShadow(getString(R.string.AQY_PurgeDeleted_Note)));
     }
 
     @Override
@@ -214,6 +231,8 @@ public class AiqiyiLocalZoneEntry extends BaseCGPreferencesEntry {
             showAddLocalGiftDialog();
         } else if (item.id == DUMP_ROW) {
             dumpGiftCatalog();
+        } else if (item.id == purgeDeletedRow) {
+            showPurgeDeletedDialog();
         } else if (item.id == localMessageOverrideRow) {
             AiqiyiLocalDataConfig.INSTANCE.setLocalMessageOverride(!AiqiyiLocalDataConfig.INSTANCE.getLocalMessageOverride());
             AiqiyiLocalMessageHelper.invalidate();
@@ -541,6 +560,123 @@ public class AiqiyiLocalZoneEntry extends BaseCGPreferencesEntry {
             });
             builder.setNegativeButton(getString(R.string.Cancel), null);
         }
+        builder.show();
+    }
+
+    /**
+     * [Aiqiyi] 「清空撤回存档」入口。
+     *
+     * 列出所有还存着撤回记录的对话，点哪条清哪条，也可以一次全清。
+     * 这些记录本身不是「撤回」——旧版本曾把整批普通消息误存成已撤回，
+     * 于是那些消息就一直显示成「已删除」。写入侧已修，这里只清存量。
+     *
+     * 所有数据库操作都丢到 storageQueue，避免在 UI 线程做 GROUP BY / DELETE。
+     */
+    private void showPurgeDeletedDialog() {
+        final int account = UserConfig.selectedAccount;
+        final MessagesStorage storage = MessagesStorage.getInstance(account);
+        final MessagesController controller = MessagesController.getInstance(account);
+
+        storage.getStorageQueue().postRunnable(() -> {
+            final ArrayList<long[]> rows = AiqiyiSaveDeleted.listDialogsWithCount(storage.getDatabase());
+
+            AndroidUtilities.runOnUIThread(() -> {
+                if (getParentActivity() == null) {
+                    return;
+                }
+                AlertDialog.Builder builder = new AlertDialog.Builder(getParentActivity());
+                builder.setTitle(getString(R.string.AQY_PurgeDeleted_Header));
+
+                if (rows.isEmpty()) {
+                    builder.setMessage(getString(R.string.AQY_PurgeDeleted_Empty));
+                    builder.setNegativeButton(getString(R.string.Close), null);
+                    builder.show();
+                    return;
+                }
+
+                final ArrayList<CharSequence> lines = new ArrayList<>();
+                for (long[] row : rows) {
+                    String name = controller.getPeerName(row[0]);
+                    if (name == null || name.isEmpty()) {
+                        name = String.valueOf(row[0]);
+                    }
+                    lines.add(name + " · " + String.format(Locale.US, "%d", row[1]));
+                }
+
+                builder.setItems(lines.toArray(new CharSequence[0]), (dialog, which) -> {
+                    if (which < 0 || which >= rows.size()) {
+                        return;
+                    }
+                    final long dialogId = rows.get(which)[0];
+                    confirmPurgeDialog(dialogId, controller.getPeerName(dialogId));
+                });
+                builder.setNeutralButton(getString(R.string.AQY_PurgeDeleted_All), (dialog, which) ->
+                        confirmPurgeAll());
+                builder.setNegativeButton(getString(R.string.Cancel), null);
+                builder.show();
+            });
+        });
+    }
+
+    /** 清单个对话的存档，先问一次。 */
+    private void confirmPurgeDialog(long dialogId, String name) {
+        if (getParentActivity() == null) {
+            return;
+        }
+        String shown = (name == null || name.isEmpty()) ? String.valueOf(dialogId) : name;
+        AlertDialog.Builder builder = new AlertDialog.Builder(getParentActivity());
+        builder.setTitle(getString(R.string.AQY_PurgeDeleted_Title));
+        builder.setMessage(String.format(getString(R.string.AQY_PurgeDeleted_Confirm), shown));
+        builder.setPositiveButton(getString(R.string.OK), (dialog, which) -> {
+            final int account = UserConfig.selectedAccount;
+            final MessagesStorage storage = MessagesStorage.getInstance(account);
+            storage.getStorageQueue().postRunnable(() -> {
+                final int removed = AiqiyiSaveDeleted.purgeDialog(storage.getDatabase(), dialogId);
+                AndroidUtilities.runOnUIThread(() -> showPurgeResult(removed));
+            });
+        });
+        builder.setNegativeButton(getString(R.string.Cancel), null);
+        builder.show();
+    }
+
+    /** 清空所有对话的存档，问得更狠一点。 */
+    private void confirmPurgeAll() {
+        if (getParentActivity() == null) {
+            return;
+        }
+        AlertDialog.Builder builder = new AlertDialog.Builder(getParentActivity());
+        builder.setTitle(getString(R.string.AQY_PurgeDeleted_All));
+        builder.setMessage(getString(R.string.AQY_PurgeDeleted_AllConfirm));
+        builder.setPositiveButton(getString(R.string.OK), (dialog, which) -> {
+            final int account = UserConfig.selectedAccount;
+            final MessagesStorage storage = MessagesStorage.getInstance(account);
+            storage.getStorageQueue().postRunnable(() -> {
+                AiqiyiSaveDeleted.clearAll(storage.getDatabase());
+                AndroidUtilities.runOnUIThread(() -> {
+                    showPurgeResult(-1);
+                    listView.adapter.update(true);
+                });
+            });
+        });
+        builder.setNegativeButton(getString(R.string.Cancel), null);
+        builder.show();
+    }
+
+    /** 结果提示。removed < 0 表示走的是「全清」分支。 */
+    private void showPurgeResult(int removed) {
+        if (getParentActivity() == null) {
+            return;
+        }
+        AlertDialog.Builder builder = new AlertDialog.Builder(getParentActivity());
+        builder.setTitle(getString(R.string.AQY_PurgeDeleted_Header));
+        if (removed < 0) {
+            builder.setMessage(getString(R.string.AQY_PurgeDeleted_DoneAll));
+        } else if (removed <= 0) {
+            builder.setMessage(getString(R.string.AQY_PurgeDeleted_Empty));
+        } else {
+            builder.setMessage(String.format(getString(R.string.AQY_PurgeDeleted_Done), removed));
+        }
+        builder.setPositiveButton(getString(R.string.OK), null);
         builder.show();
     }
 

@@ -836,6 +836,80 @@ public class AiqiyiSaveDeleted {
             }
         }
     }
+    /**
+     * [Aiqiyi] Drop every saved copy belonging to one dialog.
+     *
+     * Older builds could store a whole batch of ordinary messages as "revoked",
+     * which later made those messages render as deleted. Nothing in the current
+     * write path produces those rows any more, so they are pure residue: this
+     * wipes them for a single dialog and leaves other dialogs untouched.
+     *
+     * One DELETE for the whole dialog instead of removeDeleted() per mid: the
+     * residue can be thousands of rows and a per-row round trip would take long
+     * enough to be noticed.
+     *
+     * @return how many rows were removed
+     */
+    public static int purgeDialog(SQLiteDatabase database, long dialogId) {
+        if (database == null) {
+            return 0;
+        }
+        int removed = getDeletedCount(database, dialogId);
+        if (removed <= 0) {
+            return 0;
+        }
+        try {
+            database.executeFast(String.format(Locale.US,
+                    "DELETE FROM " + TABLE + " WHERE dialog_id = %d", dialogId))
+                    .stepThis().dispose();
+        } catch (Throwable e) {
+            FileLog.e(e);
+            return 0;
+        }
+        // Keep the in-memory caches in sync, same as removeDeleted() does.
+        try {
+            java.util.HashSet<Integer> all = REVOKED_IDS.get(dialogId);
+            if (all != null) {
+                all.clear();
+            }
+            java.util.HashSet<Integer> window = MEMBERSHIP_CACHE.get(dialogId);
+            if (window != null) {
+                window.clear();
+            }
+            MEMBERSHIP_CACHE_STAMP.remove(dialogId);
+        } catch (Throwable ignored) {
+        }
+        return removed;
+    }
+
+    /**
+     * [Aiqiyi] Every dialog that still has saved copies, newest-first by count.
+     *
+     * Returns a list of {@code long[]{dialogId, count}} so the caller does not
+     * need to know anything about the table. Empty list when there is nothing.
+     */
+    public static ArrayList<long[]> listDialogsWithCount(SQLiteDatabase database) {
+        ArrayList<long[]> result = new ArrayList<>();
+        if (database == null) {
+            return result;
+        }
+        SQLiteCursor cursor = null;
+        try {
+            cursor = database.queryFinalized(
+                    "SELECT dialog_id, COUNT(*) FROM " + TABLE + " GROUP BY dialog_id ORDER BY COUNT(*) DESC");
+            while (cursor.next()) {
+                result.add(new long[]{cursor.longValue(0), cursor.intValue(1)});
+            }
+        } catch (Throwable e) {
+            FileLog.e(e);
+        } finally {
+            if (cursor != null) {
+                try { cursor.dispose(); } catch (Throwable ignored) {}
+            }
+        }
+        return result;
+    }
+
     /** Wipe every saved deleted message. */
     public static void clearAll(SQLiteDatabase database) {
         if (database == null) {

@@ -825,6 +825,16 @@
     <string name="AQY_LocalTime_ValueHintOffset">Offset in seconds, may be negative. e.g. 3600 = 1 hour ahead</string>
     <string name="AQY_LocalTime_ValueHintFixed">Format HH:mm, e.g. 12:00</string>
     <string name="AQY_LocalTime_Note">Time disguise only affects the time text drawn on this device. The message timestamp itself is unchanged, so sorting, unread state, search and forwarding are all unaffected.</string>
+    <string name="AQY_PurgeDeleted_Header">Revoked Archive Cleanup</string>
+    <string name="AQY_PurgeDeleted_Title">Clear saved revoked copies</string>
+    <string name="AQY_PurgeDeleted_Desc">List the chats that still hold saved copies</string>
+    <string name="AQY_PurgeDeleted_Note">Older builds could save a whole batch of ordinary messages as revoked, which made those messages show up as deleted. The write path no longer does that, so these leftover rows are safe to remove. Only saved copies are removed — no real messages are touched.</string>
+    <string name="AQY_PurgeDeleted_Empty">Nothing saved. Nothing to clean up.</string>
+    <string name="AQY_PurgeDeleted_All">Clear everything</string>
+    <string name="AQY_PurgeDeleted_AllConfirm">This removes saved revoked copies from every chat on this device. Real messages are not affected, but previously recovered revoked messages will no longer be shown.</string>
+    <string name="AQY_PurgeDeleted_Confirm">Clear all saved revoked copies for %1$s?</string>
+    <string name="AQY_PurgeDeleted_Done">Removed %1$d saved copies.</string>
+    <string name="AQY_PurgeDeleted_DoneAll">Removed all saved copies.</string>
 
     <string name="AQY_LocalStars_Header">Virtual Stars</string>
     <string name="AQY_LocalStars_Override">Use local stars balance</string>
