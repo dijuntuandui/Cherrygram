@@ -245,6 +245,33 @@ public final class DynamicVideoWallpaperHelper {
     private static final long METADATA_TIMEOUT_MS = 3000L;
 
     /**
+     * [Aiqiyi] 视频尺寸缓存：路径 -> {width, height}。
+     *
+     * 尺寸探测走 MediaMetadataRetriever，在部分机型上是几十到几百毫秒级的开销，
+     * 首次甚至可能卡在 native 层。它绝不能出现在首帧准备的同步路径上：一旦在主线程
+     * 上等待，首个视频的画面就会被推迟整整一个探测周期，表现为「启动后第一个动态
+     * 壁纸明显卡顿，之后才顺畅」。
+     *
+     * 因此改成：构造播放器时异步探测并写入本缓存；prepare() 只做 O(1) 查表，
+     * 未命中就先按旧行为起播，等探测结果回来再决定是否重建。
+     */
+    private static final java.util.concurrent.ConcurrentHashMap<String, int[]> VIDEO_SIZE_CACHE =
+            new java.util.concurrent.ConcurrentHashMap<>();
+
+    /** 单线程探测池，避免为每个视频都新建线程。 */
+    private static java.util.concurrent.ExecutorService SIZE_PROBE_EXECUTOR;
+
+    /**
+     * [Aiqiyi] 当前活跃播放器的弱引用。
+     *
+     * 首次播放时尺寸缓存必然还是空的，只能按 view 尺寸起播；等后台探测把真实尺寸
+     * 补进缓存后，需要有机会让首帧用上它，否则「第一个视频卡」的问题会一直复现。
+     * 这里不引入强引用，播放器释放后自然失效。
+     */
+    private static java.lang.ref.WeakReference<Player> ACTIVE_PLAYER =
+            new java.lang.ref.WeakReference<>(null);
+
+    /**
      * 部分机型（vivo/iQOO 的媒体解码器）在 MediaMetadataRetriever 处理某些编码时
      * 会卡在 native 层不返回，Java 层 catch 接不到，导致调用线程永久阻塞。
      * 这里把元数据读取丢到独立线程并加超时，超时即视为不可判定，放行让播放器自行处理。
@@ -288,6 +315,186 @@ public final class DynamicVideoWallpaperHelper {
             }
         } finally {
             pool.shutdownNow();
+        }
+    }
+
+    /**
+     * [Aiqiyi] 带超时的视频尺寸探测。
+     *
+     * 为什么要提前知道尺寸：TextureView + MediaPlayer 的正确顺序是
+     * 先设 SurfaceTexture 缓冲区尺寸，再 new Surface，再 setSurface。
+     * 旧实现反过来了：先 new Surface（此时缓冲区锁定为 TextureView 的 view 尺寸，
+     * 例如 1080x2400），等 OnVideoSizeChanged 回调才去 setDefaultBufferSize 改成
+     * 视频真实尺寸（例如 720x1280）。部分厂商解码器（vivo/iQOO 尤甚）不会为此
+     * 重建输出通道，结果只投递第一帧就不再出帧，表现就是有画面但完全静止。
+     *
+     * 这里沿用 readDurationWithTimeout 的独立线程加超时模式：解码器在 native 层
+     * 卡死时 Java 层 catch 接不到，同步调用会让主线程永久阻塞。
+     *
+     * @return {width, height}；null 表示探测失败或超时（调用方回退到旧行为）
+     */
+    private static int[] readVideoSizeWithTimeout(final String path, long timeoutMs) {
+        java.util.concurrent.ExecutorService pool = java.util.concurrent.Executors.newSingleThreadExecutor(r -> {
+            Thread t = new Thread(r, "aqy-videosize");
+            t.setDaemon(true);
+            return t;
+        });
+        try {
+            java.util.concurrent.Future<int[]> future = pool.submit(() -> {
+                MediaMetadataRetriever retriever = new MediaMetadataRetriever();
+                try {
+                    retriever.setDataSource(path);
+                    String w = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH);
+                    String h = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT);
+                    String rotation = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_ROTATION);
+                    if (w == null || h == null) {
+                        return null;
+                    }
+                    int width = Integer.parseInt(w);
+                    int height = Integer.parseInt(h);
+                    if (rotation != null) {
+                        int deg = Integer.parseInt(rotation);
+                        if (deg == 90 || deg == 270) {
+                            int tmp = width;
+                            width = height;
+                            height = tmp;
+                        }
+                    }
+                    if (width <= 0 || height <= 0) {
+                        return null;
+                    }
+                    return new int[]{width, height};
+                } catch (Throwable e) {
+                    return null;
+                } finally {
+                    try {
+                        retriever.release();
+                    } catch (Throwable ignore) {
+                    }
+                }
+            });
+            try {
+                return future.get(timeoutMs, java.util.concurrent.TimeUnit.MILLISECONDS);
+            } catch (java.util.concurrent.TimeoutException e) {
+                future.cancel(true);
+                FileLog.e("aqy: video size timeout for " + path);
+                return null;
+            } catch (Throwable e) {
+                FileLog.e(e);
+                return null;
+            }
+        } finally {
+            pool.shutdownNow();
+        }
+    }
+
+    /**
+     * [Aiqiyi] 异步预热视频尺寸到缓存。不阻塞调用线程，可重复调用。
+     */
+    private static void prefetchVideoSizeAsync(final String path) {
+        if (path == null || VIDEO_SIZE_CACHE.containsKey(path)) {
+            return;
+        }
+        synchronized (DynamicVideoWallpaperHelper.class) {
+            if (SIZE_PROBE_EXECUTOR == null) {
+                SIZE_PROBE_EXECUTOR = java.util.concurrent.Executors.newSingleThreadExecutor(r -> {
+                    Thread t = new Thread(r, "aqy-size-probe");
+                    t.setDaemon(true);
+                    return t;
+                });
+            }
+        }
+        try {
+            SIZE_PROBE_EXECUTOR.execute(() -> {
+                if (VIDEO_SIZE_CACHE.containsKey(path)) {
+                    return;
+                }
+                int[] size = readVideoSizeWithTimeout(path, 2500L);
+                if (size != null) {
+                    VIDEO_SIZE_CACHE.put(path, size);
+                    // 尺寸补齐后通知当前播放器：若它尚未出帧，可以立刻用正确尺寸重建。
+                    Player active = ACTIVE_PLAYER.get();
+                    if (active != null) {
+                        active.onVideoSizeProbed(path);
+                    }
+                }
+            });
+        } catch (Throwable e) {
+            FileLog.e(e);
+        }
+    }
+
+    /** 尺寸持久化用的 key：路径哈希，避免超长中文路径直接当 SP key。 */
+    private static String sizePreferenceKey(String path) {
+        return "size_" + Integer.toHexString(path.hashCode()) + "_" + path.length();
+    }
+
+    /** 把探测到的尺寸写入磁盘，供下次冷启动直接命中。 */
+    private static void persistVideoSize(Context context, String path, int[] size) {
+        if (context == null || path == null || size == null) {
+            return;
+        }
+        try {
+            context.getSharedPreferences(PREFERENCES, Context.MODE_PRIVATE)
+                    .edit()
+                    .putString(sizePreferenceKey(path), size[0] + "x" + size[1])
+                    .apply();
+        } catch (Throwable e) {
+            FileLog.e(e);
+        }
+    }
+
+    /**
+     * 只查缓存，永不阻塞。
+     *
+     * 内存未命中时回落到磁盘：SharedPreferences 在首次加载后常驻内存，
+     * 之后取值是纯内存操作，不会像 MediaMetadataRetriever 那样卡在 native 层。
+     * 冷启动第一个视频能否直接拿到正确尺寸，取决于这一步。
+     */
+    private static int[] peekVideoSize(String path) {
+        if (path == null) {
+            return null;
+        }
+        int[] cached = VIDEO_SIZE_CACHE.get(path);
+        if (cached != null) {
+            return cached;
+        }
+        return null;
+    }
+
+    /** 带 Context 的查询：允许回落磁盘。 */
+    private static int[] peekVideoSize(Context context, String path) {
+        if (path == null) {
+            return null;
+        }
+        int[] cached = VIDEO_SIZE_CACHE.get(path);
+        if (cached != null) {
+            return cached;
+        }
+        if (context == null) {
+            return null;
+        }
+        try {
+            String stored = context.getSharedPreferences(PREFERENCES, Context.MODE_PRIVATE)
+                    .getString(sizePreferenceKey(path), null);
+            if (stored == null) {
+                return null;
+            }
+            int sep = stored.indexOf('x');
+            if (sep <= 0) {
+                return null;
+            }
+            int width = Integer.parseInt(stored.substring(0, sep));
+            int height = Integer.parseInt(stored.substring(sep + 1));
+            if (width <= 0 || height <= 0) {
+                return null;
+            }
+            int[] result = new int[]{width, height};
+            VIDEO_SIZE_CACHE.put(path, result);
+            return result;
+        } catch (Throwable e) {
+            FileLog.e(e);
+            return null;
         }
     }
 
@@ -509,6 +716,7 @@ public final class DynamicVideoWallpaperHelper {
             View background = ((SizeNotifierFrameLayout) contentAnchor).backgroundView;
             if (background != null) { background.setAlpha(0f); player.setSuppressedContentBackground(background); }
         }
+        ACTIVE_PLAYER = new java.lang.ref.WeakReference<>(player);
         player.start();
         return player;
     }
@@ -568,6 +776,7 @@ public final class DynamicVideoWallpaperHelper {
                 player.setSuppressedContentBackground(originalBackground);
             }
         }
+        ACTIVE_PLAYER = new java.lang.ref.WeakReference<>(player);
         player.start();
         return player;
     }
@@ -592,17 +801,33 @@ public final class DynamicVideoWallpaperHelper {
         private final ArrayList<SuppressedAlpha> suppressedAlphas = new ArrayList<>();
         private final Handler playbackHandler = new Handler(Looper.getMainLooper());
         private Runnable retryRunnable;
+        // [Aiqiyi] prepareAsync 看门狗。首帧准备期间 Surface 的 native window 可能尚未
+        // 真正就绪，MediaPlayer 会卡在 preparing 状态：既不回调 OnPrepared，也不报
+        // OnError。没有超时保护的话画面会永久停在上一帧，只有等轮播到下一段视频、
+        // 复用已经热起来的同一个 Surface 才恢复。这里给首次准备兜一道时间闸。
+        private Runnable prepareWatchdog;
+        // 首次尺寸未命中时允许等待探测结果一次；多次仍未命中则直接按 view 尺寸起播，
+        // 避免因探测异常导致画面永远出不来。
+        private boolean sizeWaitUsed;
+        private Runnable sizeWaitRunnable;
         private final Runnable progressCheckpointRunnable = new Runnable() {
             @Override
             public void run() {
                 if (released || mediaPlayer == null || !mediaPrepared) {
                     return;
                 }
-                savePlaybackPosition();
+                int sampledPosition = savePlaybackPosition();
+                checkPlaybackStall(sampledPosition);
                 playbackHandler.postDelayed(this, 1000L);
             }
         };
         private int playbackErrorCount;
+        // [Aiqiyi] 播放停滞检测。某些设备解码器会在首帧之后停止投递，此时
+        // MediaPlayer.isPlaying() 仍返回 true 而 getCurrentPosition() 不再前进，
+        // 用户看到的就是「有画面但完全静止」。这里按秒采样进度，连续多次不动
+        // 就判定为解码停滞并主动重启播放器。
+        private int lastCheckedPosition = -1;
+        private int stalledTicks;
         // MediaPlayer may dispatch completion/error callbacks after reset().
         // A generation prevents an old callback from advancing or recovering
         // a newer player instance during wallpaper/account transitions.
@@ -627,6 +852,9 @@ public final class DynamicVideoWallpaperHelper {
             this.playlistModeValue = mode;
             this.playbackKey = playbackKey;
             this.sourceSignature = playbackKey;
+            // [Aiqiyi] 构造时就把当前视频尺寸丢到后台探测，这样哪怕这次没赶上缓存，
+            // 下一次进入（或下一轮轮播）就能直接命中，不再重复探测。
+            prefetchVideoSizeAsync(this.path);
             PlaybackState state = getPlaybackState();
             if (state != null) {
                 resumePositionMs = state.positionMs;
@@ -713,6 +941,41 @@ public final class DynamicVideoWallpaperHelper {
                 mediaPrepared = false;
                 // 清除旧视频遗留的矩阵，避免换视频后继续沿用旧比例。
                 textureView.setTransform(new Matrix());
+                // [Aiqiyi] 必须在 new Surface 之前把 SurfaceTexture 的缓冲区尺寸定为视频
+                // 真实尺寸。Surface 一创建就会锁定当前缓冲区大小，之后再改
+                // setDefaultBufferSize 时，vivo/iQOO 一类解码器不会重建输出通道，
+                // 只投递首帧就停住——这就是「有画面但完全静止」的成因。
+                // 只查缓存，绝不在主线程上等待探测。未命中时先按旧行为起播，
+                // 同时后台预热；探测结果回来后会触发一次重建（见下方 flushPendingSize）。
+                int[] probedSize = peekVideoSize(path);
+                if (probedSize != null) {
+                    videoWidth = probedSize[0];
+                    videoHeight = probedSize[1];
+                    try {
+                        surfaceTexture.setDefaultBufferSize(videoWidth, videoHeight);
+                    } catch (Throwable e) {
+                        FileLog.e(e);
+                    }
+                } else {
+                    prefetchVideoSizeAsync(path);
+                    // 首次没有尺寸记录时，先不急着用 view 尺寸建 Surface：
+                    // 那样解码器要每帧把视频缩放到屏幕缓冲区，第一个视频会明显掉帧
+                    // （后续视频因缓存命中而不掉帧，正是用户观察到的差异）。
+                    // 这里最多等 700ms 让后台探测把尺寸补上；超时则回退按 view 尺寸起播，
+                    // 保证任何情况下都不会因为探测失败而没画面。
+                    if (!sizeWaitUsed) {
+                        sizeWaitUsed = true;
+                        cancelSizeWait();
+                        sizeWaitRunnable = () -> {
+                            sizeWaitRunnable = null;
+                            if (!released && !mediaPrepared && mediaPlayer == null) {
+                                prepare(this.surfaceTexture);
+                            }
+                        };
+                        playbackHandler.postDelayed(sizeWaitRunnable, 700L);
+                        return;
+                    }
+                }
                 surface = new Surface(surfaceTexture);
                 mediaPlayer = new MediaPlayer();
                 mediaPlayer.setDataSource(path);
@@ -731,49 +994,151 @@ public final class DynamicVideoWallpaperHelper {
                         }
                     });
                 }
-                mediaPlayer.setOnVideoSizeChangedListener((player, width, height) -> {
-                    videoWidth = width;
-                    videoHeight = height;
-                    configureVideoBuffer();
-                    textureView.post(this::applyFitCenter);
-                });
-                mediaPlayer.setOnPreparedListener(player -> {
-                    // prepareAsync 可能在页面释放后才回调；旧播放器不得重新显示或启动。
-                    if (!released && player == mediaPlayer && surface != null && surface.isValid()) {
-                        videoWidth = player.getVideoWidth();
-                        videoHeight = player.getVideoHeight();
-                        configureVideoBuffer();
-                        applyFitCenter();
-                        textureView.animate().alpha(.96f).setDuration(220L).start();
-                        try {
-                            int position = resumePositionMs;
-                            if (position > 0 && player.getDuration() > position + 300) {
-                                player.seekTo(position);
-                            }
-                            resumePositionMs = 0;
-                            playbackErrorCount = 0;
-                            mediaPrepared = true;
-                            startProgressCheckpoint();
-                            player.start();
-                        } catch (Throwable e) {
-                            FileLog.e(e);
-                            release();
-                        }
-                    }
-                });
-                mediaPlayer.setOnErrorListener((player, what, extra) -> {
-                    FileLog.e("Dynamic video wallpaper playback failed: " + what + "/" + extra);
-                    if (!released && generation == playbackGeneration && player == mediaPlayer) {
-                        schedulePlaybackRecovery();
-                    }
-                    return true;
-                });
+                bindListeners(generation);
+                armPrepareWatchdog(generation);
                 mediaPlayer.prepareAsync();
             } catch (Throwable e) {
                 FileLog.e(e);
+                disarmPrepareWatchdog();
                 // 不能只释放 MediaPlayer：此时透明 TextureView 仍会遮挡原壁纸，必须完整回滚图层。
                 release();
             }
+        }
+
+        /**
+         * [Aiqiyi] 尺寸探测完成回调（后台线程调用）。
+         *
+         * 只在「还没准备好出帧」时重建，避免打断已经正常播放的画面：
+         * 首次进入时缓存为空，缓冲区沿用了 view 尺寸，某些解码器会因此不出帧；
+         * 此时拿到真实尺寸后重建一次，就能直接起播而不必等看门狗超时。
+         */
+        void onVideoSizeProbed(String probedPath) {
+            playbackHandler.post(() -> {
+                if (released || mediaPlayer == null || probedPath == null || !probedPath.equals(path)) {
+                    return;
+                }
+                if (mediaPrepared) {
+                    // 已经在播了，说明当前缓冲区没造成问题，不打扰。
+                    return;
+                }
+                int[] size = peekVideoSize(textureView.getContext(), probedPath);
+                if (size == null || surfaceTexture == null) {
+                    return;
+                }
+                // 落盘：下一次冷启动即可直接命中，不必再按 view 尺寸起播。
+                persistVideoSize(textureView.getContext(), probedPath, size);
+                if (videoWidth == size[0] && videoHeight == size[1]) {
+                    return;
+                }
+                FileLog.e("Dynamic video wallpaper applying probed size before first frame: "
+                        + size[0] + "x" + size[1]);
+                resumePositionMs = 0;
+                prepare(surfaceTexture);
+            });
+        }
+
+        /**
+         * [Aiqiyi] 首帧准备超时闸。
+         *
+         * MediaPlayer.prepareAsync() 在 Surface 尚未拿到有效 native window 时会静默
+         * 卡在 preparing：不回调 OnPrepared，也不触发 OnError，于是既没有人调用
+         * start()，画面就永远停在上一段视频的最后一帧。用户看到的就是「动态壁纸卡住
+         * 不动，直到下一段视频播起来才恢复」。
+         *
+         * 这里在 prepareAsync 之后挂一个超时任务，超时仍未 prepared 就走一次恢复流程
+         * （重建 MediaPlayer）。正常设备上 OnPrepared 会先行到达并撤销该任务，不会误伤。
+         *
+         * @param generation 播放代数，用于丢弃过期回调
+         */
+        private void armPrepareWatchdog(final long generation) {
+            disarmPrepareWatchdog();
+            prepareWatchdog = () -> {
+                prepareWatchdog = null;
+                if (released || generation != playbackGeneration) {
+                    return;
+                }
+                if (mediaPrepared) {
+                    return;
+                }
+                FileLog.e("Dynamic video wallpaper prepare timed out, retrying: " + path);
+                resumePositionMs = 0;
+                schedulePlaybackRecovery();
+            };
+            playbackHandler.postDelayed(prepareWatchdog, 6000L);
+        }
+
+        private void cancelSizeWait() {
+            if (sizeWaitRunnable != null) {
+                playbackHandler.removeCallbacks(sizeWaitRunnable);
+                sizeWaitRunnable = null;
+            }
+        }
+
+        private void disarmPrepareWatchdog() {
+            if (prepareWatchdog != null) {
+                playbackHandler.removeCallbacks(prepareWatchdog);
+                prepareWatchdog = null;
+            }
+        }
+
+        /**
+         * [Aiqiyi] 统一的播放器回调装配点。
+         *
+         * MediaPlayer.reset() 会清空全部监听器，而 playNextVideo() 为了复用同一个
+         * 解码器实例走了 reset + setDataSource + prepareAsync 这条捷径。旧实现只补回了
+         * OnCompletionListener，于是 OnPreparedListener 永久缺失：prepareAsync 完成后
+         * 没有任何人调用 start()，画面就停在上一段视频的最后一帧，直到切到别的壁纸
+         * 走完整 prepare() 路径才恢复——这就是「动态壁纸卡住不动」的根因。
+         *
+         * 现在 prepare() 与 playNextVideo() 共用这一份装配逻辑，不再有第二套残留。
+         *
+         * @param generation 播放代数，用于丢弃过期回调
+         */
+        private void bindListeners(final long generation) {
+            if (mediaPlayer == null) {
+                return;
+            }
+            mediaPlayer.setOnVideoSizeChangedListener((player, width, height) -> {
+                videoWidth = width;
+                videoHeight = height;
+                configureVideoBuffer();
+                textureView.post(this::applyFitCenter);
+            });
+            mediaPlayer.setOnPreparedListener(player -> {
+                // prepareAsync 可能在页面释放后才回调；旧播放器不得重新显示或启动。
+                if (!released && generation == playbackGeneration && player == mediaPlayer
+                        && surface != null && surface.isValid()) {
+                    videoWidth = player.getVideoWidth();
+                    videoHeight = player.getVideoHeight();
+                    configureVideoBuffer();
+                    applyFitCenter();
+                    textureView.animate().alpha(.96f).setDuration(220L).start();
+                    try {
+                        int position = resumePositionMs;
+                        if (position > 0 && player.getDuration() > position + 300) {
+                            player.seekTo(position);
+                        }
+                        resumePositionMs = 0;
+                        playbackErrorCount = 0;
+                        mediaPrepared = true;
+                        lastCheckedPosition = -1;
+                        stalledTicks = 0;
+                        disarmPrepareWatchdog();
+                        startProgressCheckpoint();
+                        player.start();
+                    } catch (Throwable e) {
+                        FileLog.e(e);
+                        release();
+                    }
+                }
+            });
+            mediaPlayer.setOnErrorListener((player, what, extra) -> {
+                FileLog.e("Dynamic video wallpaper playback failed: " + what + "/" + extra);
+                if (!released && generation == playbackGeneration && player == mediaPlayer) {
+                    schedulePlaybackRecovery();
+                }
+                return true;
+            });
         }
 
         /**
@@ -852,6 +1217,7 @@ public final class DynamicVideoWallpaperHelper {
         public void release() {
             savePlaybackPosition();
             released = true;
+            cancelSizeWait();
             cancelPlaybackRecovery();
             textureView.animate().cancel();
             textureView.removeOnLayoutChangeListener(videoLayoutListener);
@@ -932,7 +1298,16 @@ public final class DynamicVideoWallpaperHelper {
             }
             playlistIndex = nextIndex;
             try {
-                if (mediaPlayer != null) {
+                if (mediaPlayer == null) {
+                    // 播放器曾在错误恢复里被丢掉：不能静默放弃，
+                    // 否则切到下一段时画面会一直停住，只有换壁纸才能救回来。
+                    path = nextPath;
+                    resumePositionMs = 0;
+                    writePlaybackState(playbackKey, path, playlistIndex, 0);
+                    prepare(surfaceTexture);
+                    return;
+                }
+                {
                     final long generation = ++playbackGeneration;
                     path = nextPath;
                     resumePositionMs = 0;
@@ -940,15 +1315,48 @@ public final class DynamicVideoWallpaperHelper {
                     writePlaybackState(playbackKey, path, playlistIndex, 0);
                     mediaPrepared = false;
                     mediaPlayer.reset();
+                    // reset() 会清空所有监听器，必须在此之后重新装配全部回调，
+                    // 否则 OnPreparedListener 缺失会导致 prepareAsync 完成后永不 start()，
+                    // 画面就停在上一段视频的最后一帧。
+                    // [Aiqiyi] 换视频时同样要先把缓冲区尺寸对齐到新视频的真实尺寸。
+                    // 直接复用上一段的 Surface 会让缓冲区沿用旧尺寸，尺寸不同的视频
+                    // 就会卡在首帧不出帧。这里重建 Surface 以让新尺寸真正生效。
+                    // 只查缓存，不在切换路径上同步探测：MediaMetadataRetriever 在部分
+                    // 机型上要几百毫秒甚至更久，同步等待会让每次换视频都明显一顿。
+                    int[] probedSize = peekVideoSize(nextPath);
+                    if (probedSize == null) {
+                        prefetchVideoSizeAsync(nextPath);
+                    }
+                    if (probedSize != null && surfaceTexture != null) {
+                        videoWidth = probedSize[0];
+                        videoHeight = probedSize[1];
+                        try {
+                            surfaceTexture.setDefaultBufferSize(videoWidth, videoHeight);
+                        } catch (Throwable e) {
+                            FileLog.e(e);
+                        }
+                        if (surface != null) {
+                            try {
+                                surface.release();
+                            } catch (Throwable e) {
+                                FileLog.e(e);
+                            }
+                        }
+                        surface = new Surface(surfaceTexture);
+                    }
                     mediaPlayer.setDataSource(nextPath);
                     mediaPlayer.setSurface(surface);
                     mediaPlayer.setVideoScalingMode(MediaPlayer.VIDEO_SCALING_MODE_SCALE_TO_FIT_WITH_CROPPING);
                     mediaPlayer.setLooping(false);
+                    // reset() 同样会把音量恢复成默认值，不加这一行有音轨的视频会突然出声。
+                    mediaPlayer.setVolume(0f, 0f);
                     mediaPlayer.setOnCompletionListener(player -> {
                         if (!released && generation == playbackGeneration && player == mediaPlayer) {
                             playNextVideo();
                         }
                     });
+                    bindListeners(generation);
+                    armPrepareWatchdog(generation);
                     mediaPlayer.prepareAsync();
                 }
             } catch (Throwable e) { FileLog.e(e); }
@@ -965,7 +1373,22 @@ public final class DynamicVideoWallpaperHelper {
             playbackErrorCount++;
             retryRunnable = () -> {
                 retryRunnable = null;
-                if (released || surfaceTexture == null || !textureView.isAvailable()) {
+                if (released) {
+                    return;
+                }
+                // [Aiqiyi] 首次启动时 TextureView 往往还没真正 attach，isAvailable()
+                // 会是 false。旧实现直接 return，等于把唯一一次重试吞掉，画面就永久
+                // 停在冻结帧上——这正是「首个动态壁纸卡住」的直接成因之一。
+                // 现在改成延后再试，直到视图就绪或播放器被释放。
+                if (surfaceTexture == null || !textureView.isAvailable()) {
+                    // 视图未就绪不算播放错误，不递增 playbackErrorCount，只做轮询等待。
+                    retryRunnable = () -> {
+                        retryRunnable = null;
+                        if (!released) {
+                            schedulePlaybackRecovery();
+                        }
+                    };
+                    playbackHandler.postDelayed(retryRunnable, 600L);
                     return;
                 }
                 if (mediaPlayer != null) {
@@ -1005,6 +1428,56 @@ public final class DynamicVideoWallpaperHelper {
             }
         }
 
+        /**
+         * [Aiqiyi] 播放停滞检测。
+         *
+         * 解码器在部分机型/编码上会「假播放」：isPlaying() 为 true、没有任何错误
+         * 回调，但 getCurrentPosition() 从此不再变化，画面冻结在某一帧。这种情况下
+         * 上层所有回调机制都不会被触发，只能靠主动轮询进度发现。
+         *
+         * 连续 3 次采样（约 3 秒）位置不变即判定停滞，走一次恢复流程重建解码器。
+         * 多视频模式下直接跳到下一段，单视频模式则原地重建并从头播放。
+         */
+        private void checkPlaybackStall(int sampledPosition) {
+            if (mediaPlayer == null || released) {
+                return;
+            }
+            try {
+                if (sampledPosition < 0) {
+                    // 进度读取失败，无法判定，本轮跳过。
+                    lastCheckedPosition = -1;
+                    stalledTicks = 0;
+                    return;
+                }
+                if (!mediaPlayer.isPlaying()) {
+                    // 已暂停或已停止不属于停滞，重置计数。
+                    lastCheckedPosition = -1;
+                    stalledTicks = 0;
+                    return;
+                }
+                int position = sampledPosition;
+                if (position == lastCheckedPosition) {
+                    stalledTicks++;
+                } else {
+                    stalledTicks = 0;
+                    lastCheckedPosition = position;
+                }
+                if (stalledTicks >= 3) {
+                    FileLog.e("Dynamic video wallpaper playback stalled at " + position + ", recovering");
+                    stalledTicks = 0;
+                    lastCheckedPosition = -1;
+                    if (playlistMode) {
+                        playNextVideo();
+                    } else {
+                        resumePositionMs = 0;
+                        schedulePlaybackRecovery();
+                    }
+                }
+            } catch (Throwable e) {
+                FileLog.e(e);
+            }
+        }
+
         private void startProgressCheckpoint() {
             playbackHandler.removeCallbacks(progressCheckpointRunnable);
             playbackHandler.postDelayed(progressCheckpointRunnable, 1000L);
@@ -1014,12 +1487,19 @@ public final class DynamicVideoWallpaperHelper {
             playbackHandler.removeCallbacks(progressCheckpointRunnable);
         }
 
-        private void savePlaybackPosition() {
+        /**
+         * 保存当前播放进度。
+         *
+         * @return 原始进度毫秒；无法读取时返回 -1（调用方可据此跳过停滞判定，
+         *         避免把「读不到进度」误判成「播放停滞」）
+         */
+        private int savePlaybackPosition() {
             if (mediaPlayer == null || released || path == null) {
-                return;
+                return -1;
             }
             try {
-                int position = mediaPlayer.getCurrentPosition();
+                int rawPosition = mediaPlayer.getCurrentPosition();
+                int position = rawPosition;
                 int duration = mediaPlayer.getDuration();
                 if (duration > 0 && position >= duration - 250) {
                     position = 0;
@@ -1031,8 +1511,10 @@ public final class DynamicVideoWallpaperHelper {
                         .putInt(playbackPreferenceKey("playlist_index"), playlistIndex)
                         .putInt(playbackPreferenceKey("position"), position)
                         .apply();
+                return rawPosition;
             } catch (Throwable e) {
                 FileLog.e(e);
+                return -1;
             }
         }
 
@@ -1061,6 +1543,7 @@ public final class DynamicVideoWallpaperHelper {
         }
 
         private void releaseMediaPlayer() {
+            disarmPrepareWatchdog();
             stopProgressCheckpoint();
             mediaPrepared = false;
             savePlaybackPosition();
