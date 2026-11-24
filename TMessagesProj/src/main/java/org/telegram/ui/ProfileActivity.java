@@ -13113,8 +13113,8 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                 if (!isBot && getContactsController().contactsDict.get(userId) != null) {
                     otherItem.addSubItem(add_shortcut, R.drawable.msg_home, LocaleController.getString(R.string.AddShortcut));
                 }
-                // [Aiqiyi local] 他人资料页三点菜单：本地名称/简介（好友与非好友均可用）
-                if (userId != 0 && !isBot && !MessagesController.isSupportUser(user)) {
+                // [Aiqiyi local] 他人资料页三点菜单：本地名称/简介（全量放行，不看 bot/客服/好友）
+                if (userId != 0) {
                     otherItem.addSubItem(aqy_local_peer_name, R.drawable.msg_edit, LocaleController.getString(R.string.AQY_Menu_PeerName));
                     otherItem.addSubItem(aqy_local_peer_bio, R.drawable.msg_edit, LocaleController.getString(R.string.AQY_Menu_PeerBio));
                 }
