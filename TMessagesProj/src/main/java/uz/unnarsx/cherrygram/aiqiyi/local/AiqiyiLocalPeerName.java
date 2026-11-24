@@ -25,9 +25,9 @@ public final class AiqiyiLocalPeerName {
     private static final String KEY_BIO_PREFIX = "peerBio_";
 
     /** userId -> 覆盖后的姓名；空串表示「已查询过，无覆盖」 */
-    private static final ConcurrentHashMap<Long, String> nameCache = new ConcurrentHashMap<>();
+    private static final ConcurrentHashMap<String, String> nameCache = new ConcurrentHashMap<>();
     /** userId -> 覆盖后的简介；空串表示「已查询过，无覆盖」 */
-    private static final ConcurrentHashMap<Long, String> bioCache = new ConcurrentHashMap<>();
+    private static final ConcurrentHashMap<String, String> bioCache = new ConcurrentHashMap<>();
 
     private AiqiyiLocalPeerName() {
     }
