@@ -120,6 +120,7 @@ docker run --rm -v "$PWD":/home/source aiqiyi-build
 
 - [Telegram App for Android](https://github.com/DrKLO/Telegram) — 基础客户端
 - [Cherrygram](https://github.com/arsLan4k1390/Cherrygram) — 本仓库保留其全部版权头
+
 -[Huanghun–TG](https://github.com/vhj-214/Huanghun-TG) — 功能插件借鉴
 - [Nekogram](https://gitlab.com/Nekogram/Nekogram) — 书签等设计参考
 - [Catogram](https://github.com/Catogram/Catogram)、[exteraGram](https://github.com/exteraSquad/exteraGram)、[OwlGram](https://github.com/OwlGramDev/OwlGram)、[Telegraher](https://github.com/nikitasius/Telegraher)、[Telegram Monet](https://github.com/c3r5b8/Telegram-Monet)
