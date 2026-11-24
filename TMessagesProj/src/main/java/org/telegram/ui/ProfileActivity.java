@@ -2411,6 +2411,8 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
     @Override
     public boolean onFragmentCreate() {
         userId = arguments.getLong("user_id", 0);
+        // [Aiqiyi FIX-globalKey] 清掉历史版本在 userId==0 时写入的全局污染键
+        purgePollutedGlobalProfileKeys();
         chatId = arguments.getLong("chat_id", 0);
         topicId = arguments.getLong("topic_id", 0);
         saved = arguments.getBoolean("saved", false);
@@ -11664,17 +11666,39 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
         return "local_profile_" + field + "_" + currentAccount + "_" + userId;
     }
 
-    /** 取本地覆盖值，没有则返回 null */
-    private String getLocalProfileValue(String field) {
+    /**
+     * [Aiqiyi FIX-globalKey] 显式 uid 版本。
+     * 旧实现用成员字段 userId 拼键，一旦 userId==0（vcard / 未定 id / my_profile 等路径），
+     * 键会退化成 local_profile_xxx_0_0，全站所有人共用同一个槽位 —— 改一个人等于改所有人。
+     * 这里强制要求 uid>0，否则视为「无覆盖」。
+     */
+    private String getLocalProfileValue(String field, long uid) {
+        if (uid <= 0) {
+            return null;
+        }
         try {
-            return MessagesController.getGlobalMainSettings().getString(localProfileKey(field), null);
+            return MessagesController.getGlobalMainSettings()
+                    .getString("local_profile_" + field + "_" + currentAccount + "_" + uid, null);
         } catch (Throwable e) {
             return null;
         }
     }
 
+    /**
+     * [Aiqiyi FIX-globalKey] 保留旧签名以兼容既有调用，但内部拒绝 userId<=0，
+     * 避免任何尚未改造的调用点再次写出全局键。
+     */
+    private String getLocalProfileValue(String field) {
+        return getLocalProfileValue(field, userId);
+    }
+
     /** 写本地覆盖值，value 为空则移除（恢复原始） */
     private void setLocalProfileValue(String field, String value) {
+        if (userId <= 0) {
+            // [Aiqiyi FIX-globalKey] 拒绝写入全局槽位
+            FileLog.e("[Aiqiyi] setLocalProfileValue rejected: userId=" + userId + " field=" + field);
+            return;
+        }
         try {
             android.content.SharedPreferences.Editor ed = MessagesController.getGlobalMainSettings().edit();
             if (TextUtils.isEmpty(value)) {
@@ -11687,12 +11711,39 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
         }
     }
 
+    /**
+     * [Aiqiyi FIX-globalKey] 清理历史脏数据：旧版本在 userId==0 时写入的全局键。
+     * 只删带 _0 后缀的确定污染键，不碰任何带真实 uid 的数据。
+     */
+    private void purgePollutedGlobalProfileKeys() {
+        try {
+            android.content.SharedPreferences pref = MessagesController.getGlobalMainSettings();
+            android.content.SharedPreferences.Editor ed = pref.edit();
+            boolean need = false;
+            for (int acc = 0; acc <= 20; acc++) {
+                for (String field : new String[]{"phone", "username"}) {
+                    String k = "local_profile_" + field + "_" + acc + "_0";
+                    if (pref.contains(k)) {
+                        ed.remove(k);
+                        need = true;
+                        FileLog.e("[Aiqiyi] purged polluted global key: " + k);
+                    }
+                }
+            }
+            if (need) {
+                ed.apply();
+            }
+        } catch (Throwable ignore) {
+        }
+    }
+
     /** 显示用的手机号：本地有覆盖用本地的，否则用真实值 */
     private String getDisplayedPhone(TLRPC.User user) {
         if (user == null) {
             return null;
         }
-        String local = getLocalProfileValue("phone");
+        // [Aiqiyi FIX-globalKey] 用 user.id 拼键，绝不用成员字段 userId
+        String local = getLocalProfileValue("phone", user.id);
         if (!TextUtils.isEmpty(local)) {
             return local;
         }
@@ -11704,7 +11755,8 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
         if (user == null) {
             return null;
         }
-        String local = getLocalProfileValue("username");
+        // [Aiqiyi FIX-globalKey] 用 user.id 拼键
+        String local = getLocalProfileValue("username", user.id);
         if (!TextUtils.isEmpty(local)) {
             return local;
         }
@@ -11722,7 +11774,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                     if (phoneRow >= 0) listAdapter.notifyItemChanged(phoneRow);
                 });
             });
-            String local = getLocalProfileValue("phone");
+            String local = getLocalProfileValue("phone", userId);
             if (!TextUtils.isEmpty(local)) {
                 o.add(R.drawable.msg_retry, "\u6062\u590d\u539f\u59cb\u53f7\u7801", () -> {
                     setLocalProfileValue("phone", null);
@@ -11745,7 +11797,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                     if (usernameRow >= 0) listAdapter.notifyItemChanged(usernameRow);
                 });
             });
-            String local = getLocalProfileValue("username");
+            String local = getLocalProfileValue("username", userId);
             if (!TextUtils.isEmpty(local)) {
                 o.add(R.drawable.msg_retry, "\u6062\u590d\u539f\u59cb\u7528\u6237\u540d", () -> {
                     setLocalProfileValue("username", null);
@@ -11769,7 +11821,8 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
             editText.setHint(hint);
             editText.setTextColor(Theme.getColor(Theme.key_dialogTextBlack));
             editText.setHintTextColor(Theme.getColor(Theme.key_dialogTextHint));
-            String cur = getLocalProfileValue(field);
+            // [Aiqiyi FIX-globalKey] 预填值同样校验 userId
+            String cur = getLocalProfileValue(field, userId);
             if (!TextUtils.isEmpty(cur)) {
                 editText.setText(cur);
                 editText.setSelection(editText.getText().length());
@@ -14402,8 +14455,8 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                         } else if (user != null && !TextUtils.isEmpty(getDisplayedPhone(user))) {
                             // [Aiqiyi] 显示值走统一入口，本地有覆盖用本地值
                             phoneNumber = getDisplayedPhone(user);
-                            // [Aiqiyi] 本地覆盖的号码优先展示，不参与打码
-                            boolean aqyPhoneIsLocal = !TextUtils.isEmpty(getLocalProfileValue("phone"));
+                            // [Aiqiyi FIX-globalKey] 打码判定同样走 user.id 版本
+                            boolean aqyPhoneIsLocal = !TextUtils.isEmpty(getLocalProfileValue("phone", user.id));
                             if (!aqyPhoneIsLocal && CherrygramAppearanceConfig.INSTANCE.getProfileHidePhoneNumber()) {
                                 text = getChatsPasswordHelper().replaceStringToSpoilers(
                                         PhoneFormat.getInstance().format("+ " + phoneNumber),
@@ -14470,7 +14523,8 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                             value = LocaleController.getString(R.string.Username);
                             // [Aiqiyi] 本地覆盖用户名（仅自己可见，走统一入口）
                             if (user != null && userId == getUserConfig().getClientUserId()) {
-                                String aqyName = getLocalProfileValue("username");
+                                // [Aiqiyi FIX-globalKey] 用 user.id 拼键
+                                String aqyName = getLocalProfileValue("username", user.id);
                                 if (!TextUtils.isEmpty(aqyName)) {
                                     username = aqyName;
                                     usernameObj = null;
