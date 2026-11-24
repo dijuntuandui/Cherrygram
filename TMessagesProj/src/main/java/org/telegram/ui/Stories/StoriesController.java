@@ -4614,11 +4614,9 @@ public class StoriesController {
                 storyLimitCached = new StoryLimit(StoryLimit.LIMIT_COUNT, 0, 0);
                 limitUpdate = true;
             } else if (err.text.equals("PREMIUM_ACCOUNT_REQUIRED")) {
-                MessagesController mc = MessagesController.getInstance(currentAccount);
-                if ("enabled".equals(mc.storiesPosting)) {
-                    mc.getMainSettings().edit().putString("storiesPosting", mc.storiesPosting = "premium").apply();
-                    NotificationCenter.getInstance(currentAccount).postNotificationName(NotificationCenter.storiesEnabledUpdate);
-                }
+                // [Aiqiyi local] 不再把 storiesPosting 永久降级为 premium。
+                // 该降级是持久化写入，一旦触发就再也发不了动态，且与账号后续升级会员态脱节。
+                // 这里只做一次性提示，不改配置。
                 limitUpdate = true;
             }
         }

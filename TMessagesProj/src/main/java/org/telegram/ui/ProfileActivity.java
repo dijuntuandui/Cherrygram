@@ -615,6 +615,9 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
     private final static int delete_group = 45;
     private final static int enable_no_forwards = 46;
     private final static int disable_no_forwards = 47;
+    // [Aiqiyi local] 他人资料页：本地名称/简介（好友与非好友均可用）
+    private final static int aqy_local_peer_name = 48;
+    private final static int aqy_local_peer_bio = 49;
 
     private Rect rect = new Rect();
 
@@ -2865,6 +2868,33 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
             @Override
             public void onItemClick(final int id) {
                 if (getParentActivity() == null) {
+                    return;
+                }
+                // [Aiqiyi local] 他人资料页：本地名称/简介（直接弹输入框，不套二层菜单）
+                if (id == aqy_local_peer_name) {
+                    uz.unnarsx.cherrygram.aiqiyi.local.AiqiyiLocalDataInputHelper.showPeer(
+                            ProfileActivity.this, userId,
+                            uz.unnarsx.cherrygram.aiqiyi.local.AiqiyiLocalDataInputHelper.TYPE_PEER_NAME,
+                            () -> {
+                                if (listAdapter != null) {
+                                    listAdapter.notifyDataSetChanged();
+                                }
+                                getNotificationCenter().postNotificationName(
+                                        NotificationCenter.updateInterfaces, MessagesController.UPDATE_MASK_NAME);
+                            });
+                    return;
+                }
+                if (id == aqy_local_peer_bio) {
+                    uz.unnarsx.cherrygram.aiqiyi.local.AiqiyiLocalDataInputHelper.showPeer(
+                            ProfileActivity.this, userId,
+                            uz.unnarsx.cherrygram.aiqiyi.local.AiqiyiLocalDataInputHelper.TYPE_PEER_BIO,
+                            () -> {
+                                if (listAdapter != null) {
+                                    listAdapter.notifyDataSetChanged();
+                                }
+                                getNotificationCenter().postNotificationName(
+                                        NotificationCenter.updateInterfaces, MessagesController.UPDATE_MASK_NAME);
+                            });
                     return;
                 }
                 if (id == ProfileActivityHelper.OPTION_RESTART) {
@@ -13029,6 +13059,11 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                 }
                 if (!isBot && getContactsController().contactsDict.get(userId) != null) {
                     otherItem.addSubItem(add_shortcut, R.drawable.msg_home, LocaleController.getString(R.string.AddShortcut));
+                }
+                // [Aiqiyi local] 他人资料页三点菜单：本地名称/简介（好友与非好友均可用）
+                if (userId != 0 && !isBot && !UserObject.isSupportUser(user)) {
+                    otherItem.addSubItem(aqy_local_peer_name, R.drawable.msg_edit, LocaleController.getString(R.string.AQY_Menu_PeerName));
+                    otherItem.addSubItem(aqy_local_peer_bio, R.drawable.msg_edit, LocaleController.getString(R.string.AQY_Menu_PeerBio));
                 }
 
                 getProfileActivityHelper().injectCherryFeats(otherItem, user, currentEncryptedChat, isBot);
