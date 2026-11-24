@@ -947,7 +947,11 @@ public final class DynamicVideoWallpaperHelper {
                 // 只投递首帧就停住——这就是「有画面但完全静止」的成因。
                 // 只查缓存，绝不在主线程上等待探测。未命中时先按旧行为起播，
                 // 同时后台预热；探测结果回来后会触发一次重建（见下方 flushPendingSize）。
-                int[] probedSize = peekVideoSize(path);
+                // [Aiqiyi] 必须传 Context：无 Context 的重载只查内存 map，
+                // 每次 App 冷启动内存都是空的，磁盘里明明存着上次探测好的尺寸也读不到，
+                // 于是第一个视频永远命中不了缓存、永远按 view 尺寸起播——这就是
+                // 「首次进入卡顿、后面才顺」的根因。带 Context 的版本会回落 SharedPreferences。
+                int[] probedSize = peekVideoSize(textureView.getContext(), path);
                 if (probedSize != null) {
                     videoWidth = probedSize[0];
                     videoHeight = probedSize[1];
@@ -1110,6 +1114,14 @@ public final class DynamicVideoWallpaperHelper {
                         && surface != null && surface.isValid()) {
                     videoWidth = player.getVideoWidth();
                     videoHeight = player.getVideoHeight();
+                    // [Aiqiyi] 这里拿到的是解码器真实尺寸，顺手落盘。
+                    // 后台探测可能超时或失败（vivo/iQOO 的 MediaMetadataRetriever
+                    // 在 native 层卡死时 Java 层接不到），那条路径不会写盘；
+                    // 若不做这次补写，磁盘永远没有记录，冷启动就永远按 view 尺寸起播。
+                    if (videoWidth > 0 && videoHeight > 0 && path != null) {
+                        persistVideoSize(textureView.getContext(), path,
+                                new int[]{videoWidth, videoHeight});
+                    }
                     configureVideoBuffer();
                     applyFitCenter();
                     textureView.animate().alpha(.96f).setDuration(220L).start();
