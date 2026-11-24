@@ -13,6 +13,7 @@ import android.widget.LinearLayout;
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.LocaleController;
 import org.telegram.messenger.R;
+import org.telegram.messenger.UserConfig;
 import org.telegram.ui.ActionBar.AlertDialog;
 import org.telegram.ui.ActionBar.BaseFragment;
 import org.telegram.ui.ActionBar.Theme;
@@ -111,12 +112,12 @@ public final class AiqiyiLocalDataInputHelper {
         if (type == TYPE_PEER_NAME) {
             titleRes = R.string.AQY_Menu_PeerName;
             hintRes = R.string.AQY_Menu_PeerNameHint;
-            String v = AiqiyiLocalPeerName.getName(userId);
+            String v = AiqiyiLocalPeerName.getName(UserConfig.selectedAccount, userId);
             current = v == null ? "" : v;
         } else {
             titleRes = R.string.AQY_Menu_PeerBio;
             hintRes = R.string.AQY_Menu_PeerBioHint;
-            String v = AiqiyiLocalPeerName.getBio(userId);
+            String v = AiqiyiLocalPeerName.getBio(UserConfig.selectedAccount, userId);
             current = v == null ? "" : v;
         }
 
@@ -146,9 +147,9 @@ public final class AiqiyiLocalDataInputHelper {
         builder.setPositiveButton(LocaleController.getString(R.string.AQY_Menu_OK), (dialog, which) -> {
             String value = editText.getText().toString().trim();
             if (type == TYPE_PEER_NAME) {
-                AiqiyiLocalPeerName.setName(userId, value);
+                AiqiyiLocalPeerName.setName(UserConfig.selectedAccount, userId, value);
             } else {
-                AiqiyiLocalPeerName.setBio(userId, value);
+                AiqiyiLocalPeerName.setBio(UserConfig.selectedAccount, userId, value);
             }
             if (onDone != null) {
                 onDone.run();
@@ -168,10 +169,10 @@ public final class AiqiyiLocalDataInputHelper {
                 () -> showPeer(fragment, userId, TYPE_PEER_NAME, onChanged));
         options.add(R.drawable.msg_edit, LocaleController.getString(R.string.AQY_Menu_PeerBio),
                 () -> showPeer(fragment, userId, TYPE_PEER_BIO, onChanged));
-        if (AiqiyiLocalPeerName.hasAny(userId)) {
+        if (AiqiyiLocalPeerName.hasAny(UserConfig.selectedAccount, userId)) {
             options.addGap();
             options.add(R.drawable.msg_reset, LocaleController.getString(R.string.AQY_Menu_PeerResetAll), () -> {
-                AiqiyiLocalPeerName.clearAll(userId);
+                AiqiyiLocalPeerName.clearAll(UserConfig.selectedAccount, userId);
                 if (onChanged != null) onChanged.run();
             });
         }

@@ -36,89 +36,111 @@ public final class AiqiyiLocalPeerName {
         return ApplicationLoader.applicationContext.getSharedPreferences(PREF_NAME, 0);
     }
 
-    private static long selfId() {
+    private static long selfId(int account) {
         try {
-            UserConfig cfg = UserConfig.getInstance(UserConfig.selectedAccount);
+            UserConfig cfg = UserConfig.getInstance(account);
             return cfg == null ? 0 : cfg.getClientUserId();
         } catch (Throwable ignore) {
             return 0;
         }
     }
 
-    private static String key(String prefix, long userId) {
-        return prefix + UserConfig.selectedAccount + "_" + userId;
+    /**
+     * [Aiqiyi] 严格的本我判定。
+     *
+     * 不能用 userId == selfId(account) 直接比：账号信息尚未加载完时
+     * getClientUserId() 可能返回 0，selfId 就是 0，任何 userId 都不等于 0，
+     * 于是「拒绝改自己」这条底线直接失效。而 currentUser 会被 saveConfig()
+     * 持久化到磁盘，一旦它的 first_name 被覆盖名污染，就永久写死进本地配置。
+     * 宁可保守：selfId 取不到（<=0）时一律按「可能是本人」处理，不放行。
+     */
+    private static boolean isSelf(int account, long userId) {
+        long self = selfId(account);
+        return self <= 0 || userId == self;
+    }
+
+    private static String key(int account, String prefix, long userId) {
+        return prefix + account + "_" + userId;
     }
 
     // ==================== 姓名 ====================
 
     /**
-     * 取姓名覆盖值。无覆盖返回 null。
-     * 结果进内存缓存，putUser 高频调用也不会反复读盘。
-     */
-    public static String getName(long userId) {
-        if (userId <= 0 || userId == selfId()) {
-            return null;
-        }
-        String cached = nameCache.computeIfAbsent(userId, k -> {
-            String v = prefs().getString(key(KEY_NAME_PREFIX, k), null);
-            return TextUtils.isEmpty(v) ? "" : v;
-        });
-        return cached.isEmpty() ? null : cached;
+ * 取姓名覆盖值。无覆盖返回 null。
+ * 结果进内存缓存，putUser 高频调用也不会反复读盘。
+ *
+ * [Aiqiyi] account 必须由调用方显式传入（通常是 BaseController.currentAccount）。
+ * 绝不能用 UserConfig.selectedAccount：那是全局「当前选中账号」，
+ * 而 putUser 可能跑在任意账号的 MessagesController 实例上，
+ * 多账号场景或切换账号后两者会不一致，拼出的存储键就查不到，
+ * 表现为「写了但读不出来」。
+ */
+public static String getName(int account, long userId) {
+    if (userId <= 0 || isSelf(account, userId)) {
+        return null;
     }
+    final String cacheKey = account + "_" + userId;
+    String cached = nameCache.computeIfAbsent(cacheKey, k -> {
+        String v = prefs().getString(key(account, KEY_NAME_PREFIX, userId), null);
+        return TextUtils.isEmpty(v) ? "" : v;
+    });
+    return cached.isEmpty() ? null : cached;
+}
 
     /** 设置姓名覆盖。传空表示清除。 */
-    public static void setName(long userId, String value) {
-        if (userId <= 0 || userId == selfId()) {
+    public static void setName(int account, long userId, String value) {
+        if (userId <= 0 || isSelf(account, userId)) {
             return;
         }
         String v = value == null ? "" : value.trim();
         SharedPreferences.Editor editor = prefs().edit();
         if (v.isEmpty()) {
-            editor.remove(key(KEY_NAME_PREFIX, userId));
-            nameCache.put(userId, "");
+            editor.remove(key(account, KEY_NAME_PREFIX, userId));
+            nameCache.put(account + "_" + userId, "");
         } else {
-            editor.putString(key(KEY_NAME_PREFIX, userId), v);
-            nameCache.put(userId, v);
+            editor.putString(key(account, KEY_NAME_PREFIX, userId), v);
+            nameCache.put(account + "_" + userId, v);
         }
         editor.apply();
     }
 
     // ==================== 简介 ====================
 
-    public static String getBio(long userId) {
-        if (userId <= 0 || userId == selfId()) {
+    public static String getBio(int account, long userId) {
+        if (userId <= 0 || isSelf(account, userId)) {
             return null;
         }
-        String cached = bioCache.computeIfAbsent(userId, k -> {
-            String v = prefs().getString(key(KEY_BIO_PREFIX, k), null);
+        final String cacheKey = account + "_" + userId;
+        String cached = bioCache.computeIfAbsent(cacheKey, k -> {
+            String v = prefs().getString(key(account, KEY_BIO_PREFIX, userId), null);
             return TextUtils.isEmpty(v) ? "" : v;
         });
         return cached.isEmpty() ? null : cached;
     }
 
-    public static void setBio(long userId, String value) {
-        if (userId <= 0 || userId == selfId()) {
+    public static void setBio(int account, long userId, String value) {
+        if (userId <= 0 || isSelf(account, userId)) {
             return;
         }
         String v = value == null ? "" : value.trim();
         SharedPreferences.Editor editor = prefs().edit();
         if (v.isEmpty()) {
-            editor.remove(key(KEY_BIO_PREFIX, userId));
-            bioCache.put(userId, "");
+            editor.remove(key(account, KEY_BIO_PREFIX, userId));
+            bioCache.put(account + "_" + userId, "");
         } else {
-            editor.putString(key(KEY_BIO_PREFIX, userId), v);
-            bioCache.put(userId, v);
+            editor.putString(key(account, KEY_BIO_PREFIX, userId), v);
+            bioCache.put(account + "_" + userId, v);
         }
         editor.apply();
     }
 
-    public static boolean hasAny(long userId) {
-        return getName(userId) != null || getBio(userId) != null;
+    public static boolean hasAny(int account, long userId) {
+        return getName(account, userId) != null || getBio(account, userId) != null;
     }
 
-    public static void clearAll(long userId) {
-        setName(userId, null);
-        setBio(userId, null);
+    public static void clearAll(int account, long userId) {
+        setName(account, userId, null);
+        setBio(account, userId, null);
     }
 
     /** 账号切换或数据清理后调用，丢弃内存缓存 */

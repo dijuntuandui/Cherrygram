@@ -6946,8 +6946,12 @@ public class MessagesController extends BaseController implements NotificationCe
         // 与「按姓名文本反查」的根本差别在于：这里定位依据是 id，不可能把 A 的覆盖名
         // 应用到 B 身上，因此不会出现「所有人资料都变成同一个人」。
         // 写入时机在 putUser，覆盖后所有读取 first_name/last_name 的界面自动生效。
-        {
-            String aqyOverrideName = uz.unnarsx.cherrygram.aiqiyi.local.AiqiyiLocalPeerName.getName(user.id);
+        //
+        // 本人必须跳过：currentUser 会被 UserConfig.saveConfig() 持久化到磁盘，
+        // 一旦它的 first_name 被覆盖名写脏，就永久固化进本地配置、且会随
+        // 后续请求回传服务端。helper 内已有 isSelf 判定，这里是第二道保险。
+        if (user.id != getUserConfig().getClientUserId()) {
+            String aqyOverrideName = uz.unnarsx.cherrygram.aiqiyi.local.AiqiyiLocalPeerName.getName(currentAccount, user.id);
             if (aqyOverrideName != null) {
                 user.first_name = aqyOverrideName;
                 user.last_name = "";

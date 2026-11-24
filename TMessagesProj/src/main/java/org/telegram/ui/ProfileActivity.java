@@ -11240,7 +11240,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                 }
                 // [Aiqiyi local] 本地简介也算有简介，否则行不会出现，后续渲染无从生效
                 if ((userInfo != null && !TextUtils.isEmpty(userInfo.about))
-                        || AiqiyiLocalPeerName.getBio(userId) != null) {
+                        || AiqiyiLocalPeerName.getBio(currentAccount, userId) != null) {
                     userInfoRow = rowCount++;
                 }
                 if (user != null && username != null) {
@@ -14604,7 +14604,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                     if (position == userInfoRow) {
                         TLRPC.User user = userInfo.user != null ? userInfo.user : getMessagesController().getUser(userInfo.id);
                         // [Aiqiyi local] 本地简介按 userId 精确覆盖，仅本机可见
-                        String aqyLocalBio = AiqiyiLocalPeerName.getBio(userId);
+                        String aqyLocalBio = AiqiyiLocalPeerName.getBio(currentAccount, userId);
                         String aqyDisplayBio = aqyLocalBio != null ? aqyLocalBio : userInfo.about;
                         boolean addlinks = isBot || (user != null && user.premium && aqyDisplayBio != null);
                         aboutLinkCell.setTextAndValue(aqyDisplayBio, LocaleController.getString(R.string.UserBio), addlinks);
@@ -14617,7 +14617,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                     } else if (position == bioRow) {
                         String value;
                         // [Aiqiyi local] 本地简介优先于服务端简介
-                        String aqyLocalBioRow = AiqiyiLocalPeerName.getBio(userId);
+                        String aqyLocalBioRow = AiqiyiLocalPeerName.getBio(currentAccount, userId);
                         String aqyRowBio = aqyLocalBioRow != null ? aqyLocalBioRow : (userInfo != null ? userInfo.about : null);
                         if (aqyRowBio != null && !TextUtils.isEmpty(aqyRowBio)) {
                             value = aqyRowBio;
