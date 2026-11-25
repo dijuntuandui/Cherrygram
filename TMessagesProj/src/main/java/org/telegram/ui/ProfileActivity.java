@@ -618,6 +618,9 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
     // [Aiqiyi local] 他人资料页：本地名称/简介（好友与非好友均可用）
     private final static int aqy_local_peer_name = 48;
     private final static int aqy_local_peer_bio = 49;
+    private final static int aqy_local_peer_avatar = 50;
+    /** 本地头像选择器 requestCode */
+    private final static int aqy_request_local_avatar = 0x4A51;
 
     private Rect rect = new Rect();
 
@@ -2897,6 +2900,29 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                                 getNotificationCenter().postNotificationName(
                                         NotificationCenter.updateInterfaces, MessagesController.UPDATE_MASK_NAME);
                             });
+                    return;
+                }
+                // [Aiqiyi local] 他人资料页：设置本地头像（纯本机，不上传）
+                if (id == aqy_local_peer_avatar) {
+                    if (uz.unnarsx.cherrygram.aiqiyi.local.AiqiyiLocalAvatar.has(currentAccount, userId)) {
+                        // 已有本地头像：让用户选「重新选择」还是「恢复原始头像」
+                        final AlertDialog.Builder builder = new AlertDialog.Builder(getParentActivity());
+                        builder.setTitle(LocaleController.getString(R.string.AQY_Menu_PeerAvatar));
+                        builder.setItems(new CharSequence[]{
+                                LocaleController.getString(R.string.AQY_Menu_PeerAvatarPick),
+                                LocaleController.getString(R.string.AQY_Menu_PeerAvatarReset)
+                        }, (dialog, which) -> {
+                            if (which == 0) {
+                                pickLocalAvatar();
+                            } else {
+                                uz.unnarsx.cherrygram.aiqiyi.local.AiqiyiLocalAvatar.clear(currentAccount, userId);
+                                refreshAfterLocalAvatarChanged();
+                            }
+                        });
+                        showDialog(builder.create());
+                    } else {
+                        pickLocalAvatar();
+                    }
                     return;
                 }
                 if (id == ProfileActivityHelper.OPTION_RESTART) {
@@ -7328,12 +7354,79 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
         return isFragmentOpened;
     }
 
+    // ==================== [Aiqiyi local] 本地头像 ====================
+
+    /** 拉起系统相册选一张图作为本地头像 */
+    private void pickLocalAvatar() {
+        if (getParentActivity() == null || userId == 0) {
+            return;
+        }
+        try {
+            android.content.Intent intent = new android.content.Intent(android.content.Intent.ACTION_GET_CONTENT);
+            intent.setType("image/*");
+            intent.addCategory(android.content.Intent.CATEGORY_OPENABLE);
+            startActivityForResult(intent, aqy_request_local_avatar);
+        } catch (Throwable t) {
+            org.telegram.messenger.FileLog.e(t);
+        }
+    }
+
+    /** 本地头像变更后刷新资料页显示 */
+    private void refreshAfterLocalAvatarChanged() {
+        try {
+            updateProfileData(true);
+            if (listAdapter != null) {
+                listAdapter.notifyDataSetChanged();
+            }
+            getNotificationCenter().postNotificationName(NotificationCenter.updateInterfaces, MessagesController.UPDATE_MASK_AVATAR);
+        } catch (Throwable t) {
+            org.telegram.messenger.FileLog.e(t);
+        }
+    }
+
+    /** 选图回调：把图缩放压缩后存进私有目录，并记录路径 */
+    private void aqySaveLocalAvatar(android.net.Uri uri) {
+        try {
+            final String path = uz.unnarsx.cherrygram.aiqiyi.local.AiqiyiLocalAvatarSaver
+                    .saveFromUri(currentAccount, userId, uri);
+            if (path == null) {
+                org.telegram.ui.Components.BulletinFactory.of(this)
+                        .createSimpleBulletin(R.raw.error, LocaleController.getString(R.string.AQY_LocalAvatar_Failed))
+                        .show();
+                return;
+            }
+            refreshAfterLocalAvatarChanged();
+            // 菜单项文案要在下次打开菜单时重新算，这里强刷一次 ActionBar 菜单
+            if (actionBar != null && actionBar.getActionBarMenuOnItemClick() != null) {
+                // no-op：菜单在打开时重建，无需手动处理
+            }
+        } catch (Throwable t) {
+            org.telegram.messenger.FileLog.e(t);
+        }
+    }
+
     private void openAvatar() {
         openAvatar(false);
     }
     private void openAvatar(boolean ignoreDragging) {
         if (listView.getScrollState() == RecyclerView.SCROLL_STATE_DRAGGING && !ignoreDragging) {
             return;
+        }
+        // [Aiqiyi local] 本地头像：点大头像时直接看本地图片，不走服务器头像链路
+        if (userId != 0) {
+            final String aqyLocalAvatarPath = uz.unnarsx.cherrygram.aiqiyi.local.AiqiyiLocalAvatar
+                    .getPath(currentAccount, userId);
+            if (aqyLocalAvatarPath != null) {
+                try {
+                    ArrayList<MediaController.PhotoEntry> aqyPhotos = new ArrayList<>();
+                    aqyPhotos.add(new MediaController.PhotoEntry(0, 0, 0, aqyLocalAvatarPath, 0, false, 0, 0, 0));
+                    PhotoViewer.getInstance().setParentActivity(ProfileActivity.this);
+                    PhotoViewer.getInstance().openPhotoForSelect(aqyPhotos, 0, 0, true, provider, null);
+                    return;
+                } catch (Throwable t) {
+                    org.telegram.messenger.FileLog.e(t);
+                }
+            }
         }
         int carouselPosition = avatarsViewPager != null ? avatarsViewPager.getRealPosition() : 0;
         ImageLocation carouselImageLocation = avatarsViewPager != null ? avatarsViewPager.getRealImageLocation(carouselPosition) : null;
@@ -12196,7 +12289,13 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                 avatarsViewPager.initIfEmpty(vectorAvatarThumbDrawable, imageLocation, thumbLocation, reload);
             }
             if (avatarBig == null) {
-                if (vectorAvatar != null) {
+                // [Aiqiyi local] 本地头像优先：本机设置过就直接用它，不再走服务器头像
+                final String aqyLocalAvatarPath = uz.unnarsx.cherrygram.aiqiyi.local.AiqiyiLocalAvatar
+                        .getPath(currentAccount, userId);
+                if (aqyLocalAvatarPath != null) {
+                    avatarImage.setImage(ImageLocation.getForPath(aqyLocalAvatarPath),
+                            "100_100", avatarDrawable, user);
+                } else if (vectorAvatar != null) {
                     avatarImage.setImageDrawable(vectorAvatarThumbDrawable);
                 } else if (videoThumbLocation != null && !user.photo.personal) {
                     avatarImage.getImageReceiver().setVideoThumbIsSame(true);
@@ -13113,10 +13212,13 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                 if (!isBot && getContactsController().contactsDict.get(userId) != null) {
                     otherItem.addSubItem(add_shortcut, R.drawable.msg_home, LocaleController.getString(R.string.AddShortcut));
                 }
-                // [Aiqiyi local] 他人资料页三点菜单：本地名称/简介（全量放行，不看 bot/客服/好友）
+                // [Aiqiyi local] 他人资料页三点菜单：本地名称/简介/头像（全量放行，不看 bot/客服/好友）
                 if (userId != 0) {
                     otherItem.addSubItem(aqy_local_peer_name, R.drawable.msg_edit, LocaleController.getString(R.string.AQY_Menu_PeerName));
                     otherItem.addSubItem(aqy_local_peer_bio, R.drawable.msg_edit, LocaleController.getString(R.string.AQY_Menu_PeerBio));
+                    final boolean aqyHasLocalAvatar = uz.unnarsx.cherrygram.aiqiyi.local.AiqiyiLocalAvatar.has(currentAccount, userId);
+                    otherItem.addSubItem(aqy_local_peer_avatar, R.drawable.msg_addphoto,
+                            LocaleController.getString(aqyHasLocalAvatar ? R.string.AQY_Menu_PeerAvatarReset : R.string.AQY_Menu_PeerAvatar));
                 }
 
                 getProfileActivityHelper().injectCherryFeats(otherItem, user, currentEncryptedChat, isBot);
@@ -13891,6 +13993,13 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
 
     @Override
     public void onActivityResultFragment(int requestCode, int resultCode, Intent data) {
+        // [Aiqiyi local] 本地头像选图回调
+        if (requestCode == aqy_request_local_avatar) {
+            if (resultCode == Activity.RESULT_OK && data != null && data.getData() != null) {
+                aqySaveLocalAvatar(data.getData());
+            }
+            return;
+        }
         if (imageUpdater != null) {
             imageUpdater.onActivityResult(requestCode, resultCode, data);
         }

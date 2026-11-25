@@ -796,6 +796,10 @@
     <string name="AQY_Menu_PeerNameHint">输入新名称（仅本地生效）</string>
     <string name="AQY_Menu_PeerBio">设置本地简介</string>
     <string name="AQY_Menu_PeerBioHint">输入新简介（仅本地生效）</string>
+    <string name="AQY_Menu_PeerAvatar">设置本地头像</string>
+    <string name="AQY_Menu_PeerAvatarPick">选择图片</string>
+    <string name="AQY_Menu_PeerAvatarReset">恢复原始头像</string>
+    <string name="AQY_LocalAvatar_Failed">图片读取失败</string>
     <string name="AQY_Menu_PeerResetAll">恢复原始资料</string>
     <!-- [Aiqiyi] 消息书签 -->
     <string name="AQY_Menu_AddBookmark">添加书签</string>
