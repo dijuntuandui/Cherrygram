@@ -48,11 +48,12 @@ public final class AiqiyiPremiumStatus {
                 }
             } catch (Throwable ignore) {
             }
-            // 乙：专区总闸 + 本地高级版，均开才伪装
+            // 乙：直接复用全局 isPremium()，不再在这里重复算一遍开关。
+            // 旧实现要求「专区总闸 + 本地高级版」同时开启，与 isPremium() 的
+            // 判定脱钩，出现「会员角标亮了、状态行却没字」的错位。
             boolean localFake = false;
             try {
-                localFake = uz.unnarsx.cherrygram.core.configs.AiqiyiLocalDataConfig.INSTANCE.getLocalZoneEnabled()
-                        && uz.unnarsx.cherrygram.core.configs.AiqiyiLocalDataConfig.INSTANCE.getLocalPremiumOverride();
+                localFake = userConfig.isPremium();
             } catch (Throwable ignore) {
                 localFake = false;
             }
