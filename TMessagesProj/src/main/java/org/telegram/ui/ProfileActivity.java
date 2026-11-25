@@ -12298,7 +12298,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                         .getPath(currentAccount, userId);
                 if (aqyLocalAvatarPath != null) {
                     avatarImage.setImage(ImageLocation.getForPath(aqyLocalAvatarPath),
-                            "100_100", avatarDrawable, user);
+                            "100_100", avatarDrawable, null);
                 } else if (vectorAvatar != null) {
                     avatarImage.setImageDrawable(vectorAvatarThumbDrawable);
                 } else if (videoThumbLocation != null && !user.photo.personal) {

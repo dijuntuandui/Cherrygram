@@ -3606,7 +3606,18 @@ public class DialogCell extends BaseCell implements StoriesListPlaceProvider.Ava
                     avatarImage.setForUserOrChat(message.getFromPeerObject(), avatarDrawable);
                 } else if (user != null) {
                     avatarDrawable.setInfo(currentAccount, user);
-                    if (UserObject.isReplyUser(user)) {
+                    // [Aiqiyi local] 本地头像前置拦截：私聊/用户行命中本地图时直接接管，
+                    // 完全不走官方 setForUserOrChat，避免其网络加载回调把本地图覆盖掉。
+                    final long aqyLocalAvatarUid = user.id;
+                    final String aqyLocalAvatarPath =
+                            aqyLocalAvatarUid > 0
+                                    ? uz.unnarsx.cherrygram.aiqiyi.local.AiqiyiLocalAvatar
+                                            .getPath(currentAccount, aqyLocalAvatarUid)
+                                    : null;
+                    if (aqyLocalAvatarPath != null) {
+                        avatarImage.setImage(ImageLocation.getForPath(aqyLocalAvatarPath),
+                                "50_50", avatarDrawable, null, user, 0);
+                    } else if (UserObject.isReplyUser(user)) {
                         avatarDrawable.setAvatarType(AvatarDrawable.AVATAR_TYPE_REPLIES);
                         avatarImage.setImage(null, null, avatarDrawable, null, user, 0);
                     } else if (UserObject.isAnonymous(user)) {
@@ -3629,18 +3640,6 @@ public class DialogCell extends BaseCell implements StoriesListPlaceProvider.Ava
                     } else {
                         avatarDrawable.setInfo(currentAccount, chat);
                         avatarImage.setForUserOrChat(chat, avatarDrawable);
-                    }
-                }
-                // [Aiqiyi local] 本地头像后置覆盖：上面 useFromUserAsAvatar / user / chat / 归档 等
-                // 所有分支跑完后统一盖一次，避免逐个分支去改官方那堆 self/reply/anonymous 判定。
-                final long aqyLocalAvatarUid = user != null ? user.id : 0;
-                if (aqyLocalAvatarUid > 0) {
-                    final String aqyLocalAvatarPath =
-                            uz.unnarsx.cherrygram.aiqiyi.local.AiqiyiLocalAvatar
-                                    .getPath(currentAccount, aqyLocalAvatarUid);
-                    if (aqyLocalAvatarPath != null) {
-                        avatarImage.setImage(ImageLocation.getForPath(aqyLocalAvatarPath),
-                                "50_50", avatarDrawable, null, user, 0);
                     }
                 }
             }
