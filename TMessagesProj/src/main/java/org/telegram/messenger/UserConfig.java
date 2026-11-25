@@ -617,9 +617,25 @@ public class UserConfig extends BaseController {
     }
 
     public boolean isPremium() {
-        // [Aiqiyi local] 此处只做官方判定，不得短路。
-        // 本地高级版的伪装仅限资料页状态行（AiqiyiPremiumStatus），
-        // 一旦在这里返回 true，他人资料页、会员菜单、账号数上限都会跟着伪造。
+        // [Aiqiyi local] 本地高级版全局放行（甲方案，用户拍板）。
+        //
+        // 判定顺序：
+        //   1. 本地功能专区总闸 + 本地高级版 同时开启 → 直接 true
+        //      全站 382 处 isPremium() 调用点一起信，会员徽章/上限/菜单全部放开。
+        //   2. 否则走官方 user.premium。
+        //
+        // 注意：本机伪装，不改 currentUser.premium、不上报服务器。
+        // 涉及服务端强校验的操作（下载会员专属贴纸/礼物等）仍会被服务器拒，
+        // 表现为该操作失败并提示，不影响账号本身。
+        try {
+            final uz.unnarsx.cherrygram.core.configs.AiqiyiLocalDataConfig localCfg =
+                    uz.unnarsx.cherrygram.core.configs.AiqiyiLocalDataConfig.INSTANCE;
+            if (localCfg.getLocalZoneEnabled() && localCfg.getLocalPremiumOverride()) {
+                return true;
+            }
+        } catch (Throwable ignore) {
+            // 配置读取失败时静默回落到官方判定
+        }
         TLRPC.User user = currentUser;
         if (user == null) {
             return false;

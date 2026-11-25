@@ -11305,7 +11305,10 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                 devicesRow = rowCount++;
                 languageRow = rowCount++;
                 devicesSectionRow = rowCount++;
-                if (!getMessagesController().premiumFeaturesBlocked()) {
+                if (!getMessagesController().premiumFeaturesBlocked() && !getUserConfig().isPremium()) {
+                    // [Aiqiyi local] 本地会员开启后不再显示「Telegram Premium」订阅行。
+                    // 原判定只看 premiumFeaturesBlocked()，不看当前是否已是会员，
+                    // 导致本地伪装会员后仍能点进订阅页。
                     premiumRow = rowCount++;
                 }
                 if (getMessagesController().starsPurchaseAvailable()) {
