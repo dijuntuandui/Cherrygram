@@ -3631,6 +3631,18 @@ public class DialogCell extends BaseCell implements StoriesListPlaceProvider.Ava
                         avatarImage.setForUserOrChat(chat, avatarDrawable);
                     }
                 }
+                // [Aiqiyi local] 本地头像后置覆盖：上面 useFromUserAsAvatar / user / chat / 归档 等
+                // 所有分支跑完后统一盖一次，避免逐个分支去改官方那堆 self/reply/anonymous 判定。
+                final long aqyLocalAvatarUid = user != null ? user.id : 0;
+                if (aqyLocalAvatarUid > 0) {
+                    final String aqyLocalAvatarPath =
+                            uz.unnarsx.cherrygram.aiqiyi.local.AiqiyiLocalAvatar
+                                    .getPath(currentAccount, aqyLocalAvatarUid);
+                    if (aqyLocalAvatarPath != null) {
+                        avatarImage.setImage(ImageLocation.getForPath(aqyLocalAvatarPath),
+                                "50_50", avatarDrawable, null, user, 0);
+                    }
+                }
             }
 
             if (animated && (oldUnreadCount != unreadCount || oldMarkUnread != markUnread) && (!isDialogCell || (System.currentTimeMillis() - lastDialogChangedTime) > 100)) {

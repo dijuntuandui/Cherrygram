@@ -398,6 +398,18 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
                 avatarDrawable.setInfo(messageObject.getFromChatId(), null, null);
                 avatarImage.setImage(null, null, avatarDrawable, null, null, 0);
             }
+            // [Aiqiyi local] 本地头像后置覆盖：上面所有分支跑完后，若有本地头像一律盖掉。
+            // 用后置覆盖而不是塞分支，是为了不去动官方那堆 isReplyUser/isAnonymous/self 判定。
+            final long aqyAvatarUid = messageObject.getFromChatId();
+            if (aqyAvatarUid > 0) {
+                final String aqyLocalAvatarPath =
+                        uz.unnarsx.cherrygram.aiqiyi.local.AiqiyiLocalAvatar
+                                .getPath(currentAccount, aqyAvatarUid);
+                if (aqyLocalAvatarPath != null) {
+                    avatarImage.setImage(ImageLocation.getForPath(aqyLocalAvatarPath),
+                            "50_50", null, null, null, 0);
+                }
+            }
         } else {
             currentPhoto = null;
         }
