@@ -7418,7 +7418,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                     .getPath(currentAccount, userId);
             if (aqyLocalAvatarPath != null) {
                 try {
-                    ArrayList<MediaController.PhotoEntry> aqyPhotos = new ArrayList<>();
+                    ArrayList<Object> aqyPhotos = new ArrayList<>();
                     aqyPhotos.add(new MediaController.PhotoEntry(0, 0, 0, aqyLocalAvatarPath, 0, false, 0, 0, 0));
                     PhotoViewer.getInstance().setParentActivity(ProfileActivity.this);
                     PhotoViewer.getInstance().openPhotoForSelect(aqyPhotos, 0, 0, true, provider, null);
