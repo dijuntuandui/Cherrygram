@@ -45,9 +45,11 @@ public final class AiqiyiLocalAvatar {
     }
 
     /**
-     * 严格的本我判定，语义与 AiqiyiLocalPeerName.isSelf 完全一致：
-     * selfId 取不到（<=0）时按「可能是本人」处理，不放行。
+     * 本我判定。注意：本类已不再使用它做读写拦截（见 getPath/setPath 内注释），
+     * 保留仅为语义留档；若将来要恢复防污染，应先确认 UserConfig 已就绪，
+     * 否则 selfId<=0 会把所有写入静默拦掉。
      */
+    @SuppressWarnings("unused")
     private static boolean isSelf(int account, long userId) {
         long self = selfId(account);
         return self <= 0 || userId == self;
@@ -72,7 +74,10 @@ public final class AiqiyiLocalAvatar {
      * 文件是否真实存在必须校验：用户可能清过缓存/数据，键还在但图没了。
      */
     public static String getPath(int account, long userId) {
-        if (userId <= 0 || isSelf(account, userId)) {
+        // [Aiqiyi local] 读取侧不再做 isSelf 判定：会话列表 DialogCell 绑定时 UserConfig
+        // 可能尚未就绪，selfId 取到 0 会让 isSelf 恒真、本地头像被整体屏蔽。
+        // 防污染仍由写入侧 setPath() 的 isSelf 守卫负责，这里只放行读取。
+        if (userId <= 0) {
             return null;
         }
         final String cacheKey = account + "_" + userId;
@@ -97,7 +102,10 @@ public final class AiqiyiLocalAvatar {
      * 写入前会删掉旧文件，避免 filesDir 里堆垃圾。
      */
     public static void setPath(int account, long userId, String path) {
-        if (userId <= 0 || isSelf(account, userId)) {
+        // [Aiqiyi local] 与 getPath 保持一致：只用 userId 做键，不再按 isSelf 拦截。
+        // 键是 peerAvatar_<account>_<userId>，逐行独立，不存在串号风险；
+        // 原先的 isSelf 守卫在 UserConfig 未就绪时会误拦合法写入。
+        if (userId <= 0) {
             return;
         }
         final String cacheKey = account + "_" + userId;
