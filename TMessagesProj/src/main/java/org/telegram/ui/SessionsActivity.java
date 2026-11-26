@@ -748,8 +748,9 @@ public class SessionsActivity extends BaseFragment implements NotificationCenter
         builder.setNegativeButton("取消", null);
         final AlertDialog dialog = builder.create();
         dialog.setOnShowListener(d -> {
-            if (dialog.getButton(DialogInterface.BUTTON_POSITIVE) != null) {
-                dialog.getButton(DialogInterface.BUTTON_POSITIVE).setTextColor(Theme.getColor(Theme.key_dialogButton));
+            final android.view.View positiveBtn = dialog.getButton(DialogInterface.BUTTON_POSITIVE);
+            if (positiveBtn instanceof TextView) {
+                ((TextView) positiveBtn).setTextColor(Theme.getColor(Theme.key_dialogButton));
             }
             editText.requestFocus();
             AndroidUtilities.showKeyboard(editText);
