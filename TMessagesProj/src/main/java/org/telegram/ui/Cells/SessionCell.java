@@ -337,11 +337,19 @@ public class SessionCell extends FrameLayout {
         final String localPlatform = uz.unnarsx.cherrygram.aiqiyi.local.AiqiyiLocalDeviceName.getPlatform(session.hash);
 
         TLRPC.TL_authorization fake = new TLRPC.TL_authorization();
-        fake.hash = session.hash;
+        // 逐字段对齐 TL_authorization 真实定义，不漏不多。
+        // 漏字段会导致详情页少显示内容，多字段直接编译不过（date 就是。
         fake.flags = session.flags;
-        fake.date_active = session.date_active;
+        fake.current = session.current;
+        fake.official_app = session.official_app;
+        fake.password_pending = session.password_pending;
+        fake.encrypted_requests_disabled = session.encrypted_requests_disabled;
+        fake.call_requests_disabled = session.call_requests_disabled;
+        fake.unconfirmed = session.unconfirmed;
+        fake.hash = session.hash;
+        fake.api_id = session.api_id;
         fake.date_created = session.date_created;
-        fake.date = session.date;
+        fake.date_active = session.date_active;
         fake.ip = session.ip;
         fake.country = session.country;
         fake.region = session.region;
