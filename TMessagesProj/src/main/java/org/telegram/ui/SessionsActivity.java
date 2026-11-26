@@ -593,8 +593,8 @@ public class SessionsActivity extends BaseFragment implements NotificationCenter
                 target = null;
             }
             android.util.Log.d("AIQY_DEV", "target=" + (target == null ? "null" : ("hash=" + target.hash + " model=" + target.device_model + " platform=" + target.platform)));
-            if (target == null || target.hash == 0) {
-                android.util.Log.d("AIQY_DEV", "BLOCKED by hash==0, aborted");
+            // [Aiqiyi] 不再因 hash==0 拦截：当前会话本就没有 hash，由 keyOf 派生伪键。
+            if (target == null) {
                 return false;
             }
             showLocalDeviceNameDialog(target);
@@ -667,7 +667,8 @@ public class SessionsActivity extends BaseFragment implements NotificationCenter
         if (getParentActivity() == null || authorization == null) {
             return;
         }
-        final long hash = authorization.hash;
+        // [Aiqiyi] hash 归一：当前会话（hash==0）用 account 派生的伪键，其余设备用真 hash。
+        final long hash = uz.unnarsx.cherrygram.aiqiyi.local.AiqiyiLocalDeviceName.keyOf(authorization.hash, currentAccount);
         final String curName = uz.unnarsx.cherrygram.aiqiyi.local.AiqiyiLocalDeviceName.getName(hash);
         final String curType = uz.unnarsx.cherrygram.aiqiyi.local.AiqiyiLocalDeviceName.getType(hash);
 
@@ -813,7 +814,7 @@ public class SessionsActivity extends BaseFragment implements NotificationCenter
                         // [Aiqiyi] 本地设备名覆盖：只改 device_model / platform 两个字段，
                         // 不新建对象、不进渲染链路。渲染侧拿到的还是原对象。
                         android.util.Log.d("AIQY_DEV", "APPLYTO hash=" + authorization.hash + " -> model=" + authorization.device_model);
-                        uz.unnarsx.cherrygram.aiqiyi.local.AiqiyiLocalDeviceName.applyTo(authorization);
+                        uz.unnarsx.cherrygram.aiqiyi.local.AiqiyiLocalDeviceName.applyTo(authorization, currentAccount);
                         if ((authorization.flags & 1) != 0) {
                             currentSession = authorization;
                         } else if (authorization.password_pending) {

@@ -72,8 +72,31 @@ public final class AiqiyiLocalDeviceName {
      * hash 为 0（理论上不该出现，但防御一下）时不落库、不生效，
      * 避免所有异常记录共用一个键集体串名。
      */
-    private static boolean valid(long hash) {
-        return hash != 0;
+    private static boolean valid(long key) {
+        // keyOf() 会把所有 hash 归一成非 0 的键，这里只防御真正的空键。
+        return key != 0;
+    }
+
+    /**
+     * [Aiqiyi] hash 归一：把「当前正在使用的会话」映射成一个稳定的伪键。
+     *
+     * 背景：account.getAuthorizations 返回的列表里，当前会话（flags & 1）那条
+     * 服务端不下发 hash（实测恒为 0），它靠 flags 标记身份、不需要 hash 去操作。
+     * 原实现用 hash 做键 + hash==0 直接拒，等于把唯一真正想改的那台挡在门外。
+     *
+     * 方案：hash != 0 原样用；hash == 0 时按 currentAccount 派生一个极负区间伪键。
+     *   - 极负区间避让真实 hash（服务端 hash 是随机 long，几乎不可能落在这里）
+     *   - 带上 account 维度，多账号之间互不串名
+     *   - 存储层/缓存层仍是 Long，不用换类型
+     */
+    private static final long SELF_KEY_BASE = -0x4A51595F00000000L;
+
+    public static long keyOf(long hash, int account) {
+        return hash != 0 ? hash : (SELF_KEY_BASE - account);
+    }
+
+    public static boolean isSelfKey(long key) {
+        return key <= SELF_KEY_BASE && key > SELF_KEY_BASE - 1000L;
     }
 
     private static String key(String prefix, long hash) {
@@ -207,11 +230,12 @@ public final class AiqiyiLocalDeviceName {
      *
      * @return 是否做了覆盖
      */
-    public static boolean applyTo(TLRPC.TL_authorization session) {
-        if (session == null || !valid(session.hash)) {
+    public static boolean applyTo(TLRPC.TL_authorization session, int account) {
+        if (session == null) {
             return false;
         }
-        final String[] v = load(session.hash);
+        final long key = keyOf(session.hash, account);
+        final String[] v = load(key);
         if (TextUtils.isEmpty(v[0])) {
             return false;
         }
