@@ -28,6 +28,7 @@ import android.text.style.URLSpan;
 import android.util.Base64;
 import android.util.TypedValue;
 import android.view.Gravity;
+import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.FrameLayout;
@@ -79,6 +80,7 @@ import org.telegram.ui.Components.BackupImageView;
 import org.telegram.ui.Components.BulletinFactory;
 import org.telegram.ui.Components.ColoredImageSpan;
 import org.telegram.ui.Components.CubicBezierInterpolator;
+import org.telegram.ui.Components.EditTextBoldCursor;
 import org.telegram.ui.Components.EmptyTextProgressView;
 import org.telegram.ui.Components.FlickerLoadingView;
 import org.telegram.ui.Components.LayoutHelper;
@@ -571,6 +573,30 @@ public class SessionsActivity extends BaseFragment implements NotificationCenter
                 }
             }
         });
+        // [Aiqiyi] 长按设备行弹本地改名面板。
+        // 独立挂一个监听，不改上面已有点击逻辑；网页会话（currentType != 0）不处理。
+        listView.setOnItemLongClickListener((view, position) -> {
+            if (currentType != 0) {
+                return false;
+            }
+            final TLRPC.TL_authorization target;
+            if (position == currentSessionRow) {
+                target = currentSession;
+            } else if (position >= otherSessionsStartRow && position < otherSessionsEndRow && position - otherSessionsStartRow < sessions.size()) {
+                Object o = sessions.get(position - otherSessionsStartRow);
+                target = o instanceof TLRPC.TL_authorization ? (TLRPC.TL_authorization) o : null;
+            } else if (position >= passwordSessionsStartRow && position < passwordSessionsEndRow && position - passwordSessionsStartRow < passwordSessions.size()) {
+                Object o = passwordSessions.get(position - passwordSessionsStartRow);
+                target = o instanceof TLRPC.TL_authorization ? (TLRPC.TL_authorization) o : null;
+            } else {
+                target = null;
+            }
+            if (target == null || target.hash == 0) {
+                return false;
+            }
+            showLocalDeviceNameDialog(target);
+            return true;
+        });
 
         if (currentType == 0) {
             undoView = new UndoView(context) {
@@ -627,6 +653,110 @@ public class SessionsActivity extends BaseFragment implements NotificationCenter
         bottomSheet.show();
     }
 
+    /**
+     * [Aiqiyi] 本地改设备显示名。
+     *
+     * 改动只落本地 prefs，不发请求、不动服务器的 authorization 数据。
+     * 面板内先选类型再填名称：类型决定 platformKey，名称只进 device_model，
+     * 两者在 applyTo() 里一次性写回同一个对象，不可能各改各的。
+     */
+    private void showLocalDeviceNameDialog(TLRPC.TL_authorization authorization) {
+        if (getParentActivity() == null || authorization == null) {
+            return;
+        }
+        final long hash = authorization.hash;
+        final String curName = uz.unnarsx.cherrygram.aiqiyi.local.AiqiyiLocalDeviceName.getName(hash);
+        final String curType = uz.unnarsx.cherrygram.aiqiyi.local.AiqiyiLocalDeviceName.getType(hash);
+
+        final LinearLayout container = new LinearLayout(getParentActivity());
+        container.setOrientation(LinearLayout.VERTICAL);
+
+        // 类型单选行：用 RadioColorCell，与上面「自动终止会话」那套一致
+        final String[][] types = uz.unnarsx.cherrygram.aiqiyi.local.AiqiyiLocalDeviceName.TYPES;
+        final int[] selectedType = new int[]{-1};
+        for (int i = 0; i < types.length; i++) {
+            if (curType != null && curType.equals(types[i][0])) {
+                selectedType[0] = i;
+            }
+        }
+        if (selectedType[0] < 0) {
+            selectedType[0] = 0;
+        }
+
+        final ArrayList<RadioColorCell> typeCells = new ArrayList<>();
+        for (int i = 0; i < types.length; i++) {
+            final int index = i;
+            RadioColorCell cell = new RadioColorCell(getParentActivity());
+            cell.setPadding(AndroidUtilities.dp(4), 0, AndroidUtilities.dp(4), 0);
+            cell.setTag(i);
+            cell.setCheckColor(Theme.getColor(Theme.key_radioBackground), Theme.getColor(Theme.key_dialogRadioBackgroundChecked));
+            cell.setTextAndValue(types[i][0], selectedType[0] == i);
+            cell.setBackground(Theme.createSelectorDrawable(Theme.getColor(Theme.key_listSelector), Theme.RIPPLE_MASK_ALL));
+            cell.setOnClickListener(v -> {
+                selectedType[0] = index;
+                for (int k = 0; k < typeCells.size(); k++) {
+                    typeCells.get(k).setChecked(k == index, true);
+                }
+            });
+            typeCells.add(cell);
+            container.addView(cell);
+        }
+
+        // 名称输入框
+        final EditTextBoldCursor editText = new EditTextBoldCursor(getParentActivity());
+        editText.setHintText("设备显示名称");
+        editText.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 18);
+        editText.setTextColor(Theme.getColor(Theme.key_dialogTextBlack));
+        editText.setHintColor(Theme.getColor(Theme.key_groupcreate_hintText));
+        editText.setLineColors(Theme.getColor(Theme.key_windowBackgroundWhiteInputField), Theme.getColor(Theme.key_windowBackgroundWhiteInputFieldActivated), Theme.getColor(Theme.key_text_RedRegular));
+        editText.setBackgroundDrawable(null);
+        editText.setSingleLine(true);
+        editText.setText(curName != null ? curName : (authorization.device_model == null ? "" : authorization.device_model));
+        editText.setSelection(editText.length());
+        editText.setCursorColor(Theme.getColor(Theme.key_windowBackgroundWhiteInputFieldActivated));
+        editText.setOnTouchListener((v, event) -> {
+            if (event.getAction() == MotionEvent.ACTION_UP) {
+                editText.requestFocus();
+                AndroidUtilities.showKeyboard(editText);
+            }
+            return false;
+        });
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(LayoutHelper.MATCH_PARENT, AndroidUtilities.dp(36));
+        lp.leftMargin = AndroidUtilities.dp(20);
+        lp.rightMargin = AndroidUtilities.dp(20);
+        lp.topMargin = AndroidUtilities.dp(12);
+        lp.bottomMargin = AndroidUtilities.dp(4);
+        container.addView(editText, lp);
+
+        AlertDialog.Builder builder = new AlertDialog.Builder(getParentActivity());
+        builder.setTitle("修改设备显示");
+        builder.setView(container);
+        builder.setPositiveButton("保存", (dialogInterface, i) -> {
+            final String name = editText.getText().toString().trim();
+            if (name.isEmpty()) {
+                uz.unnarsx.cherrygram.aiqiyi.local.AiqiyiLocalDeviceName.clear(hash);
+            } else {
+                uz.unnarsx.cherrygram.aiqiyi.local.AiqiyiLocalDeviceName.save(hash, name, types[selectedType[0]][0]);
+            }
+            // 重新拉一次列表，让 applyTo 在加载阶段把新值写进对象
+            loadSessions(true);
+        });
+        builder.setNeutralButton("恢复原始", (dialogInterface, i) -> {
+            uz.unnarsx.cherrygram.aiqiyi.local.AiqiyiLocalDeviceName.clear(hash);
+            loadSessions(true);
+        });
+        builder.setNegativeButton("取消", null);
+        final AlertDialog dialog = builder.create();
+        dialog.setOnShowListener(d -> {
+            if (dialog.getButton(DialogInterface.BUTTON_POSITIVE) != null) {
+                dialog.getButton(DialogInterface.BUTTON_POSITIVE).setTextColor(Theme.getColor(Theme.key_dialogButton));
+            }
+            editText.requestFocus();
+            AndroidUtilities.showKeyboard(editText);
+        });
+        showDialog(dialog);
+    }
+
     @Override
     public void onPause() {
         super.onPause();
@@ -675,6 +805,9 @@ public class SessionsActivity extends BaseFragment implements NotificationCenter
                     TL_account.authorizations res = (TL_account.authorizations) response;
                     for (int a = 0, N = res.authorizations.size(); a < N; a++) {
                         TLRPC.TL_authorization authorization = res.authorizations.get(a);
+                        // [Aiqiyi] 本地设备名覆盖：只改 device_model / platform 两个字段，
+                        // 不新建对象、不进渲染链路。渲染侧拿到的还是原对象。
+                        uz.unnarsx.cherrygram.aiqiyi.local.AiqiyiLocalDeviceName.applyTo(authorization);
                         if ((authorization.flags & 1) != 0) {
                             currentSession = authorization;
                         } else if (authorization.password_pending) {

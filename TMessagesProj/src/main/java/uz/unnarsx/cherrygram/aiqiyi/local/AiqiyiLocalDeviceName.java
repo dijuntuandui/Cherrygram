@@ -23,6 +23,7 @@ import android.content.SharedPreferences;
 import android.text.TextUtils;
 
 import org.telegram.messenger.ApplicationLoader;
+import org.telegram.tgnet.TLRPC;
 
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -167,8 +168,72 @@ public final class AiqiyiLocalDeviceName {
         cache.remove(hash);
     }
 
+    /** 按类型标签给出配套的应用名，用于顶替 app_name 绕过 Cherrygram 图标硬编码。 */
+    private static String appNameFor(String typeLabel) {
+        if (typeLabel == null) {
+            return "Telegram";
+        }
+        switch (typeLabel) {
+            case "iPhone":
+            case "iPad":
+                return "Telegram iOS";
+            case "Android":
+            case "平板":
+                return "Telegram Android";
+            case "Windows":
+                return "Telegram Desktop";
+            case "Mac":
+                return "Telegram macOS";
+            case "Linux":
+                return "Telegram Desktop";
+            case "网页":
+                return "Telegram Web";
+            default:
+                return "Telegram";
+        }
+    }
+
     public static boolean has(long hash) {
         return getName(hash) != null;
+    }
+
+    /**
+     * 原地把本地覆盖写回一个已存在的 TL_authorization。
+     *
+     * 关键：不新建对象，只改 device_model / platform 两个字段。
+     * 上次的教训是复制整个对象替换进渲染链路，一处字段不对就整行崩、列表全空。
+     * 原地改字段的话，渲染侧拿到的还是同一个对象，它根本不知道被改过，
+     * 出错面只剩「名字显示得对不对」，最坏也能改回来。
+     *
+     * @return 是否做了覆盖
+     */
+    public static boolean applyTo(TLRPC.TL_authorization session) {
+        if (session == null || !valid(session.hash)) {
+            return false;
+        }
+        final String[] v = load(session.hash);
+        if (TextUtils.isEmpty(v[0])) {
+            return false;
+        }
+        // 名称进 device_model：setSession 优先用它拼显示名。
+        // 但平板档要额外带 modelHint，否则 createDrawable 认不出平板。
+        final String modelHint = v[3];
+        session.device_model = TextUtils.isEmpty(modelHint) ? v[0] : (v[0] + " " + modelHint);
+
+        // platform 决定图标分支，必须是 TYPES 里的 platformKey。
+        if (!TextUtils.isEmpty(v[1])) {
+            session.platform = v[1];
+        }
+
+        // app_name 必须一起改。
+        // createDrawable() 里有一句硬编码：
+        //     if (session.app_name.contains("Cherrygram")) 图标强推成 Cherrygram logo
+        // 本客户端上报的 app_name 就是 Cherrygram，不改这一行，platform 改什么都没用，
+        // 图标永远停在 cg_logo。详情页那行「应用名 版本号」也会一起变成对应平台的名字，
+        // 反而比原来更贴合。不碰 app_version，版本号保持真实。
+        session.app_name = appNameFor(v[2]);
+
+        return true;
     }
 
     /**
