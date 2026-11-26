@@ -802,7 +802,7 @@ public class SettingsActivity extends BaseFragment implements NotificationCenter
             StarsController c = StarsController.getTonInstance(currentAccount);
             long balance = c.getBalance().amount;
             // [Aiqiyi local] 本地 Gram 开启时余额区始终显示本地值
-            String aiqiyiGramBalanceStr = "";
+            CharSequence aiqiyiGramBalanceStr = "";
             if (aiqiyiLocalGramOn) {
                 aiqiyiGramBalanceStr = StarsIntroActivity.formatStarsAmount(c.getBalance(), 0.85f, ' ');
             } else if (c.balanceAvailable() && balance > 0) {
