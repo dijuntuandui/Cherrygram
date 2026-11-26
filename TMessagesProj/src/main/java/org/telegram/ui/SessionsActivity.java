@@ -23,7 +23,6 @@ import android.os.Build;
 import android.text.SpannableString;
 import android.text.SpannableStringBuilder;
 import android.text.Spanned;
-import android.text.InputType;
 import android.text.TextUtils;
 import android.text.style.URLSpan;
 import android.util.Base64;
@@ -33,7 +32,6 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.FrameLayout;
 import android.widget.LinearLayout;
-import android.widget.ScrollView;
 import android.widget.TextView;
 
 import androidx.annotation.Keep;
@@ -61,8 +59,6 @@ import org.telegram.tgnet.ConnectionsManager;
 import org.telegram.tgnet.TLObject;
 import org.telegram.tgnet.TLRPC;
 import org.telegram.tgnet.tl.TL_account;
-import org.telegram.ui.Cells.RadioColorCell;
-import org.telegram.ui.Components.EditTextBoldCursor;
 import org.telegram.ui.ActionBar.ActionBar;
 import org.telegram.ui.ActionBar.AlertDialog;
 import org.telegram.ui.ActionBar.BackDrawable;
@@ -256,32 +252,6 @@ public class SessionsActivity extends BaseFragment implements NotificationCenter
         itemAnimator.setMoveInterpolator(CubicBezierInterpolator.DEFAULT);
         itemAnimator.setTranslationInterpolator(CubicBezierInterpolator.DEFAULT);
         listView.setItemAnimator(itemAnimator);
-        // [Aiqiyi] 长按设备行 -> 本地修改设备显示名称（纯本地，不发请求）
-        listView.setOnItemLongClickListener((view, position) -> {
-            if (getParentActivity() == null) {
-                return false;
-            }
-            boolean inOther = position >= otherSessionsStartRow && position < otherSessionsEndRow;
-            boolean inPwd = position >= passwordSessionsStartRow && position < passwordSessionsEndRow;
-            boolean isCurrent = position == currentSessionRow;
-            if (!inOther && !inPwd && !isCurrent) {
-                return false;
-            }
-            final TLRPC.TL_authorization auth;
-            if (isCurrent) {
-                auth = currentSession;
-            } else if (inOther) {
-                auth = (TLRPC.TL_authorization) sessions.get(position - otherSessionsStartRow);
-            } else {
-                auth = (TLRPC.TL_authorization) passwordSessions.get(position - passwordSessionsStartRow);
-            }
-            if (auth == null) {
-                return false;
-            }
-            showLocalDeviceNameDialog(auth);
-            return true;
-        });
-
         listView.setOnItemClickListener((view, position) -> {
             if (position == ttlRow) {
                 if (getParentActivity() == null) {
@@ -632,152 +602,6 @@ public class SessionsActivity extends BaseFragment implements NotificationCenter
         return fragmentView;
     }
 
-
-    /**
-     * [Aiqiyi] 本地修改设备显示名称。
-     *
-     * 流程：先选设备类型（决定图标），再填显示名称。
-     * 类型决定 platformKey 是写死的，用户无法自选，因此图标永远和类型对应，
-     * 不会出现「名字写 Windows、图标还是 iPhone」的错位。
-     *
-     * 全程纯本地：只写 SharedPreferences，不发任何网络请求，
-     * 不修改服务器上的 authorization 数据，也不会导致任何一条会话被踢。
-     */
-    private void showLocalDeviceNameDialog(TLRPC.TL_authorization authorization) {
-        if (getParentActivity() == null || authorization == null) {
-            return;
-        }
-        final long hash = authorization.hash;
-        if (hash == 0) {
-            return;
-        }
-
-        final String[] typeLabels = new String[uz.unnarsx.cherrygram.aiqiyi.local.AiqiyiLocalDeviceName.TYPES.length];
-        for (int i = 0; i < typeLabels.length; i++) {
-            typeLabels[i] = uz.unnarsx.cherrygram.aiqiyi.local.AiqiyiLocalDeviceName.TYPES[i][0];
-        }
-
-        final String existingType = uz.unnarsx.cherrygram.aiqiyi.local.AiqiyiLocalDeviceName.getType(hash);
-        final String existingName = uz.unnarsx.cherrygram.aiqiyi.local.AiqiyiLocalDeviceName.getName(hash);
-
-        final AlertDialog.Builder builder = new AlertDialog.Builder(getParentActivity());
-        builder.setTitle(LocaleController.getString("AiqiyiLocalDeviceTitle"));
-
-        final LinearLayout container = new LinearLayout(getParentActivity());
-        container.setOrientation(LinearLayout.VERTICAL);
-
-        // ---- 第一段：设备类型（单选） ----
-        final TextView typeHeader = new TextView(getParentActivity());
-        typeHeader.setText(LocaleController.getString("AiqiyiLocalDeviceType"));
-        typeHeader.setTextSize(13);
-        typeHeader.setPadding(AndroidUtilities.dp(21), AndroidUtilities.dp(14), AndroidUtilities.dp(21), AndroidUtilities.dp(6));
-        typeHeader.setTextColor(Theme.getColor(Theme.key_dialogTextGray2));
-        container.addView(typeHeader);
-
-        final int[] selectedType = new int[]{0};
-        for (int i = 0; i < typeLabels.length; i++) {
-            if (typeLabels[i].equals(existingType)) {
-                selectedType[0] = i;
-                break;
-            }
-        }
-
-        final Context ctx = getParentActivity();
-        final LinearLayout typeRow = new LinearLayout(ctx);
-        typeRow.setOrientation(LinearLayout.VERTICAL);
-        final ArrayList<RadioColorCell> typeCells = new ArrayList<>();
-        for (int i = 0; i < typeLabels.length; i++) {
-            final int idx = i;
-            RadioColorCell cell = new RadioColorCell(ctx);
-            cell.setPadding(AndroidUtilities.dp(4), 0, AndroidUtilities.dp(4), 0);
-            cell.setTag(idx);
-            cell.setCheckColor(Theme.getColor(Theme.key_radioBackground), Theme.getColor(Theme.key_dialogRadioBackgroundChecked));
-            cell.setTextAndValue(typeLabels[idx], selectedType[0] == idx);
-            cell.setBackground(Theme.createSelectorDrawable(Theme.getColor(Theme.key_listSelector), Theme.RIPPLE_MASK_ALL));
-            cell.setOnClickListener(v -> {
-                selectedType[0] = idx;
-                for (int j = 0; j < typeCells.size(); j++) {
-                    typeCells.get(j).setChecked(j == idx, true);
-                }
-            });
-            typeCells.add(cell);
-            typeRow.addView(cell, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, 48));
-        }
-        container.addView(typeRow);
-
-        // ---- 第二段：显示名称 ----
-        final TextView nameHeader = new TextView(getParentActivity());
-        nameHeader.setText(LocaleController.getString("AiqiyiLocalDeviceName"));
-        nameHeader.setTextSize(13);
-        nameHeader.setPadding(AndroidUtilities.dp(21), AndroidUtilities.dp(14), AndroidUtilities.dp(21), AndroidUtilities.dp(6));
-        nameHeader.setTextColor(Theme.getColor(Theme.key_dialogTextGray2));
-        container.addView(nameHeader);
-
-        final EditTextBoldCursor editText = new EditTextBoldCursor(getParentActivity());
-        editText.setTextSize(1, 17);
-        editText.setTextColor(Theme.getColor(Theme.key_dialogTextBlack));
-        editText.setHintTextColor(Theme.getColor(Theme.key_dialogTextHint));
-        editText.setHint(LocaleController.getString("AiqiyiLocalDeviceNameHint"));
-        editText.setSingleLine(true);
-        editText.setInputType(InputType.TYPE_CLASS_TEXT);
-        editText.setText(existingName != null ? existingName : authorization.device_model);
-        editText.setSelection(editText.getText().length());
-        editText.setCursorColor(Theme.getColor(Theme.key_windowBackgroundWhiteInputFieldActivated));
-        editText.setLineColors(Theme.getColor(Theme.key_windowBackgroundWhiteInputField), Theme.getColor(Theme.key_windowBackgroundWhiteInputFieldActivated), Theme.getColor(Theme.key_text_RedRegular));
-        FrameLayout editWrapper = new FrameLayout(getParentActivity());
-        editWrapper.addView(editText, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, 48, Gravity.CENTER_VERTICAL, 21, 0, 21, 0));
-        container.addView(editWrapper, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, 60));
-
-        // ---- 第三段：清除（仅当已有覆盖时） ----
-        final boolean hasOverride = uz.unnarsx.cherrygram.aiqiyi.local.AiqiyiLocalDeviceName.has(hash);
-        if (hasOverride) {
-            TextView clearText = new TextView(getParentActivity());
-            clearText.setText(LocaleController.getString("AiqiyiLocalDeviceReset"));
-            clearText.setTextSize(1, 15);
-            clearText.setGravity(Gravity.CENTER);
-            clearText.setTextColor(Theme.getColor(Theme.key_text_RedRegular));
-            clearText.setBackground(Theme.createSelectorDrawable(Theme.getColor(Theme.key_listSelector), Theme.RIPPLE_MASK_ALL));
-            clearText.setPadding(0, AndroidUtilities.dp(14), 0, AndroidUtilities.dp(14));
-            clearText.setOnClickListener(v -> {
-                uz.unnarsx.cherrygram.aiqiyi.local.AiqiyiLocalDeviceName.clear(hash);
-                builder.getDismissRunnable().run();
-                if (listAdapter != null) {
-                    listAdapter.notifyDataSetChanged();
-                }
-            });
-            container.addView(clearText, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT));
-        }
-
-        ScrollView scrollView = new ScrollView(getParentActivity());
-        scrollView.addView(container);
-        builder.setView(scrollView);
-
-        builder.setPositiveButton(LocaleController.getString(R.string.Done), (dialog, which) -> {
-            String name = editText.getText().toString().trim();
-            String type = typeLabels[selectedType[0]];
-            uz.unnarsx.cherrygram.aiqiyi.local.AiqiyiLocalDeviceName.save(hash, name, type);
-            if (listAdapter != null) {
-                listAdapter.notifyDataSetChanged();
-            }
-        });
-        builder.setNegativeButton(LocaleController.getString(R.string.Cancel), null);
-
-        AlertDialog dialog = builder.create();
-        dialog.setOnShowListener(d -> {
-            TextView button = (TextView) dialog.getButton(DialogInterface.BUTTON_POSITIVE);
-            if (button != null) {
-                button.setTextColor(Theme.getColor(Theme.key_dialogTextBlue));
-            }
-        });
-        showDialog(dialog);
-        AndroidUtilities.runOnUIThread(() -> {
-            try {
-                editText.requestFocus();
-                AndroidUtilities.showKeyboard(editText);
-            } catch (Throwable ignore) {
-            }
-        }, 150);
-    }
 
     private void showSessionBottomSheet(TLRPC.TL_authorization authorization, boolean isCurrentSession) {
         if (authorization == null) {
