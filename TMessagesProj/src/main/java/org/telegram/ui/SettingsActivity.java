@@ -793,10 +793,22 @@ public class SettingsActivity extends BaseFragment implements NotificationCenter
             items.add(SettingCell.Factory.of(12, 0xFFEFA612, 0xFFE77512, R.drawable.settings_stars, getString(R.string.TelegramStars), null, c.balanceAvailable() && balance > 0 ? StarsIntroActivity.formatStarsAmount(c.getBalance(), 0.85f, ' ') : ""));
         }
         StarsController.getInstance(currentAccount, true).getBalance();
-        if (ApplicationLoader.isBetaBuild() || ApplicationLoader.isStandaloneBuild() || ApplicationLoader.isHuaweiStoreBuild() || (StarsController.getInstance(currentAccount, true).balanceAvailable() && (StarsController.getInstance(currentAccount, true).hasTransactions() || StarsController.getInstance(currentAccount, true).getBalance().positive()))) {
+        // [Aiqiyi local] 本地功能专区：本地 Gram 覆盖开启时无条件显示该入口
+        boolean aiqiyiLocalGramOn = false;
+        try {
+            aiqiyiLocalGramOn = com.aiqiyi.local.AiqiyiLocalGramHelper.isEnabled();
+        } catch (Throwable ignore) { }
+        if (aiqiyiLocalGramOn || ApplicationLoader.isBetaBuild() || ApplicationLoader.isStandaloneBuild() || ApplicationLoader.isHuaweiStoreBuild() || (StarsController.getInstance(currentAccount, true).balanceAvailable() && (StarsController.getInstance(currentAccount, true).hasTransactions() || StarsController.getInstance(currentAccount, true).getBalance().positive()))) {
             StarsController c = StarsController.getTonInstance(currentAccount);
             long balance = c.getBalance().amount;
-            items.add(SettingCell.Factory.of(13, 0xFF1BA4ED, 0xFF1488E1, R.drawable.settings_gram_24, getString(R.string.MyTON), null, c.balanceAvailable() && balance > 0 ? StarsIntroActivity.formatStarsAmount(c.getBalance(), 0.85f, ' ') : ""));
+            // [Aiqiyi local] 本地 Gram 开启时余额区始终显示本地值
+            String aiqiyiGramBalanceStr = "";
+            if (aiqiyiLocalGramOn) {
+                aiqiyiGramBalanceStr = StarsIntroActivity.formatStarsAmount(c.getBalance(), 0.85f, ' ');
+            } else if (c.balanceAvailable() && balance > 0) {
+                aiqiyiGramBalanceStr = StarsIntroActivity.formatStarsAmount(c.getBalance(), 0.85f, ' ');
+            }
+            items.add(SettingCell.Factory.of(13, 0xFF1BA4ED, 0xFF1488E1, R.drawable.settings_gram_24, getString(R.string.MyTON), null, aiqiyiGramBalanceStr));
         }
 
         TLRPC.TL_attachMenuBots menuBots = MediaDataController.getInstance(UserConfig.selectedAccount).getAttachMenuBots();

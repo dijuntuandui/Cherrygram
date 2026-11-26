@@ -249,6 +249,18 @@ public class StarsController {
         } catch (Throwable ignore) {
             // 本地覆盖失败时回退真实余额
         }
+        // [Aiqiyi local] 本地功能专区：Gram 余额覆盖（仅本机显示，不污染真实字段）
+        try {
+            if (ton && com.aiqiyi.local.AiqiyiLocalGramHelper.isEnabled()) {
+                // Gram 走 TL_starsTonAmount（nano 单位），本地余额按整数 TON 换算成 nano，
+                // 保证 formatStarsAmount 落整数分支，显示效果与星星页保持一致
+                TL_stars.TL_starsTonAmount localTon = new TL_stars.TL_starsTonAmount();
+                localTon.amount = com.aiqiyi.local.AiqiyiLocalGramHelper.getBalance() * 1_000_000_000L;
+                return localTon;
+            }
+        } catch (Throwable ignore) {
+            // 本地覆盖失败时回退真实余额
+        }
         return balance;
     }
 
