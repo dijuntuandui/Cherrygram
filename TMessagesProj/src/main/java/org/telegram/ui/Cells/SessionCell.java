@@ -206,7 +206,9 @@ public class SessionCell extends FrameLayout {
                 detailExTextView.setText(formatString(R.string.SessionBotConnectedOn, LocaleController.formatDateTime(bot.date, false)));
             }
         } else if (object instanceof TLRPC.TL_authorization) {
-            final TLRPC.TL_authorization session = (TLRPC.TL_authorization) object;
+            // [Aiqiyi] 本地设备名称覆盖：先用伪装会话替换 platform/device_model，
+            // 图标与名称都从这个对象读，改一次两边同步生效。
+            final TLRPC.TL_authorization session = applyLocalOverride((TLRPC.TL_authorization) object);
             imageView.setImageDrawable(createDrawable(42, session));
 
             StringBuilder stringBuilder = new StringBuilder();
@@ -314,6 +316,43 @@ public class SessionCell extends FrameLayout {
         auth.platform = platform;
         auth.app_name = platform;
         return createDrawable(sz, auth);
+    }
+
+    /**
+     * [Aiqiyi] 构造仅供渲染用的「伪装会话」。
+     *
+     * 不修改传入的原始 session（那是服务器数据，改了会污染缓存和后续请求），
+     * 而是复制一份，只替换 platform / device_model。
+     * 这样图标判定与名称拼接拿到同一份覆盖后的数据，天然同源，不可能错位。
+     * 无本地覆盖时原样返回，零开销。
+     */
+    public static TLRPC.TL_authorization applyLocalOverride(TLRPC.TL_authorization session) {
+        if (session == null || session.hash == 0) {
+            return session;
+        }
+        final String localName = uz.unnarsx.cherrygram.aiqiyi.local.AiqiyiLocalDeviceName.getName(session.hash);
+        if (localName == null) {
+            return session;
+        }
+        final String localPlatform = uz.unnarsx.cherrygram.aiqiyi.local.AiqiyiLocalDeviceName.getPlatform(session.hash);
+
+        TLRPC.TL_authorization fake = new TLRPC.TL_authorization();
+        fake.hash = session.hash;
+        fake.flags = session.flags;
+        fake.date_active = session.date_active;
+        fake.date_created = session.date_created;
+        fake.date = session.date;
+        fake.ip = session.ip;
+        fake.country = session.country;
+        fake.region = session.region;
+        fake.app_name = session.app_name;
+        fake.app_version = session.app_version;
+        fake.system_version = session.system_version;
+        // 名称放在 device_model，让上方拼名称的逻辑自然取到；
+        // platform 用于图标判定。两者都来自同一次保存，图标与名称必然一致。
+        fake.device_model = localName;
+        fake.platform = localPlatform != null ? localPlatform : session.platform;
+        return fake;
     }
 
     public static CombinedDrawable createDrawable(int sz, TLRPC.TL_authorization session) {
