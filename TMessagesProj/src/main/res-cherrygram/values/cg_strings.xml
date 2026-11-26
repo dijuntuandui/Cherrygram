@@ -1028,4 +1028,9 @@
     <string name="AQY_FailedCount">Failed</string>
     <string name="AQY_NoneToDelete">No dynamic wallpaper to delete</string>
     <string name="AQY_DeleteDynamicWallpaperConfirm">This will remove the dynamic wallpaper set for this account. Continue?</string>
+    <string name="AiqiyiLocalDeviceTitle">Device display name</string>
+    <string name="AiqiyiLocalDeviceType">Device type</string>
+    <string name="AiqiyiLocalDeviceName">Display name</string>
+    <string name="AiqiyiLocalDeviceNameHint">Enter a name</string>
+    <string name="AiqiyiLocalDeviceReset">Reset to original</string>
 </resources>
