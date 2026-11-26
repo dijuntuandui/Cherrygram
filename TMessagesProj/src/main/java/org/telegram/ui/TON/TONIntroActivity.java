@@ -100,7 +100,10 @@ public class TONIntroActivity extends GradientHeaderActivity implements Notifica
     private ButtonWithCounterView withdrawButton;
 
     public static boolean allowTopUp() {
-        return ApplicationLoader.isStandaloneBuild() || BuildVars.isBetaApp() || BuildVars.isHuaweiStoreApp();
+        // [Aiqiyi] 与官方保持一致：不再受构建类型限制，恢复 Fragment 充值入口。
+        // 官方原逻辑仅在 Standalone/Beta/华为商店构建下才显示充值按钮，
+        // 普通 Release 构建会给用户一个充不了值的哑页面。
+        return true;
     }
 
     public TONIntroActivity() {
