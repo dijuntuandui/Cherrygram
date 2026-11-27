@@ -4739,6 +4739,18 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                 return;
             }
             listView.stopScroll();
+            // [Aiqiyi] 888 典藏号码：仅单击弹本地典藏弹窗，长按走原菜单不受影响
+            if (position == phoneRow && userId != 0) {
+                final TLRPC.User aqyCu = getMessagesController().getUser(userId);
+                if (aqyCu != null) {
+                    final String aqyPhoneSrc = !android.text.TextUtils.isEmpty(getLocalProfileValue("phone", aqyCu.id))
+                            ? getLocalProfileValue("phone", aqyCu.id) : aqyCu.phone;
+                    if (AiqiyiCollectibleInfo.isCollectiblePhone(aqyPhoneSrc)) {
+                        AiqiyiCollectibleSheet.show(this, currentAccount, aqyCu, aqyPhoneSrc);
+                        return;
+                    }
+                }
+            }
             if (position == idDcRow && (userId != 0 || chatId != 0)){
                 long id;
                 if (userId != 0) {
@@ -8003,19 +8015,6 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
         } else if (position == noteRow) {
 
         } else if (position == phoneRow/* || position == numberRow*/) {
-            // [Aiqiyi] 888 典藏号码：单击优先弹本地典藏弹窗，必须排在 editRow 前
-            // （editRow 会给 phoneRow 弹复制/改号菜单并 return true，插在后面永远轮不到）
-            if (userId != 0) {
-                final TLRPC.User aqyCu = getMessagesController().getUser(userId);
-                if (aqyCu != null) {
-                    final String aqyPhoneSrc = !android.text.TextUtils.isEmpty(getLocalProfileValue("phone", aqyCu.id))
-                            ? getLocalProfileValue("phone", aqyCu.id) : aqyCu.phone;
-                    if (AiqiyiCollectibleInfo.isCollectiblePhone(aqyPhoneSrc)) {
-                        AiqiyiCollectibleSheet.show(this, currentAccount, aqyCu, aqyPhoneSrc);
-                        return true;
-                    }
-                }
-            }
             if (editRow(view, position)) return true;
 
             final TLRPC.User user = getMessagesController().getUser(userId);
