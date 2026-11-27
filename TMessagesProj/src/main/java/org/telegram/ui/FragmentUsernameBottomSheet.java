@@ -54,38 +54,12 @@ public class FragmentUsernameBottomSheet {
         TL_fragment.TL_collectibleInfo info,
         Theme.ResourcesProvider resourcesProvider
     ) {
-        open(context, type, name, owner, info, resourcesProvider, null);
-    }
-
-    /**
-     * [Aiqiyi] 带长按回调的重载。
-     * 官方三处调用全部传 null，行为不变；只有 888 典藏弹窗传入编辑入口。
-     */
-    public static void open(
-        Context context,
-        int type,
-        String name,
-        TLObject owner,
-        TL_fragment.TL_collectibleInfo info,
-        Theme.ResourcesProvider resourcesProvider,
-        Runnable onLongPress
-    ) {
         BottomSheet sheet = new BottomSheet(context, false, resourcesProvider);
         sheet.fixNavigationBar(Theme.getColor(Theme.key_dialogBackground, resourcesProvider));
 
         LinearLayout layout = new LinearLayout(context);
         layout.setOrientation(LinearLayout.VERTICAL);
         layout.setPadding(dp(16), 0, dp(16), 0);
-        // [Aiqiyi] 888 典藏弹窗：长按内容区进编辑器（不多占一个按钮）
-        if (onLongPress != null) {
-            layout.setLongClickable(true);
-            layout.setHapticFeedbackEnabled(true);
-            layout.setOnLongClickListener(v -> {
-                v.performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS);
-                onLongPress.run();
-                return true;
-            });
-        }
 
         FrameLayout imageContainerView = new FrameLayout(context);
         imageContainerView.setBackground(Theme.createCircleDrawable(dp(80), Theme.getColor(Theme.key_featuredStickers_addButton, resourcesProvider)));

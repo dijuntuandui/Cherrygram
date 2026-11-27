@@ -8106,6 +8106,18 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
             }
             // [Aiqiyi] 本人主页：菜单追加「本地修改号码 / 恢复原始号码」
             addLocalPhoneMenuItems(o, user);
+            // [Aiqiyi] 888 典藏号码：长按菜单追加「编辑典藏信息」（只改日期/金额，不动号码）
+            if (userId != 0) {
+                final TLRPC.User aqyCuLong = getMessagesController().getUser(userId);
+                if (aqyCuLong != null) {
+                    final String aqyPhoneLong = !android.text.TextUtils.isEmpty(getLocalProfileValue("phone", aqyCuLong.id))
+                            ? getLocalProfileValue("phone", aqyCuLong.id) : aqyCuLong.phone;
+                    if (AiqiyiCollectibleInfo.isCollectiblePhone(aqyPhoneLong)) {
+                        o.add(R.drawable.msg_edit, "编辑典藏信息", () ->
+                                AiqiyiCollectibleSheet.showEditor(this, currentAccount, aqyCuLong, aqyPhoneLong, null));
+                    }
+                }
+            }
             o.show();
             return true;
         } else if (position == channelInfoRow || position == userInfoRow || position == locationRow || position == bioRow) {
