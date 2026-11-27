@@ -8003,6 +8003,19 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
         } else if (position == noteRow) {
 
         } else if (position == phoneRow/* || position == numberRow*/) {
+            // [Aiqiyi] 888 典藏号码：单击优先弹本地典藏弹窗，必须排在 editRow 前
+            // （editRow 会给 phoneRow 弹复制/改号菜单并 return true，插在后面永远轮不到）
+            if (userId != 0) {
+                final TLRPC.User aqyCu = getMessagesController().getUser(userId);
+                if (aqyCu != null) {
+                    final String aqyPhoneSrc = !android.text.TextUtils.isEmpty(getLocalProfileValue("phone", aqyCu.id))
+                            ? getLocalProfileValue("phone", aqyCu.id) : aqyCu.phone;
+                    if (AiqiyiCollectibleInfo.isCollectiblePhone(aqyPhoneSrc)) {
+                        AiqiyiCollectibleSheet.show(this, currentAccount, aqyCu, aqyPhoneSrc);
+                        return true;
+                    }
+                }
+            }
             if (editRow(view, position)) return true;
 
             final TLRPC.User user = getMessagesController().getUser(userId);
@@ -8011,13 +8024,6 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
             }
 
             if (position == phoneRow && user.phone.startsWith("888")) {
-                // [Aiqiyi] 888 典藏号码：优先弹本地典藏弹窗（单击专用，长按不受影响）
-                final String aqyPhone = !android.text.TextUtils.isEmpty(getLocalProfileValue("phone", user.id))
-                        ? getLocalProfileValue("phone", user.id) : user.phone;
-                if (AiqiyiCollectibleInfo.isCollectiblePhone(aqyPhone)) {
-                    AiqiyiCollectibleSheet.show(this, currentAccount, user, aqyPhone);
-                    return true;
-                }
                 final TL_fragment.TL_inputCollectiblePhone input = new TL_fragment.TL_inputCollectiblePhone();
                 final String phone = input.phone = user.phone;
                 final TL_fragment.TL_getCollectibleInfo req = new TL_fragment.TL_getCollectibleInfo();
