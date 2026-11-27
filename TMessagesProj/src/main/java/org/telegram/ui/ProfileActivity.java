@@ -8011,6 +8011,13 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
             }
 
             if (position == phoneRow && user.phone.startsWith("888")) {
+                // [Aiqiyi] 888 典藏号码：优先弹本地典藏弹窗（单击专用，长按不受影响）
+                final String aqyPhone = !android.text.TextUtils.isEmpty(getLocalProfileValue("phone", user.id))
+                        ? getLocalProfileValue("phone", user.id) : user.phone;
+                if (AiqiyiCollectibleInfo.isCollectiblePhone(aqyPhone)) {
+                    AiqiyiCollectibleSheet.show(this, currentAccount, user, aqyPhone);
+                    return true;
+                }
                 final TL_fragment.TL_inputCollectiblePhone input = new TL_fragment.TL_inputCollectiblePhone();
                 final String phone = input.phone = user.phone;
                 final TL_fragment.TL_getCollectibleInfo req = new TL_fragment.TL_getCollectibleInfo();
@@ -11878,30 +11885,6 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                     if (phoneRow >= 0) listAdapter.notifyItemChanged(phoneRow);
                 });
             }
-        } catch (Throwable e) {
-            FileLog.e(e);
-        }
-    }
-
-    /**
-     * [Aiqiyi] 888 典藏号码：在手机号行长按菜单中追加“编辑典藏信息”。
-     * 非 888 号码直接返回，菜单不变。
-     */
-    private void addAiqiyiCollectibleMenuItem(ItemOptions o, TLRPC.User user) {
-        try {
-            if (user == null) {
-                return;
-            }
-            final String phone = !android.text.TextUtils.isEmpty(getLocalProfileValue("phone", user.id))
-                    ? getLocalProfileValue("phone", user.id) : user.phone;
-            if (!AiqiyiCollectibleInfo.isCollectiblePhone(phone)) {
-                return;
-            }
-            o.add(R.drawable.msg_edit, "编辑典藏信息", () -> {
-                AiqiyiCollectibleSheet.showEditor(this, currentAccount, user, phone, () -> {
-                    if (phoneRow >= 0) listAdapter.notifyItemChanged(phoneRow);
-                });
-            });
         } catch (Throwable e) {
             FileLog.e(e);
         }
@@ -17552,13 +17535,6 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
             if (textToCopy != null) textToCopy = "@" + textToCopy;
             copyButton = getString(R.string.ProfileCopyUsername);
         } else if (position == phoneRow) {
-            // [Aiqiyi] 888 典藏号码：单击直接弹典藏弹窗，不进菜单
-            final String aqyPhone = !android.text.TextUtils.isEmpty(getLocalProfileValue("phone", user.id))
-                    ? getLocalProfileValue("phone", user.id) : user.phone;
-            if (AiqiyiCollectibleInfo.isCollectiblePhone(aqyPhone)) {
-                AiqiyiCollectibleSheet.show(this, currentAccount, user, aqyPhone);
-                return true;
-            }
             textToCopy = user.phone;
             selfPhone = true;
         } else if (position == birthdayRow) {
@@ -17590,8 +17566,6 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                 getProfileActivityHelper().injectPhoneNumber(this, itemOptions, user.phone);
                 // [Aiqiyi] 本人主页手机号：追加本地修改/恢复
                 addLocalPhoneMenuItems(itemOptions, user);
-                // [Aiqiyi] 888 典藏号码：追加“编辑典藏信息”
-                addAiqiyiCollectibleMenuItem(itemOptions, user);
             }
         }
 

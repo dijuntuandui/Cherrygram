@@ -56,7 +56,10 @@ public final class AiqiyiCollectibleSheet {
                         phone,
                         user,
                         info,
-                        fragment.getResourceProvider());
+                        fragment.getResourceProvider(),
+                        // [Aiqiyi] 长按弹窗内容区 → 改成交日期 / TON / USD
+                        // 保存后无需刷新：下次点号码时 show() 会重新 load 最新数据
+                        () -> showEditor(fragment, account, user, phone, null));
             } catch (Throwable e) {
                 FileLog.e(e);
             }
