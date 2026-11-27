@@ -14586,7 +14586,11 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                         if (isFragmentPhoneNumber && !TextUtils.isEmpty(phoneNumber)) {
                             text = PhoneFormat.getInstance().format("+ " + phoneNumber);
                         }
-                        detailCell.setTextAndValue(text, LocaleController.getString(isFragmentPhoneNumber ? R.string.AnonymousNumber : R.string.PhoneMobile), false);
+                        // [Aiqiyi] 标签文案独立判定：888 开头即匿名号码（官方语义），不动 isFragmentPhoneNumber，避免影响长按菜单
+                        String aqyPhoneLabelRaw = phoneNumber == null ? "" : phoneNumber.replace(" ", "");
+                        if (aqyPhoneLabelRaw.startsWith("+")) aqyPhoneLabelRaw = aqyPhoneLabelRaw.substring(1);
+                        final boolean aqyIsAnonLabel = aqyPhoneLabelRaw.startsWith("888");
+                        detailCell.setTextAndValue(text, LocaleController.getString(aqyIsAnonLabel ? R.string.AnonymousNumber : R.string.PhoneMobile), false);
                     } else if (position == noteRow) {
                         final TLRPC.UserFull userInfo = getMessagesController().getUserFull(userId);
                         if (userInfo == null) return;
