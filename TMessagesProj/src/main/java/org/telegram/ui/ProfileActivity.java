@@ -8011,6 +8011,13 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
             }
 
             if (position == phoneRow && user.phone.startsWith("888")) {
+                // [Aiqiyi] 888 典藏号码：优先弹本地典藏弹窗（单击专用，长按不受影响）
+                final String aqyPhone = !android.text.TextUtils.isEmpty(getLocalProfileValue("phone", user.id))
+                        ? getLocalProfileValue("phone", user.id) : user.phone;
+                if (AiqiyiCollectibleInfo.isCollectiblePhone(aqyPhone)) {
+                    AiqiyiCollectibleSheet.show(this, currentAccount, user, aqyPhone);
+                    return true;
+                }
                 final TL_fragment.TL_inputCollectiblePhone input = new TL_fragment.TL_inputCollectiblePhone();
                 final String phone = input.phone = user.phone;
                 final TL_fragment.TL_getCollectibleInfo req = new TL_fragment.TL_getCollectibleInfo();
@@ -14586,7 +14593,11 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                         if (isFragmentPhoneNumber && !TextUtils.isEmpty(phoneNumber)) {
                             text = PhoneFormat.getInstance().format("+ " + phoneNumber);
                         }
-                        detailCell.setTextAndValue(text, LocaleController.getString(isFragmentPhoneNumber ? R.string.AnonymousNumber : R.string.PhoneMobile), false);
+                        // [Aiqiyi] 标签文案独立判定：888 开头即匿名号码（官方语义），不动 isFragmentPhoneNumber，避免影响长按菜单
+                        String aqyPhoneLabelRaw = phoneNumber == null ? "" : phoneNumber.replace(" ", "");
+                        if (aqyPhoneLabelRaw.startsWith("+")) aqyPhoneLabelRaw = aqyPhoneLabelRaw.substring(1);
+                        final boolean aqyIsAnonLabel = aqyPhoneLabelRaw.startsWith("888");
+                        detailCell.setTextAndValue(text, LocaleController.getString(aqyIsAnonLabel ? R.string.AnonymousNumber : R.string.PhoneMobile), false);
                     } else if (position == noteRow) {
                         final TLRPC.UserFull userInfo = getMessagesController().getUserFull(userId);
                         if (userInfo == null) return;
