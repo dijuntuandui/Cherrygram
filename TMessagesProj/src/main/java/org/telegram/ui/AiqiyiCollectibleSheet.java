@@ -92,9 +92,13 @@ public final class AiqiyiCollectibleSheet {
                 AiqiyiCollectibleInfo.DEFAULT_DATE, (int) (System.currentTimeMillis() / 1000L));
     }
 
-    /** "1837.5" → 18375000（万分之一 TON） */
+    /**
+     * "1837.5" → 1837500000000。
+     * 官方 BillingController.formatCurrency 对 TON 用 amount / 1_000_000_000.0（十亿分之一 / nanoton），
+     * 所以这里小数位必须是 9，否则会少几个数量级。
+     */
     private static long parseCryptoAmount(String raw) {
-        return scaleToLong(raw, 4);
+        return scaleToLong(raw, 9);
     }
 
     /** "1782.69" → 178269（分） */
