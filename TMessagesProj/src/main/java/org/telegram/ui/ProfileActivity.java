@@ -8107,22 +8107,17 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
             // [Aiqiyi] 本人主页：菜单追加「本地修改号码 / 恢复原始号码」
             addLocalPhoneMenuItems(o, user);
             // [Aiqiyi] 888 典藏号码：长按菜单追加「编辑典藏信息」（只改日期/金额，不动号码）
-            // 判定口径放宽：只要本地覆盖号码存在且为 888 典藏号，或真实号码为 888 开头，都显示入口。
-            // 不再依赖单一取值路径，避免渲染层与菜单层 id 不一致导致入口丢失。
+            // 判定完全走渲染层同一入口 getDisplayedPhone()，确保「页面上看到什么号码，菜单就按什么号码判定」。
+            // 不再自己取 user/拼 id，避免菜单层与渲染层取值不一致。
             if (userId != 0 && user != null) {
-                String aqyPhoneLong = null;
                 try {
-                    final TLRPC.User aqyCuLong = getMessagesController().getUser(userId);
-                    final long aqyProbeId = aqyCuLong != null ? aqyCuLong.id : userId;
-                    final String aqyLocal = getLocalProfileValue("phone", aqyProbeId);
-                    if (AiqiyiCollectibleInfo.isCollectiblePhone(aqyLocal)) {
-                        aqyPhoneLong = aqyLocal;
-                    } else if (AiqiyiCollectibleInfo.isCollectiblePhone(user.phone)) {
-                        aqyPhoneLong = user.phone;
-                    } else if (aqyCuLong != null && AiqiyiCollectibleInfo.isCollectiblePhone(aqyCuLong.phone)) {
+                    final TLRPC.User aqyCuLong = user;
+                    String aqyPhoneLong = getDisplayedPhone(aqyCuLong);
+                    if (android.text.TextUtils.isEmpty(aqyPhoneLong)) {
                         aqyPhoneLong = aqyCuLong.phone;
                     }
-                    if (aqyPhoneLong != null && aqyCuLong != null) {
+                    // 双关判定：号码形态命中，或页面渲染时已经把这行判为匿名/典藏号码（isFragmentPhoneNumber）
+                    if (AiqiyiCollectibleInfo.isCollectiblePhone(aqyPhoneLong) || isFragmentPhoneNumber) {
                         final String aqyFinalPhone = aqyPhoneLong;
                         final TLRPC.User aqyFinalUser = aqyCuLong;
                         o.add(R.drawable.msg_edit, "编辑典藏信息", () ->
