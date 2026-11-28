@@ -17595,19 +17595,24 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                 // [Aiqiyi] 888 典藏号码：追加「编辑典藏信息」
                 // 注意：这里才是长按弹窗的真实创建点（editRow 抢在 8017 行先返回 true），
                 // 上面 phoneRow 分支里的同名代码批不会执行。
-                try {
-                    String aqyPhoneLong = getDisplayedPhone(user);
+                // 先无条件挂上，确认链路通了再收紧判定。
+                {
+                    String aqyPhoneLong = null;
+                    try {
+                        aqyPhoneLong = getDisplayedPhone(user);
+                        if (android.text.TextUtils.isEmpty(aqyPhoneLong)) {
+                            aqyPhoneLong = user.phone;
+                        }
+                    } catch (Throwable e) {
+                        FileLog.e(e);
+                    }
                     if (android.text.TextUtils.isEmpty(aqyPhoneLong)) {
                         aqyPhoneLong = user.phone;
                     }
-                    if (AiqiyiCollectibleInfo.isCollectiblePhone(aqyPhoneLong) || isFragmentPhoneNumber) {
-                        final String aqyFinalPhone = aqyPhoneLong;
-                        final TLRPC.User aqyFinalUser = user;
-                        itemOptions.add(R.drawable.msg_edit, "编辑典藏信息", () ->
-                                AiqiyiCollectibleSheet.showEditor(this, currentAccount, aqyFinalUser, aqyFinalPhone, null));
-                    }
-                } catch (Throwable e) {
-                    FileLog.e(e);
+                    final String aqyFinalPhone = aqyPhoneLong == null ? "" : aqyPhoneLong;
+                    final TLRPC.User aqyFinalUser = user;
+                    itemOptions.add(R.drawable.msg_edit, "编辑典藏信息", () ->
+                            AiqiyiCollectibleSheet.showEditor(this, currentAccount, aqyFinalUser, aqyFinalPhone, null));
                 }
             }
         }
